@@ -21,8 +21,8 @@ FROM base AS build
 WORKDIR /app
 COPY --from=deps /app /app
 COPY . .
-RUN pnpm --filter @paperclip/ui build
-RUN pnpm --filter @paperclip/server build
+RUN pnpm --filter @paperclipai/ui build
+RUN pnpm --filter @paperclipai/server build
 
 FROM base AS production
 WORKDIR /app
