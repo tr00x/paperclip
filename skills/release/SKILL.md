@@ -57,6 +57,29 @@ Collect these inputs up front:
 
 ---
 
+## Step 0 — Idempotency Guards
+
+Each step in this skill is designed to be safely re-runnable. Before executing
+any step, check whether it has already been completed:
+
+| Step | How to Check | If Already Done |
+|---|---|---|
+| Changelog | `releases/v{version}.md` exists | Read it, ask reviewer to confirm or update. Do NOT regenerate without asking. |
+| npm publish | `git tag v{version}` exists | Skip `release.sh` entirely. A tag means the version is already published. **Never re-run release.sh for an existing tag** — it will fail or create a duplicate. |
+| Website task | Search Paperclip issues for "Publish release notes for v{version}" | Skip creation. Link the existing task. |
+| CMO task | Search Paperclip issues for "release announcement tweet for v{version}" | Skip creation. Link the existing task. |
+
+**The golden rule:** If a git tag `v{version}` already exists, the npm release
+has already happened. Only post-publish tasks (website, CMO, wrap-up) should
+proceed. Never attempt to re-publish.
+
+**Iterating on changelogs:** You can re-run this skill with an existing changelog
+to refine it _before_ the npm publish step. The `release-changelog` skill has
+its own idempotency check and will ask the reviewer what to do with an existing
+file. This is the expected workflow for iterating on release notes.
+
+---
+
 ## Step 1 - Pre-flight and Version Decision
 
 Run pre-flight in the App repo root:
@@ -91,6 +114,10 @@ If requested bump is lower than required minimum, escalate bump and explain why.
 
 ## Step 2 - Generate Changelog Draft
 
+First, check if `releases/v{version}.md` already exists. If it does, the
+`release-changelog` skill will detect this and ask the reviewer whether to keep,
+regenerate, or update it. **Do not silently overwrite an existing changelog.**
+
 Invoke the `release-changelog` skill and produce:
 - `releases/v{version}.md`
 - Sections ordered as: Breaking Changes (if any), Highlights, Improvements, Fixes, Upgrade Guide (if any)
@@ -105,13 +132,24 @@ Required behavior:
 
 ## Step 3 - Run App Release
 
-After changelog approval, execute:
+**Idempotency check:** Before running `release.sh`, verify the tag doesn't
+already exist:
+
+```bash
+git tag -l "v{version}"
+```
+
+If the tag exists, this version has already been published. **Do not re-run
+`release.sh`.** Skip to Step 4 (follow-up tasks). Log that the publish was
+already completed and capture the existing tag metadata.
+
+If the tag does NOT exist, proceed with the release:
 
 ```bash
 # dry run
 ./scripts/release.sh {patch|minor|major} --dry-run
 
-# live release
+# live release (only after dry-run review)
 ./scripts/release.sh {patch|minor|major}
 ```
 
@@ -130,7 +168,17 @@ failure logs in the update.
 
 ## Step 4 - Create Cross-Project Follow-up Tasks
 
-Create at least two tasks in Paperclip:
+**Idempotency check:** Before creating tasks, search for existing ones:
+
+```
+GET /api/companies/{companyId}/issues?q=release+notes+v{version}
+GET /api/companies/{companyId}/issues?q=announcement+tweet+v{version}
+```
+
+If matching tasks already exist (check title contains the version), skip
+creation and link the existing tasks instead. Do not create duplicates.
+
+Create at least two tasks in Paperclip (only if they don't already exist):
 
 1. Website task: publish changelog for `v{version}`
 2. CMO task: draft announcement tweet for `v{version}`

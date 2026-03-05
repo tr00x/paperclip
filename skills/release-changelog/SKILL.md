@@ -21,6 +21,38 @@ finalizing. Never auto-publish.
 
 ---
 
+## Step 0 — Idempotency Check
+
+Before generating anything, check if a changelog already exists for this version:
+
+```bash
+ls releases/v{version}.md 2>/dev/null
+```
+
+**If the file already exists:**
+
+1. Read the existing changelog and present it to the reviewer.
+2. Ask: "A changelog for v{version} already exists. Do you want to (a) keep it
+   as-is, (b) regenerate from scratch, or (c) update specific sections?"
+3. If the reviewer says keep it → **stop here**. Do not overwrite. This skill is
+   done.
+4. If the reviewer says regenerate → back up the existing file to
+   `releases/v{version}.md.prev`, then proceed from Step 1.
+5. If the reviewer says update → read the existing file, proceed through Steps
+   1-4 to gather fresh data, then merge changes into the existing file rather
+   than replacing it wholesale. Preserve any manual edits the reviewer previously
+   made.
+
+**If the file does not exist:** Proceed normally from Step 1.
+
+**Critical rule:** This skill NEVER triggers a version bump. It only reads git
+history and writes a markdown file. The `release.sh` script is the only thing
+that bumps versions, and it is called separately by the `release` coordination
+skill. Running this skill multiple times is always safe — worst case it
+overwrites a draft changelog (with reviewer permission).
+
+---
+
 ## Step 1 — Determine the Release Range
 
 Find the last release tag and the planned version:
