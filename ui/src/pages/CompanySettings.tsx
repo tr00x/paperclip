@@ -372,7 +372,9 @@ export function CompanySettings() {
           )}
           {generalMutation.isError && (
             <span className="text-xs text-destructive">
-              {generalMutation.error.message}
+              {generalMutation.error instanceof Error
+                  ? generalMutation.error.message
+                  : "Failed to save"}
             </span>
           )}
         </div>
