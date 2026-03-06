@@ -8,7 +8,6 @@ import {
   isTextRequiredResponse,
   isWakeCompatibilityRetryableResponse,
   isWakeCompatibilityEndpoint,
-  normalizeWebhookInvocationUrl,
   readAndLogResponseText,
   redactForLog,
   sendJsonRequest,
@@ -93,35 +92,29 @@ async function sendWebhookRequest(params: {
 export async function executeWebhook(ctx: AdapterExecutionContext, url: string): Promise<AdapterExecutionResult> {
   const { onLog, onMeta, context } = ctx;
   const state = buildExecutionState(ctx);
-  const webhookTarget = normalizeWebhookInvocationUrl(url);
-  const webhookUrl = webhookTarget.url;
 
   if (onMeta) {
     await onMeta({
       adapterType: "openclaw",
       command: "webhook",
-      commandArgs: [state.method, webhookUrl],
+      commandArgs: [state.method, url],
       context,
     });
   }
 
   const headers = { ...state.headers };
-  if (
-    isOpenResponsesEndpoint(webhookUrl) &&
-    !headers["x-openclaw-session-key"] &&
-    !headers["X-OpenClaw-Session-Key"]
-  ) {
+  if (isOpenResponsesEndpoint(url) && !headers["x-openclaw-session-key"] && !headers["X-OpenClaw-Session-Key"]) {
     headers["x-openclaw-session-key"] = state.sessionKey;
   }
 
   const webhookBody = buildWebhookBody({
-    url: webhookUrl,
+    url,
     state,
     context,
     configModel: ctx.config.model,
   });
   const wakeCompatibilityBody = buildWakeCompatibilityPayload(state.wakeText);
-  const preferWakeCompatibilityBody = isWakeCompatibilityEndpoint(webhookUrl);
+  const preferWakeCompatibilityBody = isWakeCompatibilityEndpoint(url);
   const initialBody = preferWakeCompatibilityBody ? wakeCompatibilityBody : webhookBody;
 
   const outboundHeaderKeys = Object.keys(headers).sort();
@@ -134,13 +127,7 @@ export async function executeWebhook(ctx: AdapterExecutionContext, url: string):
     `[openclaw] outbound payload (redacted): ${stringifyForLog(redactForLog(initialBody), 12_000)}\n`,
   );
   await onLog("stdout", `[openclaw] outbound header keys: ${outboundHeaderKeys.join(", ")}\n`);
-  if (webhookTarget.normalizedFromOpenResponses) {
-    await onLog(
-      "stdout",
-      `[openclaw] webhook transport normalized /v1/responses endpoint to ${webhookUrl}\n`,
-    );
-  }
-  await onLog("stdout", `[openclaw] invoking ${state.method} ${webhookUrl} (transport=webhook)\n`);
+  await onLog("stdout", `[openclaw] invoking ${state.method} ${url} (transport=webhook)\n`);
 
   if (preferWakeCompatibilityBody) {
     await onLog("stdout", "[openclaw] using wake text payload for /hooks/wake compatibility\n");
@@ -151,7 +138,7 @@ export async function executeWebhook(ctx: AdapterExecutionContext, url: string):
 
   try {
     const initialResponse = await sendWebhookRequest({
-      url: webhookUrl,
+      url,
       method: state.method,
       headers,
       payload: initialBody,
@@ -170,7 +157,7 @@ export async function executeWebhook(ctx: AdapterExecutionContext, url: string):
         );
 
         const retryResponse = await sendWebhookRequest({
-          url: webhookUrl,
+          url,
           method: state.method,
           headers,
           payload: wakeCompatibilityBody,
@@ -185,7 +172,7 @@ export async function executeWebhook(ctx: AdapterExecutionContext, url: string):
             timedOut: false,
             provider: "openclaw",
             model: null,
-            summary: `OpenClaw webhook ${state.method} ${webhookUrl} (wake compatibility)`,
+            summary: `OpenClaw webhook ${state.method} ${url} (wake compatibility)`,
             resultJson: {
               status: retryResponse.response.status,
               statusText: retryResponse.response.statusText,
@@ -240,7 +227,7 @@ export async function executeWebhook(ctx: AdapterExecutionContext, url: string):
       timedOut: false,
       provider: "openclaw",
       model: null,
-      summary: `OpenClaw webhook ${state.method} ${webhookUrl}`,
+      summary: `OpenClaw webhook ${state.method} ${url}`,
       resultJson: {
         status: initialResponse.response.status,
         statusText: initialResponse.response.statusText,
