@@ -58,7 +58,7 @@ Valid image content types:
 - `image/jpg`
 - `image/webp`
 - `image/gif`
-- `image/svg+xml` (`.svg`)
+- `image/svg+xml`
 
 ## Archive Company
 

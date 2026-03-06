@@ -278,12 +278,12 @@ export function CompanySettings() {
             <div className="flex-1 space-y-3">
               <Field
                 label="Logo"
-                hint="Upload a logo image to replace the generated icon. Maximum size: 100 KB."
+                hint="Upload a PNG, JPEG, WEBP, GIF, or SVG logo image. Maximum size: 100 KB."
               >
                 <div className="space-y-2">
                   <input
                     type="file"
-                    accept="image/*,image/svg+xml"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
                     onChange={handleLogoFileChange}
                     className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-2.5 file:py-1 file:text-xs"
                   />

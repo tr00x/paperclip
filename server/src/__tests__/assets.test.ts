@@ -25,10 +25,10 @@ function createAsset() {
     companyId: "company-1",
     provider: "local",
     objectKey: "assets/abc",
-    contentType: "image/svg+xml",
+    contentType: "image/png",
     byteSize: 40,
     sha256: "sha256-sample",
-    originalFilename: "logo.svg",
+    originalFilename: "logo.png",
     createdByAgentId: null,
     createdByUserId: "user-1",
     createdAt: now,
@@ -36,7 +36,7 @@ function createAsset() {
   };
 }
 
-function createStorageService(contentType = "image/svg+xml"): StorageService {
+function createStorageService(contentType = "image/png"): StorageService {
   const putFile: StorageService["putFile"] = vi.fn(async (input: {
     companyId: string;
     namespace: string;
@@ -84,27 +84,61 @@ describe("POST /api/companies/:companyId/assets/images", () => {
     logActivityMock.mockReset();
   });
 
-  it("accepts SVG image uploads and returns an asset path", async () => {
-    const svg = createStorageService("image/svg+xml");
-    const app = createApp(svg);
+  it("accepts PNG image uploads and returns an asset path", async () => {
+    const png = createStorageService("image/png");
+    const app = createApp(png);
 
     createAssetMock.mockResolvedValue(createAsset());
 
     const res = await request(app)
       .post("/api/companies/company-1/assets/images")
       .field("namespace", "companies")
-      .attach("file", Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'></svg>"), "logo.svg");
+      .attach("file", Buffer.from("png"), "logo.png");
 
     expect(res.status).toBe(201);
     expect(res.body.contentPath).toBe("/api/assets/asset-1/content");
     expect(createAssetMock).toHaveBeenCalledTimes(1);
-    expect(svg.putFile).toHaveBeenCalledWith({
+    expect(png.putFile).toHaveBeenCalledWith({
       companyId: "company-1",
       namespace: "assets/companies",
-      originalFilename: "logo.svg",
-      contentType: "image/svg+xml",
+      originalFilename: "logo.png",
+      contentType: "image/png",
       body: expect.any(Buffer),
     });
+  });
+
+  it("sanitizes SVG image uploads before storing them", async () => {
+    const svg = createStorageService("image/svg+xml");
+    const app = createApp(svg);
+
+    createAssetMock.mockResolvedValue({
+      ...createAsset(),
+      contentType: "image/svg+xml",
+      originalFilename: "logo.svg",
+    });
+
+    const res = await request(app)
+      .post("/api/companies/company-1/assets/images")
+      .field("namespace", "companies")
+      .attach(
+        "file",
+        Buffer.from(
+          "<svg xmlns='http://www.w3.org/2000/svg' onload='alert(1)'><script>alert(1)</script><a href='https://evil.example/'><circle cx='12' cy='12' r='10'/></a></svg>",
+        ),
+        "logo.svg",
+      );
+
+    expect(res.status).toBe(201);
+    expect(svg.putFile).toHaveBeenCalledTimes(1);
+    const stored = (svg.putFile as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(stored.contentType).toBe("image/svg+xml");
+    expect(stored.originalFilename).toBe("logo.svg");
+    const body = stored.body.toString("utf8");
+    expect(body).toContain("<svg");
+    expect(body).toContain("<circle");
+    expect(body).not.toContain("<script");
+    expect(body).not.toContain("onload=");
+    expect(body).not.toContain("https://evil.example/");
   });
 
   it("rejects files larger than 100 KB", async () => {
@@ -152,6 +186,20 @@ describe("POST /api/companies/:companyId/assets/images", () => {
 
     expect(res.status).toBe(422);
     expect(res.body.error).toBe("Unsupported image type: text/plain");
+    expect(createAssetMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects SVG image uploads that cannot be sanitized", async () => {
+    const app = createApp(createStorageService("image/svg+xml"));
+    createAssetMock.mockResolvedValue(createAsset());
+
+    const res = await request(app)
+      .post("/api/companies/company-1/assets/images")
+      .field("namespace", "companies")
+      .attach("file", Buffer.from("not actually svg"), "logo.svg");
+
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe("SVG could not be sanitized");
     expect(createAssetMock).not.toHaveBeenCalled();
   });
 });
