@@ -22,6 +22,7 @@ Core fields:
 - headers (object, optional): extra HTTP headers for requests
 - webhookAuthHeader (string, optional): Authorization header value if your endpoint requires auth
 - payloadTemplate (object, optional): additional JSON payload fields merged into each wake payload
+- paperclipApiUrl (string, optional): absolute http(s) Paperclip base URL to advertise to OpenClaw as \`PAPERCLIP_API_URL\`
 
 Session routing fields:
 - sessionKeyStrategy (string, optional): \`fixed\` (default), \`issue\`, or \`run\`

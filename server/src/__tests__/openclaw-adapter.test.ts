@@ -198,6 +198,31 @@ describe("openclaw adapter execute", () => {
     expect(text).toContain("PAPERCLIP_LINKED_ISSUE_IDS=issue-123");
   });
 
+  it("uses paperclipApiUrl override when provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      sseResponse([
+        "event: response.completed\n",
+        'data: {"type":"response.completed","status":"completed"}\n\n',
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await execute(
+      buildContext({
+        url: "https://agent.example/sse",
+        method: "POST",
+        paperclipApiUrl: "http://dotta-macbook-pro:3100",
+      }),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? "{}")) as Record<string, unknown>;
+    const paperclip = body.paperclip as Record<string, unknown>;
+    const env = paperclip.env as Record<string, unknown>;
+    expect(env.PAPERCLIP_API_URL).toBe("http://dotta-macbook-pro:3100/");
+    expect(String(body.text ?? "")).toContain("PAPERCLIP_API_URL=http://dotta-macbook-pro:3100/");
+  });
+
   it("derives issue session keys when configured", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       sseResponse([

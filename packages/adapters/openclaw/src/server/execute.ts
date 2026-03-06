@@ -8,6 +8,18 @@ function nonEmpty(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+function resolvePaperclipApiUrlOverride(value: unknown): string | null {
+  const raw = nonEmpty(value);
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function normalizeSessionKeyStrategy(value: unknown): SessionKeyStrategy {
   const normalized = asString(value, "fixed").trim().toLowerCase();
   if (normalized === "issue" || normalized === "run") return normalized;
@@ -516,10 +528,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   });
 
   const templateText = nonEmpty(payloadTemplate.text);
+  const paperclipApiUrlOverride = resolvePaperclipApiUrlOverride(config.paperclipApiUrl);
   const paperclipEnv: Record<string, string> = {
     ...buildPaperclipEnv(agent),
     PAPERCLIP_RUN_ID: runId,
   };
+  if (paperclipApiUrlOverride) {
+    paperclipEnv.PAPERCLIP_API_URL = paperclipApiUrlOverride;
+  }
   if (wakePayload.taskId) paperclipEnv.PAPERCLIP_TASK_ID = wakePayload.taskId;
   if (wakePayload.wakeReason) paperclipEnv.PAPERCLIP_WAKE_REASON = wakePayload.wakeReason;
   if (wakePayload.wakeCommentId) paperclipEnv.PAPERCLIP_WAKE_COMMENT_ID = wakePayload.wakeCommentId;

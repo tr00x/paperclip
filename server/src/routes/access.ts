@@ -300,6 +300,44 @@ function normalizeAgentDefaultsForJoin(input: {
     normalized.payloadTemplate = defaults.payloadTemplate;
   }
 
+  const rawPaperclipApiUrl = typeof defaults.paperclipApiUrl === "string"
+    ? defaults.paperclipApiUrl.trim()
+    : "";
+  if (rawPaperclipApiUrl) {
+    try {
+      const parsedPaperclipApiUrl = new URL(rawPaperclipApiUrl);
+      if (parsedPaperclipApiUrl.protocol !== "http:" && parsedPaperclipApiUrl.protocol !== "https:") {
+        diagnostics.push({
+          code: "openclaw_paperclip_api_url_protocol",
+          level: "warn",
+          message: `paperclipApiUrl must use http:// or https:// (got ${parsedPaperclipApiUrl.protocol}).`,
+        });
+      } else {
+        normalized.paperclipApiUrl = parsedPaperclipApiUrl.toString();
+        diagnostics.push({
+          code: "openclaw_paperclip_api_url_configured",
+          level: "info",
+          message: `paperclipApiUrl set to ${parsedPaperclipApiUrl.toString()}`,
+        });
+        if (isLoopbackHost(parsedPaperclipApiUrl.hostname)) {
+          diagnostics.push({
+            code: "openclaw_paperclip_api_url_loopback",
+            level: "warn",
+            message:
+              "paperclipApiUrl uses loopback hostname. Remote OpenClaw workers cannot reach localhost on the Paperclip host.",
+            hint: "Use a reachable hostname/IP and keep it in allowed hostnames for authenticated/private deployments.",
+          });
+        }
+      }
+    } catch {
+      diagnostics.push({
+        code: "openclaw_paperclip_api_url_invalid",
+        level: "warn",
+        message: `Invalid paperclipApiUrl: ${rawPaperclipApiUrl}`,
+      });
+    }
+  }
+
   diagnostics.push(
     ...buildJoinConnectivityDiagnostics({
       deploymentMode: input.deploymentMode,
@@ -486,7 +524,7 @@ function buildInviteOnboardingManifest(
         adapterType: "Use 'openclaw' for OpenClaw streaming agents",
         capabilities: "Optional capability summary",
         agentDefaultsPayload:
-          "Optional adapter config such as url/method/headers/webhookAuthHeader for OpenClaw SSE endpoint",
+          "Optional adapter config such as url/method/headers/webhookAuthHeader and paperclipApiUrl for OpenClaw SSE endpoint",
       },
       registrationEndpoint: {
         method: "POST",
@@ -593,6 +631,7 @@ export function buildInviteOnboardingTextDocument(
     '  "capabilities": "Optional summary",',
     '  "agentDefaultsPayload": {',
     '    "url": "https://your-openclaw-agent.example/v1/responses",',
+    '    "paperclipApiUrl": "https://paperclip-hostname-your-agent-can-reach:3100",',
     '    "streamTransport": "sse",',
     '    "method": "POST",',
     '    "headers": { "x-openclaw-auth": "replace-me" },',
@@ -655,6 +694,7 @@ export function buildInviteOnboardingTextDocument(
       "",
       "Test each candidate with:",
       "- GET <candidate>/api/health",
+      "- set the first reachable candidate as agentDefaultsPayload.paperclipApiUrl when submitting your join request",
       "",
       "If none are reachable: ask your human operator for a reachable hostname/address and help them update network configuration.",
       "For authenticated/private mode, they may need:",

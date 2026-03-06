@@ -45,6 +45,8 @@ describe("buildInviteOnboardingTextDocument", () => {
     expect(text).toContain("Suggested Paperclip base URLs to try");
     expect(text).toContain("http://localhost:3100");
     expect(text).toContain("host.docker.internal");
+    expect(text).toContain("paperclipApiUrl");
+    expect(text).toContain("set the first reachable candidate as agentDefaultsPayload.paperclipApiUrl");
   });
 
   it("includes loopback diagnostics for authenticated/private onboarding", () => {

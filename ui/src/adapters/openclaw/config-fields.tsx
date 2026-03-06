@@ -48,6 +48,22 @@ export function OpenClawConfigFields({
       </Field>
       {!isCreate && (
         <>
+          <Field label="Paperclip API URL override">
+            <DraftInput
+              value={
+                eff(
+                  "adapterConfig",
+                  "paperclipApiUrl",
+                  String(config.paperclipApiUrl ?? ""),
+                )
+              }
+              onCommit={(v) => mark("adapterConfig", "paperclipApiUrl", v || undefined)}
+              immediate
+              className={inputClass}
+              placeholder="https://paperclip.example"
+            />
+          </Field>
+
           <Field label="Transport">
             <select
               value={transport}
