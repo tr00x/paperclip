@@ -1154,8 +1154,12 @@ function ConfigurationTab({
   const queryClient = useQueryClient();
 
   const { data: adapterModels } = useQuery({
-    queryKey: ["adapter-models", agent.adapterType],
-    queryFn: () => agentsApi.adapterModels(agent.adapterType),
+    queryKey:
+      companyId
+        ? queryKeys.agents.adapterModels(companyId, agent.adapterType)
+        : ["agents", "none", "adapter-models", agent.adapterType],
+    queryFn: () => agentsApi.adapterModels(companyId!, agent.adapterType),
+    enabled: Boolean(companyId),
   });
 
   const updateAgent = useMutation({

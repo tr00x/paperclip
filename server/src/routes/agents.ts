@@ -38,6 +38,7 @@ import {
 } from "@paperclipai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@paperclipai/adapter-cursor-local";
 import { DEFAULT_OPENCODE_LOCAL_MODEL } from "@paperclipai/adapter-opencode-local";
+import { ensureOpenCodeModelConfiguredAndAvailable } from "@paperclipai/adapter-opencode-local/server";
 
 export function agentRoutes(db: Db) {
   const DEFAULT_INSTRUCTIONS_PATH_KEYS: Record<string, string> = {
@@ -204,6 +205,27 @@ export function agentRoutes(db: Db) {
     return next;
   }
 
+  async function assertAdapterConfigConstraints(
+    companyId: string,
+    adapterType: string | null | undefined,
+    adapterConfig: Record<string, unknown>,
+  ) {
+    if (adapterType !== "opencode_local") return;
+    const runtimeConfig = await secretsSvc.resolveAdapterConfigForRuntime(companyId, adapterConfig);
+    const runtimeEnv = asRecord(runtimeConfig.env) ?? {};
+    try {
+      await ensureOpenCodeModelConfiguredAndAvailable({
+        model: runtimeConfig.model,
+        command: runtimeConfig.command,
+        cwd: runtimeConfig.cwd,
+        env: runtimeEnv,
+      });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw unprocessable(`Invalid opencode_local adapterConfig: ${reason}`);
+    }
+  }
+
   function resolveInstructionsFilePath(candidatePath: string, adapterConfig: Record<string, unknown>) {
     const trimmed = candidatePath.trim();
     if (path.isAbsolute(trimmed)) return trimmed;
@@ -335,7 +357,9 @@ export function agentRoutes(db: Db) {
     }
   });
 
-  router.get("/adapters/:type/models", async (req, res) => {
+  router.get("/companies/:companyId/adapters/:type/models", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
     const type = req.params.type as string;
     const models = await listAdapterModels(type);
     res.json(models);
@@ -589,6 +613,11 @@ export function agentRoutes(db: Db) {
       requestedAdapterConfig,
       { strictMode: strictSecretsMode },
     );
+    await assertAdapterConfigConstraints(
+      companyId,
+      hireInput.adapterType,
+      normalizedAdapterConfig,
+    );
     const normalizedHireInput = {
       ...hireInput,
       adapterConfig: normalizedAdapterConfig,
@@ -723,6 +752,11 @@ export function agentRoutes(db: Db) {
       companyId,
       requestedAdapterConfig,
       { strictMode: strictSecretsMode },
+    );
+    await assertAdapterConfigConstraints(
+      companyId,
+      req.body.adapterType,
+      normalizedAdapterConfig,
     );
 
     const agent = await svc.create(companyId, {
@@ -900,6 +934,27 @@ export function agentRoutes(db: Db) {
         existing.companyId,
         adapterConfig,
         { strictMode: strictSecretsMode },
+      );
+    }
+
+    const requestedAdapterType =
+      typeof patchData.adapterType === "string" ? patchData.adapterType : existing.adapterType;
+    const touchesAdapterConfiguration =
+      Object.prototype.hasOwnProperty.call(patchData, "adapterType") ||
+      Object.prototype.hasOwnProperty.call(patchData, "adapterConfig");
+    if (touchesAdapterConfiguration && requestedAdapterType === "opencode_local") {
+      const rawEffectiveAdapterConfig = Object.prototype.hasOwnProperty.call(patchData, "adapterConfig")
+        ? (asRecord(patchData.adapterConfig) ?? {})
+        : (asRecord(existing.adapterConfig) ?? {});
+      const effectiveAdapterConfig = await secretsSvc.normalizeAdapterConfigForPersistence(
+        existing.companyId,
+        rawEffectiveAdapterConfig,
+        { strictMode: strictSecretsMode },
+      );
+      await assertAdapterConfigConstraints(
+        existing.companyId,
+        requestedAdapterType,
+        effectiveAdapterConfig,
       );
     }
 

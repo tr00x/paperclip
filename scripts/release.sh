@@ -74,7 +74,7 @@ const { resolve } = require('path');
 const root = '$REPO_ROOT';
 const wsYaml = readFileSync(resolve(root, 'pnpm-workspace.yaml'), 'utf8');
 const dirs = ['packages/shared', 'packages/adapter-utils', 'packages/db',
-  'packages/adapters/claude-local', 'packages/adapters/codex-local', 'packages/adapters/openclaw',
+  'packages/adapters/claude-local', 'packages/adapters/codex-local', 'packages/adapters/opencode-local', 'packages/adapters/openclaw',
   'server', 'cli'];
 const names = [];
 for (const d of dirs) {
@@ -131,6 +131,7 @@ pnpm --filter @paperclipai/adapter-utils build
 pnpm --filter @paperclipai/db build
 pnpm --filter @paperclipai/adapter-claude-local build
 pnpm --filter @paperclipai/adapter-codex-local build
+pnpm --filter @paperclipai/adapter-opencode-local build
 pnpm --filter @paperclipai/adapter-openclaw build
 pnpm --filter @paperclipai/server build
 
@@ -162,7 +163,7 @@ if [ "$dry_run" = true ]; then
   echo ""
   echo "  Preview what would be published:"
   for dir in packages/shared packages/adapter-utils packages/db \
-             packages/adapters/claude-local packages/adapters/codex-local packages/adapters/openclaw \
+             packages/adapters/claude-local packages/adapters/codex-local packages/adapters/opencode-local packages/adapters/openclaw \
              server cli; do
     echo "  --- $dir ---"
     cd "$REPO_ROOT/$dir"

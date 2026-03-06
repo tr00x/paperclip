@@ -36,6 +36,7 @@ import {
   Paperclip,
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { extractProviderIdWithFallback } from "../lib/model-utils";
 import { issueStatusText, issueStatusTextDefault, priorityColor, priorityColorDefault } from "../lib/status-colors";
 import { MarkdownEditor, type MarkdownEditorRef, type MentionOption } from "./MarkdownEditor";
 import { AgentIcon } from "./AgentIconPicker";
@@ -114,6 +115,8 @@ function buildAssigneeAdapterOverrides(input: {
       adapterConfig.variant = input.thinkingEffortOverride;
     } else if (adapterType === "claude_local") {
       adapterConfig.effort = input.thinkingEffortOverride;
+    } else if (adapterType === "opencode_local") {
+      adapterConfig.variant = input.thinkingEffortOverride;
     }
   }
   if (adapterType === "claude_local" && input.chrome) {
@@ -247,9 +250,12 @@ export function NewIssueDialog() {
   }, [agents, orderedProjects]);
 
   const { data: assigneeAdapterModels } = useQuery({
-    queryKey: ["adapter-models", assigneeAdapterType],
-    queryFn: () => agentsApi.adapterModels(assigneeAdapterType!),
-    enabled: !!effectiveCompanyId && newIssueOpen && supportsAssigneeOverrides,
+    queryKey:
+      effectiveCompanyId && assigneeAdapterType
+        ? queryKeys.agents.adapterModels(effectiveCompanyId, assigneeAdapterType)
+        : ["agents", "none", "adapter-models", assigneeAdapterType ?? "none"],
+    queryFn: () => agentsApi.adapterModels(effectiveCompanyId!, assigneeAdapterType!),
+    enabled: Boolean(effectiveCompanyId) && newIssueOpen && supportsAssigneeOverrides,
   });
 
   const createIssue = useMutation({
@@ -363,7 +369,7 @@ export function NewIssueDialog() {
         ? ISSUE_THINKING_EFFORT_OPTIONS.codex_local
         : assigneeAdapterType === "opencode_local"
           ? ISSUE_THINKING_EFFORT_OPTIONS.opencode_local
-        : ISSUE_THINKING_EFFORT_OPTIONS.claude_local;
+          : ISSUE_THINKING_EFFORT_OPTIONS.claude_local;
     if (!validThinkingValues.some((option) => option.value === assigneeThinkingEffort)) {
       setAssigneeThinkingEffort("");
     }
@@ -493,12 +499,21 @@ export function NewIssueDialog() {
     [orderedProjects],
   );
   const modelOverrideOptions = useMemo<InlineEntityOption[]>(
-    () =>
-      (assigneeAdapterModels ?? []).map((model) => ({
-        id: model.id,
-        label: model.label,
-        searchText: model.id,
-      })),
+    () => {
+      return [...(assigneeAdapterModels ?? [])]
+        .sort((a, b) => {
+          const providerA = extractProviderIdWithFallback(a.id);
+          const providerB = extractProviderIdWithFallback(b.id);
+          const byProvider = providerA.localeCompare(providerB);
+          if (byProvider !== 0) return byProvider;
+          return a.id.localeCompare(b.id);
+        })
+        .map((model) => ({
+          id: model.id,
+          label: model.label,
+          searchText: `${model.id} ${extractProviderIdWithFallback(model.id)}`,
+        }));
+    },
     [assigneeAdapterModels],
   );
 
