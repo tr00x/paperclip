@@ -46,6 +46,8 @@ describe("buildInviteOnboardingTextDocument", () => {
     expect(text).toContain("http://localhost:3100");
     expect(text).toContain("host.docker.internal");
     expect(text).toContain("paperclipApiUrl");
+    expect(text).toContain("You MUST include agentDefaultsPayload.headers.x-openclaw-auth");
+    expect(text).toContain("will fail with 401 Unauthorized");
     expect(text).toContain("set the first reachable candidate as agentDefaultsPayload.paperclipApiUrl");
   });
 

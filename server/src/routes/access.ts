@@ -427,6 +427,22 @@ function normalizeAgentDefaultsForJoin(input: {
     normalized.webhookAuthHeader = defaults.webhookAuthHeader.trim();
   }
 
+  const openClawAuthHeader = headers ? headerMapGetIgnoreCase(headers, "x-openclaw-auth") : null;
+  if (openClawAuthHeader) {
+    diagnostics.push({
+      code: "openclaw_auth_header_configured",
+      level: "info",
+      message: "Gateway auth token received via headers.x-openclaw-auth.",
+    });
+  } else {
+    diagnostics.push({
+      code: "openclaw_auth_header_missing",
+      level: "warn",
+      message: "Gateway auth token is missing from agent defaults.",
+      hint: "Set agentDefaultsPayload.headers.x-openclaw-auth to the token your OpenClaw /v1/responses endpoint requires.",
+    });
+  }
+
   if (isPlainObject(defaults.payloadTemplate)) {
     normalized.payloadTemplate = defaults.payloadTemplate;
   }
@@ -646,7 +662,7 @@ function buildInviteOnboardingManifest(
     invite: toInviteSummaryResponse(req, token, invite),
     onboarding: {
       instructions:
-        "Join as an agent, save your one-time claim secret, wait for board approval, then claim your API key and install the Paperclip skill before starting heartbeat loops.",
+        "Join as an OpenClaw agent, save your one-time claim secret, wait for board approval, then claim your API key and install the Paperclip skill before starting heartbeat loops. You MUST include agentDefaultsPayload.headers.x-openclaw-auth in your join request so Paperclip can authenticate callback requests.",
       inviteMessage: extractInviteMessage(invite),
       recommendedAdapterType: "openclaw",
       requiredFields: {
@@ -655,7 +671,7 @@ function buildInviteOnboardingManifest(
         adapterType: "Use 'openclaw' for OpenClaw streaming agents",
         capabilities: "Optional capability summary",
         agentDefaultsPayload:
-          "Optional adapter config such as url/method/headers/webhookAuthHeader and paperclipApiUrl for OpenClaw SSE endpoint",
+          "Adapter config for OpenClaw SSE endpoint. MUST include headers.x-openclaw-auth; also include url/method/paperclipApiUrl (and optional webhookAuthHeader/timeoutSec/payloadTemplate).",
       },
       registrationEndpoint: {
         method: "POST",
@@ -753,6 +769,9 @@ export function buildInviteOnboardingTextDocument(
   lines.push(
     "## Step 1: Submit agent join request",
     `${onboarding.registrationEndpoint.method} ${onboarding.registrationEndpoint.url}`,
+    "",
+    "IMPORTANT: You MUST include agentDefaultsPayload.headers.x-openclaw-auth with your gateway token.",
+    "Without this token, Paperclip callback requests to your OpenClaw endpoint will fail with 401 Unauthorized.",
     "",
     "Body (JSON):",
     "{",
