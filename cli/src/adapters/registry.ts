@@ -4,6 +4,7 @@ import { printCodexStreamEvent } from "@paperclipai/adapter-codex-local/cli";
 import { printCursorStreamEvent } from "@paperclipai/adapter-cursor-local/cli";
 import { printOpenCodeStreamEvent } from "@paperclipai/adapter-opencode-local/cli";
 import { printOpenClawStreamEvent } from "@paperclipai/adapter-openclaw/cli";
+import { printOpenClawGatewayStreamEvent } from "@paperclipai/adapter-openclaw-gateway/cli";
 import { processCLIAdapter } from "./process/index.js";
 import { httpCLIAdapter } from "./http/index.js";
 
@@ -32,8 +33,22 @@ const openclawCLIAdapter: CLIAdapterModule = {
   formatStdoutEvent: printOpenClawStreamEvent,
 };
 
+const openclawGatewayCLIAdapter: CLIAdapterModule = {
+  type: "openclaw_gateway",
+  formatStdoutEvent: printOpenClawGatewayStreamEvent,
+};
+
 const adaptersByType = new Map<string, CLIAdapterModule>(
-  [claudeLocalCLIAdapter, codexLocalCLIAdapter, openCodeLocalCLIAdapter, cursorLocalCLIAdapter, openclawCLIAdapter, processCLIAdapter, httpCLIAdapter].map((a) => [a.type, a]),
+  [
+    claudeLocalCLIAdapter,
+    codexLocalCLIAdapter,
+    openCodeLocalCLIAdapter,
+    cursorLocalCLIAdapter,
+    openclawCLIAdapter,
+    openclawGatewayCLIAdapter,
+    processCLIAdapter,
+    httpCLIAdapter,
+  ].map((a) => [a.type, a]),
 );
 
 export function getCLIAdapter(type: string): CLIAdapterModule {

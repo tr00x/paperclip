@@ -56,7 +56,8 @@ type AdapterType =
   | "cursor"
   | "process"
   | "http"
-  | "openclaw";
+  | "openclaw"
+  | "openclaw_gateway";
 
 const DEFAULT_TASK_DESCRIPTION = `Setup yourself as the CEO. Use the ceo persona found here: [https://github.com/paperclipai/companies/blob/main/default/ceo/AGENTS.md](https://github.com/paperclipai/companies/blob/main/default/ceo/AGENTS.md)
 
@@ -673,6 +674,12 @@ export function OnboardingWizard() {
                           comingSoon: true
                         },
                         {
+                          value: "openclaw_gateway" as const,
+                          label: "OpenClaw Gateway",
+                          icon: Bot,
+                          desc: "Invoke OpenClaw via gateway protocol"
+                        },
+                        {
                           value: "cursor" as const,
                           label: "Cursor",
                           icon: MousePointer2,
@@ -973,14 +980,14 @@ export function OnboardingWizard() {
                     </div>
                   )}
 
-                  {(adapterType === "http" || adapterType === "openclaw") && (
+                  {(adapterType === "http" || adapterType === "openclaw" || adapterType === "openclaw_gateway") && (
                     <div>
                       <label className="text-xs text-muted-foreground mb-1 block">
-                        Webhook URL
+                        {adapterType === "openclaw_gateway" ? "Gateway URL" : "Webhook URL"}
                       </label>
                       <input
                         className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                        placeholder="https://..."
+                        placeholder={adapterType === "openclaw_gateway" ? "ws://127.0.0.1:18789" : "https://..."}
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                       />
