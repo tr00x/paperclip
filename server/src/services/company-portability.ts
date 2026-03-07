@@ -87,6 +87,14 @@ const ADAPTER_DEFAULT_RULES_BY_TYPE: Record<string, Array<{ path: string[]; valu
     { path: ["method"], value: "POST" },
     { path: ["timeoutSec"], value: 30 },
   ],
+  openclaw_gateway: [
+    { path: ["timeoutSec"], value: 120 },
+    { path: ["waitTimeoutMs"], value: 120000 },
+    { path: ["sessionKeyStrategy"], value: "fixed" },
+    { path: ["sessionKey"], value: "paperclip" },
+    { path: ["role"], value: "operator" },
+    { path: ["scopes"], value: ["operator.admin"] },
+  ],
 };
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

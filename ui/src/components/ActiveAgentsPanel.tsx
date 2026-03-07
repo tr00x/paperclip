@@ -461,7 +461,7 @@ function AgentRunCard({
           <Link
             to={`/issues/${issue?.identifier ?? run.issueId}`}
             className={cn(
-              "hover:underline min-w-0 truncate",
+              "hover:underline min-w-0 line-clamp-2 min-h-[2rem]",
               isActive ? "text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300" : "text-muted-foreground hover:text-foreground",
             )}
             title={issue?.title ? `${issue?.identifier ?? run.issueId.slice(0, 8)} - ${issue.title}` : issue?.identifier ?? run.issueId.slice(0, 8)}

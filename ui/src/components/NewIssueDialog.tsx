@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent } f
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
-import { useToast } from "../context/ToastContext";
 import { issuesApi } from "../api/issues";
 import { projectsApi } from "../api/projects";
 import { agentsApi } from "../api/agents";
@@ -170,7 +169,6 @@ const priorities = [
 export function NewIssueDialog() {
   const { newIssueOpen, newIssueDefaults, closeNewIssue } = useDialog();
   const { companies, selectedCompanyId, selectedCompany } = useCompany();
-  const { pushToast } = useToast();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -262,19 +260,12 @@ export function NewIssueDialog() {
   const createIssue = useMutation({
     mutationFn: ({ companyId, ...data }: { companyId: string } & Record<string, unknown>) =>
       issuesApi.create(companyId, data),
-    onSuccess: (issue) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.issues.list(effectiveCompanyId!) });
       if (draftTimer.current) clearTimeout(draftTimer.current);
       clearDraft();
       reset();
       closeNewIssue();
-      pushToast({
-        dedupeKey: `activity:issue.created:${issue.id}`,
-        title: `${issue.identifier ?? "Issue"} created`,
-        body: issue.title,
-        tone: "success",
-        action: { label: `View ${issue.identifier ?? "issue"}`, href: `/issues/${issue.identifier ?? issue.id}` },
-      });
     },
   });
 
@@ -332,7 +323,18 @@ export function NewIssueDialog() {
     setDialogCompanyId(selectedCompanyId);
 
     const draft = loadDraft();
-    if (draft && draft.title.trim()) {
+    if (newIssueDefaults.title) {
+      setTitle(newIssueDefaults.title);
+      setDescription(newIssueDefaults.description ?? "");
+      setStatus(newIssueDefaults.status ?? "todo");
+      setPriority(newIssueDefaults.priority ?? "");
+      setProjectId(newIssueDefaults.projectId ?? "");
+      setAssigneeId(newIssueDefaults.assigneeAgentId ?? "");
+      setAssigneeModelOverride("");
+      setAssigneeThinkingEffort("");
+      setAssigneeChrome(false);
+      setAssigneeUseProjectWorkspace(true);
+    } else if (draft && draft.title.trim()) {
       setTitle(draft.title);
       setDescription(draft.description);
       setStatus(draft.status || "todo");
