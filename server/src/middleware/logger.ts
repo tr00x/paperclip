@@ -62,7 +62,7 @@ export const httpLogger = pinoHttp({
       const ctx = (res as any).__errorContext;
       if (ctx) {
         return {
-          err: ctx.error,
+          errorContext: ctx.error,
           reqBody: ctx.reqBody,
           reqParams: ctx.reqParams,
           reqQuery: ctx.reqQuery,
