@@ -22,6 +22,7 @@ type GatewayDeviceIdentity = {
   deviceId: string;
   publicKeyRawBase64Url: string;
   privateKeyPem: string;
+  source: "configured" | "ephemeral";
 };
 
 type GatewayRequestFrame = {
@@ -486,6 +487,7 @@ function resolveDeviceIdentity(config: Record<string, unknown>): GatewayDeviceId
       deviceId: crypto.createHash("sha256").update(raw).digest("hex"),
       publicKeyRawBase64Url: base64UrlEncode(raw),
       privateKeyPem: configuredPrivateKey,
+      source: "configured",
     };
   }
 
@@ -497,6 +499,7 @@ function resolveDeviceIdentity(config: Record<string, unknown>): GatewayDeviceId
     deviceId: crypto.createHash("sha256").update(raw).digest("hex"),
     publicKeyRawBase64Url: base64UrlEncode(raw),
     privateKeyPem,
+    source: "ephemeral",
   };
 }
 
@@ -912,6 +915,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
 
   try {
     const deviceIdentity = disableDeviceAuth ? null : resolveDeviceIdentity(parseObject(ctx.config));
+    if (deviceIdentity) {
+      await ctx.onLog(
+        "stdout",
+        `[openclaw-gateway] device auth enabled keySource=${deviceIdentity.source} deviceId=${deviceIdentity.deviceId}\n`,
+      );
+    } else {
+      await ctx.onLog("stdout", "[openclaw-gateway] device auth disabled\n");
+    }
 
     await ctx.onLog("stdout", `[openclaw-gateway] connecting to ${parsedUrl.toString()}\n`);
 
@@ -1076,7 +1087,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     const timedOut = lower.includes("timeout");
     const pairingRequired = lower.includes("pairing required");
     const detailedMessage = pairingRequired
-      ? `${message}. Configure adapterConfig.disableDeviceAuth=true for smoke/dev, or set adapterConfig.devicePrivateKeyPem so pairing persists across runs.`
+      ? `${message}. Approve the pending device in OpenClaw (for example: openclaw devices approve --latest --url <gateway-ws-url> --token <gateway-token>) and retry. Ensure this agent has a persisted adapterConfig.devicePrivateKeyPem so approvals are reused.`
       : message;
 
     await ctx.onLog("stderr", `[openclaw-gateway] request failed: ${detailedMessage}\n`);

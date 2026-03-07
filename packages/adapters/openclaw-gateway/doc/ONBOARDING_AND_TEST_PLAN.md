@@ -267,8 +267,11 @@ POST /api/companies/$CLA_COMPANY_ID/invites
   - default path: `adapterConfig.disableDeviceAuth` is false/absent and stable `adapterConfig.devicePrivateKeyPem` is set so approvals persist across runs
   - fallback path: `disableDeviceAuth=true` only for environments that cannot support pairing
 5. Trigger one connectivity run. If it returns `pairing required`, approve the pending device request in OpenClaw and retry once.
+  - Note: Paperclip invite approval and OpenClaw device-pairing approval are separate gates.
   - Local docker automation path:
     - `openclaw devices approve --latest --json --url ws://127.0.0.1:18789 --token <gateway-token>`
+    - Optional inspection:
+      - `openclaw devices list --json --url ws://127.0.0.1:18789 --token <gateway-token>`
   - After approval, retries should succeed using the persisted `devicePrivateKeyPem`.
 6. Claim API key with `claimSecret`.
 7. Save claimed token to OpenClaw expected file path (`~/.openclaw/workspace/paperclip-claimed-api-key.json`) and ensure `PAPERCLIP_API_KEY` + `PAPERCLIP_API_URL` are available for OpenClaw skill execution context.

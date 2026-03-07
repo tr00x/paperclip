@@ -41,10 +41,15 @@ curl -sS -H "Cookie: $PAPERCLIP_COOKIE" "http://127.0.0.1:3100/api/agents/$AGENT
 
 Pairing handshake note:
 - The first gateway run may return `pairing required` once for a new device key.
+- This is a separate approval from Paperclip invite approval. You must approve the pending device in OpenClaw itself.
 - Approve it in OpenClaw, then retry the task.
 - For local docker smoke, you can approve from host:
 ```bash
 docker exec openclaw-docker-openclaw-gateway-1 sh -lc 'openclaw devices approve --latest --json --url "ws://127.0.0.1:18789" --token "$(node -p \"require(process.env.HOME+\\\"/.openclaw/openclaw.json\\\").gateway.auth.token\")"'
+```
+- You can inspect pending vs paired devices:
+```bash
+docker exec openclaw-docker-openclaw-gateway-1 sh -lc 'TOK="$(node -e \"const fs=require(\\\"fs\\\");const c=JSON.parse(fs.readFileSync(\\\"/home/node/.openclaw/openclaw.json\\\",\\\"utf8\\\"));process.stdout.write(c.gateway?.auth?.token||\\\"\\\");\")\"; openclaw devices list --json --url \"ws://127.0.0.1:18789\" --token \"$TOK\"'
 ```
 
 7. Case A (manual issue test).
