@@ -53,6 +53,7 @@ type AdapterType =
   | "claude_local"
   | "codex_local"
   | "opencode_local"
+  | "pi_local"
   | "cursor"
   | "process"
   | "http"
@@ -666,6 +667,12 @@ export function OnboardingWizard() {
                           desc: "Local multi-provider agent"
                         },
                         {
+                          value: "pi_local" as const,
+                          label: "Pi",
+                          icon: Terminal,
+                          desc: "Local Pi agent"
+                        },
+                        {
                           value: "openclaw" as const,
                           label: "OpenClaw",
                           icon: Bot,
@@ -741,6 +748,7 @@ export function OnboardingWizard() {
                   {(adapterType === "claude_local" ||
                     adapterType === "codex_local" ||
                     adapterType === "opencode_local" ||
+                    adapterType === "pi_local" ||
                     adapterType === "cursor") && (
                     <div className="space-y-3">
                       <div>
