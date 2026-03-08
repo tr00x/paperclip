@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CostByProviderModel, CostWindowSpendRow, QuotaWindow } from "@paperclipai/shared";
 import { costsApi } from "../api/costs";
@@ -71,16 +71,23 @@ export function Costs() {
     setBreadcrumbs([{ label: "Costs" }]);
   }, [setBreadcrumbs]);
 
-  // today as state so a scheduled effect can flip it at midnight, triggering a fresh weekRange
+  // today as state so the weekRange memo refreshes after midnight.
+  // stable [] dep + ref avoids the StrictMode double-invoke problem of the
+  // chained [today] dep pattern (which would schedule two concurrent timers).
   const [today, setToday] = useState(() => new Date().toDateString());
+  const todayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const msUntilMidnight = () => {
+    const schedule = () => {
       const now = new Date();
-      return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime();
+      const ms = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime();
+      todayTimerRef.current = setTimeout(() => {
+        setToday(new Date().toDateString());
+        schedule();
+      }, ms);
     };
-    const timer = setTimeout(() => setToday(new Date().toDateString()), msUntilMidnight());
-    return () => clearTimeout(timer);
-  }, [today]);
+    schedule();
+    return () => { if (todayTimerRef.current != null) clearTimeout(todayTimerRef.current); };
+  }, []);
   const weekRange = useMemo(() => currentWeekRange(), [today]);
 
   // ---------- spend tab queries (no polling — cost data doesn't change in real time) ----------
@@ -247,7 +254,7 @@ export function Costs() {
       },
       ...providers.map((p) => ({
         value: p,
-        label: <ProviderTabLabel provider={p} rows={byProvider.get(p)!} />,
+        label: <ProviderTabLabel provider={p} rows={byProvider.get(p) ?? []} />,
       })),
     ];
   }, [providers, byProvider]);

@@ -82,6 +82,13 @@ export function costRoutes(db: Db) {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
     assertBoard(req);
+    // validate companyId resolves to a real company so the "__none__" sentinel
+    // and any forged ids are rejected before we touch provider credentials
+    const company = await companies.getById(companyId);
+    if (!company) {
+      res.status(404).json({ error: "Company not found" });
+      return;
+    }
     const results = await fetchAllQuotaWindows();
     res.json(results);
   });

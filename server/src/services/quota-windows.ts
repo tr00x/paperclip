@@ -169,7 +169,9 @@ function secondsToWindowLabel(seconds: number | null | undefined, fallback: stri
   const hours = seconds / 3600;
   if (hours < 6) return "5h";
   if (hours <= 24) return "24h";
-  return "7d";
+  if (hours <= 168) return "7d";
+  // for windows larger than 7d, show the actual day count rather than silently mislabelling
+  return `${Math.round(hours / 24)}d`;
 }
 
 async function fetchCodexQuota(token: string, accountId: string | null): Promise<QuotaWindow[]> {

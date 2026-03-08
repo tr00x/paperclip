@@ -137,8 +137,10 @@ export function ProviderQuotaCard({
               <div className="space-y-2.5">
                 {ROLLING_WINDOWS.map((w) => {
                   const row = windowMap.get(w);
-                  const cents = row?.costCents ?? 0;
-                  const tokens = (row?.inputTokens ?? 0) + (row?.outputTokens ?? 0);
+                  // omit windows with no data rather than showing false $0.00 zeros
+                  if (!row) return null;
+                  const cents = row.costCents;
+                  const tokens = row.inputTokens + row.outputTokens;
                   const barPct = maxWindowCents > 0 ? (cents / maxWindowCents) * 100 : 0;
                   return (
                     <div key={w} className="space-y-1">

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type DatePreset = "mtd" | "7d" | "30d" | "ytd" | "all" | "custom";
 
@@ -13,17 +13,12 @@ export const PRESET_LABELS: Record<DatePreset, string> = {
 
 export const PRESET_KEYS: DatePreset[] = ["mtd", "7d", "30d", "ytd", "all", "custom"];
 
-// note: computeRange calls new Date() at evaluation time. for sliding presets (7d, 30d, etc.)
-// the window is computed once at render time and can be up to ~1 minute stale between re-renders.
-// this is acceptable for a cost dashboard but means the displayed range may lag wall clock time
-// slightly between poll ticks.
+// note: computeRange is called inside a useMemo that re-evaluates once per minute
+// (driven by minuteTick). this means sliding windows (7d, 30d) advance their upper
+// bound at most once per minute — acceptable for a cost dashboard.
 function computeRange(preset: DatePreset): { from: string; to: string } {
   const now = new Date();
-  // floor `to` to the nearest minute so the query key is stable across 30s refetch ticks
-  // (prevents a new cache entry being created on every poll cycle)
-  const toFloored = new Date(now);
-  toFloored.setSeconds(0, 0);
-  const to = toFloored.toISOString();
+  const to = now.toISOString();
   switch (preset) {
     case "mtd": {
       const d = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -47,6 +42,14 @@ function computeRange(preset: DatePreset): { from: string; to: string } {
   }
 }
 
+// floor a Date to the nearest minute so the query key is stable across
+// 30s refetch ticks (prevents new cache entries on every poll cycle)
+function floorToMinute(d: Date): string {
+  const floored = new Date(d);
+  floored.setSeconds(0, 0);
+  return floored.toISOString();
+}
+
 export interface UseDateRangeResult {
   preset: DatePreset;
   setPreset: (p: DatePreset) => void;
@@ -66,6 +69,27 @@ export function useDateRange(): UseDateRangeResult {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
+  // tick at the next calendar minute boundary, then every 60s, so sliding presets
+  // (7d, 30d) advance their upper bound in sync with wall clock minutes rather than
+  // drifting by the mount offset.
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [minuteTick, setMinuteTick] = useState(() => floorToMinute(new Date()));
+  useEffect(() => {
+    const now = new Date();
+    const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    const timeout = setTimeout(() => {
+      setMinuteTick(floorToMinute(new Date()));
+      intervalRef.current = setInterval(
+        () => setMinuteTick(floorToMinute(new Date())),
+        60_000,
+      );
+    }, msToNextMinute);
+    return () => {
+      clearTimeout(timeout);
+      if (intervalRef.current != null) clearInterval(intervalRef.current);
+    };
+  }, []);
+
   const { from, to } = useMemo(() => {
     if (preset !== "custom") return computeRange(preset);
     // treat custom date strings as local-date boundaries so the full day is included
@@ -76,7 +100,9 @@ export function useDateRange(): UseDateRangeResult {
       from: fromDate ? fromDate.toISOString() : "",
       to: toDate ? toDate.toISOString() : "",
     };
-  }, [preset, customFrom, customTo]);
+  // minuteTick drives re-evaluation of sliding presets once per minute.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, customFrom, customTo, minuteTick]);
 
   const customReady = preset !== "custom" || (!!customFrom && !!customTo);
 
