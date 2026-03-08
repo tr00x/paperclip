@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { CostByProviderModel, CostWindowSpendRow, QuotaWindow } from "@paperclipai/shared";
+import type { CostByAgentModel, CostByProviderModel, CostWindowSpendRow, QuotaWindow } from "@paperclipai/shared";
 import { costsApi } from "../api/costs";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -15,7 +15,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign } from "lucide-react";
+import { DollarSign, ChevronDown, ChevronRight } from "lucide-react";
 import { useDateRange, PRESET_LABELS, PRESET_KEYS } from "../hooks/useDateRange";
 
 // sentinel used in query keys when no company is selected, to avoid polluting the cache
@@ -97,22 +97,54 @@ export function Costs() {
   const { data: spendData, isLoading: spendLoading, error: spendError } = useQuery({
     queryKey: queryKeys.costs(companyId, from || undefined, to || undefined),
     queryFn: async () => {
-      const [summary, byAgent, byProject] = await Promise.all([
+      const [summary, byAgent, byProject, byAgentModel] = await Promise.all([
         costsApi.summary(companyId, from || undefined, to || undefined),
         costsApi.byAgent(companyId, from || undefined, to || undefined),
         costsApi.byProject(companyId, from || undefined, to || undefined),
+        costsApi.byAgentModel(companyId, from || undefined, to || undefined),
       ]);
-      return { summary, byAgent, byProject };
+      return { summary, byAgent, byProject, byAgentModel };
     },
     enabled: !!selectedCompanyId && customReady,
   });
+
+  // tracks which agent rows are expanded in the By Agent card.
+  // reset whenever the date range or company changes so stale open-states
+  // from a previous query window don't bleed into the new result set.
+  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setExpandedAgents(new Set());
+  }, [companyId, from, to]);
+  function toggleAgent(agentId: string) {
+    setExpandedAgents((prev) => {
+      const next = new Set(prev);
+      if (next.has(agentId)) next.delete(agentId);
+      else next.add(agentId);
+      return next;
+    });
+  }
+
+  // group byAgentModel rows by agentId for O(1) lookup in the render pass.
+  // sub-rows are sorted by cost descending so the most expensive model is first.
+  const agentModelRows = useMemo(() => {
+    const map = new Map<string, CostByAgentModel[]>();
+    for (const row of spendData?.byAgentModel ?? []) {
+      const arr = map.get(row.agentId) ?? [];
+      arr.push(row);
+      map.set(row.agentId, arr);
+    }
+    for (const [id, rows] of map) {
+      map.set(id, rows.slice().sort((a, b) => b.costCents - a.costCents));
+    }
+    return map;
+  }, [spendData?.byAgentModel]);
 
   // ---------- providers tab queries (polling — provider quota changes during agent runs) ----------
 
   const { data: providerData } = useQuery({
     queryKey: queryKeys.usageByProvider(companyId, from || undefined, to || undefined),
     queryFn: () => costsApi.byProvider(companyId, from || undefined, to || undefined),
-    enabled: !!selectedCompanyId && customReady,
+    enabled: !!selectedCompanyId && customReady && mainTab === "providers",
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
@@ -120,7 +152,7 @@ export function Costs() {
   const { data: weekData } = useQuery({
     queryKey: queryKeys.usageByProvider(companyId, weekRange.from, weekRange.to),
     queryFn: () => costsApi.byProvider(companyId, weekRange.from, weekRange.to),
-    enabled: !!selectedCompanyId,
+    enabled: !!selectedCompanyId && mainTab === "providers",
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
@@ -128,7 +160,9 @@ export function Costs() {
   const { data: windowData } = useQuery({
     queryKey: queryKeys.usageWindowSpend(companyId),
     queryFn: () => costsApi.windowSpend(companyId),
-    enabled: !!selectedCompanyId,
+    // only fetch when the providers tab is active — these queries trigger outbound
+    // network calls to provider quota apis; no need to run them on the spend tab.
+    enabled: !!selectedCompanyId && mainTab === "providers",
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
@@ -136,7 +170,7 @@ export function Costs() {
   const { data: quotaData } = useQuery({
     queryKey: queryKeys.usageQuotaWindows(companyId),
     queryFn: () => costsApi.quotaWindows(companyId),
-    enabled: !!selectedCompanyId,
+    enabled: !!selectedCompanyId && mainTab === "providers",
     // quota windows come from external provider apis; refresh every 5 minutes
     refetchInterval: 300_000,
     staleTime: 60_000,
@@ -362,34 +396,79 @@ export function Costs() {
                       <p className="text-sm text-muted-foreground">No cost events yet.</p>
                     ) : (
                       <div className="space-y-2">
-                        {spendData.byAgent.map((row) => (
-                          <div
-                            key={row.agentId}
-                            className="flex items-start justify-between text-sm"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Identity name={row.agentName ?? row.agentId} size="sm" />
-                              {row.agentStatus === "terminated" && (
-                                <StatusBadge status="terminated" />
+                        {spendData.byAgent.map((row) => {
+                          const modelRows = agentModelRows.get(row.agentId) ?? [];
+                          const isExpanded = expandedAgents.has(row.agentId);
+                          const hasBreakdown = modelRows.length > 0;
+                          return (
+                            <div key={row.agentId}>
+                              <div
+                                className={`flex items-start justify-between text-sm ${hasBreakdown ? "cursor-pointer select-none" : ""}`}
+                                onClick={() => hasBreakdown && toggleAgent(row.agentId)}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {hasBreakdown ? (
+                                    isExpanded
+                                      ? <ChevronDown className="w-3 h-3 shrink-0 text-muted-foreground" />
+                                      : <ChevronRight className="w-3 h-3 shrink-0 text-muted-foreground" />
+                                  ) : (
+                                    <span className="w-3 h-3 shrink-0" />
+                                  )}
+                                  <Identity name={row.agentName ?? row.agentId} size="sm" />
+                                  {row.agentStatus === "terminated" && (
+                                    <StatusBadge status="terminated" />
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0 ml-2">
+                                  <span className="font-medium block">{formatCents(row.costCents)}</span>
+                                  <span className="text-xs text-muted-foreground block">
+                                    in {formatTokens(row.inputTokens)} / out {formatTokens(row.outputTokens)} tok
+                                  </span>
+                                  {(row.apiRunCount > 0 || row.subscriptionRunCount > 0) && (
+                                    <span className="text-xs text-muted-foreground block">
+                                      {row.apiRunCount > 0 ? `api runs: ${row.apiRunCount}` : null}
+                                      {row.apiRunCount > 0 && row.subscriptionRunCount > 0 ? " | " : null}
+                                      {row.subscriptionRunCount > 0
+                                        ? `subscription runs: ${row.subscriptionRunCount} (${formatTokens(row.subscriptionInputTokens)} in / ${formatTokens(row.subscriptionOutputTokens)} out tok)`
+                                        : null}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {isExpanded && modelRows.length > 0 && (
+                                <div className="ml-5 mt-1 mb-1 border-l border-border pl-3 space-y-1">
+                                  {modelRows.map((m) => {
+                                    const totalAgentCents = row.costCents;
+                                    const sharePct = totalAgentCents > 0
+                                      ? Math.round((m.costCents / totalAgentCents) * 100)
+                                      : 0;
+                                    return (
+                                      <div
+                                        key={`${m.provider}/${m.model}`}
+                                        className="flex items-start justify-between text-xs text-muted-foreground"
+                                      >
+                                        <div className="min-w-0 truncate">
+                                          <span className="font-medium text-foreground">{providerDisplayName(m.provider)}</span>
+                                          <span className="mx-1 text-border">/</span>
+                                          <span className="font-mono">{m.model}</span>
+                                        </div>
+                                        <div className="text-right shrink-0 ml-2">
+                                          <span className="font-medium text-foreground block">
+                                            {formatCents(m.costCents)}
+                                            <span className="font-normal text-muted-foreground ml-1">({sharePct}%)</span>
+                                          </span>
+                                          <span className="block">
+                                            in {formatTokens(m.inputTokens)} / out {formatTokens(m.outputTokens)} tok
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
                             </div>
-                            <div className="text-right shrink-0 ml-2">
-                              <span className="font-medium block">{formatCents(row.costCents)}</span>
-                              <span className="text-xs text-muted-foreground block">
-                                in {formatTokens(row.inputTokens)} / out {formatTokens(row.outputTokens)} tok
-                              </span>
-                              {(row.apiRunCount > 0 || row.subscriptionRunCount > 0) && (
-                                <span className="text-xs text-muted-foreground block">
-                                  {row.apiRunCount > 0 ? `api runs: ${row.apiRunCount}` : null}
-                                  {row.apiRunCount > 0 && row.subscriptionRunCount > 0 ? " | " : null}
-                                  {row.subscriptionRunCount > 0
-                                    ? `subscription runs: ${row.subscriptionRunCount} (${formatTokens(row.subscriptionInputTokens)} in / ${formatTokens(row.subscriptionOutputTokens)} out tok)`
-                                    : null}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>

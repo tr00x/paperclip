@@ -174,7 +174,7 @@ export function ProviderQuotaCard({
                 Subscription quota
               </p>
               <div className="space-y-2.5">
-                {quotaWindows.map((qw, i) => {
+                {quotaWindows.map((qw) => {
                   const fillColor =
                     qw.usedPercent == null
                       ? null
@@ -184,7 +184,7 @@ export function ProviderQuotaCard({
                           ? "bg-yellow-400"
                           : "bg-green-400";
                   return (
-                    <div key={`qw-${i}`} className="space-y-1">
+                    <div key={qw.label} className="space-y-1">
                       <div className="flex items-center justify-between gap-2 text-xs">
                         <span className="font-mono text-muted-foreground shrink-0">{qw.label}</span>
                         <span className="flex-1" />
@@ -279,8 +279,8 @@ export function ProviderQuotaCard({
                       />
                       {/* cost share overlay — narrower, opaque, shows relative cost weight */}
                       <div
-                        className="absolute inset-y-0 left-0 bg-primary transition-[width] duration-150"
-                        style={{ width: `${costPct}%`, opacity: 0.85 }}
+                        className="absolute inset-y-0 left-0 bg-primary/85 transition-[width] duration-150"
+                        style={{ width: `${costPct}%` }}
                         title={`${Math.round(costPct)}% of provider cost`}
                       />
                     </div>

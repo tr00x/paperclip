@@ -188,10 +188,11 @@ async function fetchCodexQuota(token: string, accountId: string | null): Promise
   const rateLimit = body.rate_limit;
   if (rateLimit?.primary_window != null) {
     const w = rateLimit.primary_window;
-    // wham used_percent is 0-100 (confirmed empirically); guard against 0-1 format just in case
+    // wham used_percent is 0-100 (confirmed empirically); guard against 0-1 format just in case.
+    // use < 1 (not <= 1) so that 1% usage (rawPct=1) is not misclassified as 100%.
     const rawPct = w.used_percent ?? null;
     const usedPercent = rawPct != null
-      ? Math.min(100, Math.round(rawPct <= 1 ? rawPct * 100 : rawPct))
+      ? Math.min(100, Math.round(rawPct < 1 ? rawPct * 100 : rawPct))
       : null;
     windows.push({
       label: secondsToWindowLabel(w.limit_window_seconds, "Primary"),
@@ -202,10 +203,11 @@ async function fetchCodexQuota(token: string, accountId: string | null): Promise
   }
   if (rateLimit?.secondary_window != null) {
     const w = rateLimit.secondary_window;
-    // wham used_percent is 0-100 (confirmed empirically); guard against 0-1 format just in case
+    // wham used_percent is 0-100 (confirmed empirically); guard against 0-1 format just in case.
+    // use < 1 (not <= 1) so that 1% usage (rawPct=1) is not misclassified as 100%.
     const rawPct = w.used_percent ?? null;
     const usedPercent = rawPct != null
-      ? Math.min(100, Math.round(rawPct <= 1 ? rawPct * 100 : rawPct))
+      ? Math.min(100, Math.round(rawPct < 1 ? rawPct * 100 : rawPct))
       : null;
     windows.push({
       label: secondsToWindowLabel(w.limit_window_seconds, "Secondary"),

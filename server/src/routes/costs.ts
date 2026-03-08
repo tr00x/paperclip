@@ -5,6 +5,7 @@ import { validate } from "../middleware/validate.js";
 import { costService, companyService, agentService, logActivity } from "../services/index.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { fetchAllQuotaWindows } from "../services/quota-windows.js";
+import { badRequest } from "../errors.js";
 
 export function costRoutes(db: Db) {
   const router = Router();
@@ -42,8 +43,12 @@ export function costRoutes(db: Db) {
   });
 
   function parseDateRange(query: Record<string, unknown>) {
-    const from = query.from ? new Date(query.from as string) : undefined;
-    const to = query.to ? new Date(query.to as string) : undefined;
+    const fromRaw = query.from as string | undefined;
+    const toRaw = query.to as string | undefined;
+    const from = fromRaw ? new Date(fromRaw) : undefined;
+    const to = toRaw ? new Date(toRaw) : undefined;
+    if (from && isNaN(from.getTime())) throw badRequest("invalid 'from' date");
+    if (to && isNaN(to.getTime())) throw badRequest("invalid 'to' date");
     return (from || to) ? { from, to } : undefined;
   }
 
@@ -60,6 +65,14 @@ export function costRoutes(db: Db) {
     assertCompanyAccess(req, companyId);
     const range = parseDateRange(req.query);
     const rows = await costs.byAgent(companyId, range);
+    res.json(rows);
+  });
+
+  router.get("/companies/:companyId/costs/by-agent-model", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const range = parseDateRange(req.query);
+    const rows = await costs.byAgentModel(companyId, range);
     res.json(rows);
   });
 

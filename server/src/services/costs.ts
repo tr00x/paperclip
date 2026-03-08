@@ -268,6 +268,32 @@ export function costService(db: Db) {
       return results.flat();
     },
 
+    byAgentModel: async (companyId: string, range?: CostDateRange) => {
+      const conditions: ReturnType<typeof eq>[] = [eq(costEvents.companyId, companyId)];
+      if (range?.from) conditions.push(gte(costEvents.occurredAt, range.from));
+      if (range?.to) conditions.push(lte(costEvents.occurredAt, range.to));
+
+      // single query: group by agent + provider + model.
+      // the (companyId, agentId, occurredAt) composite index covers this well.
+      // order by provider + model for stable db-level ordering; cost-desc sort
+      // within each agent's sub-rows is done client-side in the ui memo.
+      return db
+        .select({
+          agentId: costEvents.agentId,
+          agentName: agents.name,
+          provider: costEvents.provider,
+          model: costEvents.model,
+          costCents: sql<number>`coalesce(sum(${costEvents.costCents}), 0)::int`,
+          inputTokens: sql<number>`coalesce(sum(${costEvents.inputTokens}), 0)::int`,
+          outputTokens: sql<number>`coalesce(sum(${costEvents.outputTokens}), 0)::int`,
+        })
+        .from(costEvents)
+        .leftJoin(agents, eq(costEvents.agentId, agents.id))
+        .where(and(...conditions))
+        .groupBy(costEvents.agentId, agents.name, costEvents.provider, costEvents.model)
+        .orderBy(costEvents.provider, costEvents.model);
+    },
+
     byProject: async (companyId: string, range?: CostDateRange) => {
       const issueIdAsText = sql<string>`${issues.id}::text`;
       const runProjectLinks = db
@@ -295,8 +321,8 @@ export function costService(db: Db) {
         .as("run_project_links");
 
       const conditions: ReturnType<typeof eq>[] = [eq(heartbeatRuns.companyId, companyId)];
-      if (range?.from) conditions.push(gte(heartbeatRuns.finishedAt, range.from));
-      if (range?.to) conditions.push(lte(heartbeatRuns.finishedAt, range.to));
+      if (range?.from) conditions.push(gte(heartbeatRuns.startedAt, range.from));
+      if (range?.to) conditions.push(lte(heartbeatRuns.startedAt, range.to));
 
       const costCentsExpr = sql<number>`coalesce(sum(round(coalesce((${heartbeatRuns.usageJson} ->> 'costUsd')::numeric, 0) * 100)), 0)::int`;
 
