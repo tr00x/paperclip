@@ -33,19 +33,51 @@ export function ProviderQuotaCard({
   showDeficitNotch,
   quotaWindows = [],
 }: ProviderQuotaCardProps) {
-  const totalInputTokens = rows.reduce((s, r) => s + r.inputTokens, 0);
-  const totalOutputTokens = rows.reduce((s, r) => s + r.outputTokens, 0);
-  const totalTokens = totalInputTokens + totalOutputTokens;
-  const totalCostCents = rows.reduce((s, r) => s + r.costCents, 0);
-  const totalApiRuns = rows.reduce((s, r) => s + r.apiRunCount, 0);
-  const totalSubRuns = rows.reduce((s, r) => s + r.subscriptionRunCount, 0);
-  const totalSubInputTokens = rows.reduce((s, r) => s + r.subscriptionInputTokens, 0);
-  const totalSubOutputTokens = rows.reduce((s, r) => s + r.subscriptionOutputTokens, 0);
-  const totalSubTokens = totalSubInputTokens + totalSubOutputTokens;
+  // single-pass aggregation over rows — memoized so the 8 derived values are not
+  // recomputed on every parent render tick (providers tab polls every 30s, and each
+  // card is mounted twice: once in the "all" tab grid and once in its per-provider tab).
+  const totals = useMemo(() => {
+    let inputTokens = 0, outputTokens = 0, costCents = 0;
+    let apiRunCount = 0, subRunCount = 0, subInputTokens = 0, subOutputTokens = 0;
+    for (const r of rows) {
+      inputTokens += r.inputTokens;
+      outputTokens += r.outputTokens;
+      costCents += r.costCents;
+      apiRunCount += r.apiRunCount;
+      subRunCount += r.subscriptionRunCount;
+      subInputTokens += r.subscriptionInputTokens;
+      subOutputTokens += r.subscriptionOutputTokens;
+    }
+    const totalTokens = inputTokens + outputTokens;
+    const subTokens = subInputTokens + subOutputTokens;
+    // denominator: api-billed tokens (from cost_events) + subscription tokens (from heartbeat_runs)
+    const allTokens = totalTokens + subTokens;
+    return {
+      totalInputTokens: inputTokens,
+      totalOutputTokens: outputTokens,
+      totalTokens,
+      totalCostCents: costCents,
+      totalApiRuns: apiRunCount,
+      totalSubRuns: subRunCount,
+      totalSubInputTokens: subInputTokens,
+      totalSubOutputTokens: subOutputTokens,
+      totalSubTokens: subTokens,
+      subSharePct: allTokens > 0 ? (subTokens / allTokens) * 100 : 0,
+    };
+  }, [rows]);
 
-  // sub share = sub tokens / (api tokens + sub tokens)
-  const allTokens = totalTokens + totalSubTokens;
-  const subSharePct = allTokens > 0 ? (totalSubTokens / allTokens) * 100 : 0;
+  const {
+    totalInputTokens,
+    totalOutputTokens,
+    totalTokens,
+    totalCostCents,
+    totalApiRuns,
+    totalSubRuns,
+    totalSubInputTokens,
+    totalSubOutputTokens,
+    totalSubTokens,
+    subSharePct,
+  } = totals;
 
   // budget bars: use this provider's own spend vs its pro-rata share of budget
   // pro-rata: if a provider is 40% of total spend, it gets 40% of the budget allocated.

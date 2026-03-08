@@ -486,7 +486,7 @@ export function Costs() {
                       <div className="space-y-2">
                         {spendData.byProject.map((row, i) => (
                           <div
-                            key={row.projectId ?? "unattributed"}
+                            key={row.projectId ?? `unattributed-${i}`}
                             className="flex items-center justify-between text-sm"
                           >
                             <span className="truncate">
