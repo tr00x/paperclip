@@ -162,16 +162,17 @@ export function ProviderQuotaCard({
                 Subscription quota
               </p>
               <div className="space-y-2.5">
-                {quotaWindows.map((qw) => {
-                  const pct = qw.usedPercent ?? 0;
+                {quotaWindows.map((qw, i) => {
                   const fillColor =
-                    pct >= 90
-                      ? "bg-red-400"
-                      : pct >= 70
-                        ? "bg-yellow-400"
-                        : "bg-green-400";
+                    qw.usedPercent == null
+                      ? null
+                      : qw.usedPercent >= 90
+                        ? "bg-red-400"
+                        : qw.usedPercent >= 70
+                          ? "bg-yellow-400"
+                          : "bg-green-400";
                   return (
-                    <div key={qw.label} className="space-y-1">
+                    <div key={`${qw.label}-${i}`} className="space-y-1">
                       <div className="flex items-center justify-between gap-2 text-xs">
                         <span className="font-mono text-muted-foreground shrink-0">{qw.label}</span>
                         <span className="flex-1" />
@@ -181,11 +182,11 @@ export function ProviderQuotaCard({
                           <span className="font-medium tabular-nums">{qw.usedPercent}% used</span>
                         ) : null}
                       </div>
-                      {qw.usedPercent != null && (
+                      {qw.usedPercent != null && fillColor != null && (
                         <div className="h-1.5 w-full border border-border overflow-hidden">
                           <div
                             className={`h-full transition-[width] duration-150 ${fillColor}`}
-                            style={{ width: `${pct}%` }}
+                            style={{ width: `${qw.usedPercent}%` }}
                           />
                         </div>
                       )}

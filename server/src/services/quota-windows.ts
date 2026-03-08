@@ -47,12 +47,23 @@ interface AnthropicUsageResponse {
 
 function toPercent(utilization: number | null | undefined): number | null {
   if (utilization == null) return null;
-  // utilization is 0-1 fraction
-  return Math.round(utilization * 100);
+  // utilization is 0-1 fraction; clamp to 100 in case of floating-point overshoot
+  return Math.min(100, Math.round(utilization * 100));
+}
+
+// fetch with an abort-based timeout so a hanging provider api doesn't block the response indefinitely
+async function fetchWithTimeout(url: string, init: RequestInit, ms = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchClaudeQuota(token: string): Promise<QuotaWindow[]> {
-  const resp = await fetch("https://api.anthropic.com/api/oauth/usage", {
+  const resp = await fetchWithTimeout("https://api.anthropic.com/api/oauth/usage", {
     headers: {
       "Authorization": `Bearer ${token}`,
       "anthropic-beta": "oauth-2025-04-20",
@@ -167,7 +178,7 @@ async function fetchCodexQuota(token: string, accountId: string | null): Promise
   };
   if (accountId) headers["ChatGPT-Account-Id"] = accountId;
 
-  const resp = await fetch("https://chatgpt.com/backend-api/wham/usage", { headers });
+  const resp = await fetchWithTimeout("https://chatgpt.com/backend-api/wham/usage", { headers });
   if (!resp.ok) throw new Error(`chatgpt wham api returned ${resp.status}`);
   const body = (await resp.json()) as WhamUsageResponse;
   const windows: QuotaWindow[] = [];
@@ -185,7 +196,7 @@ async function fetchCodexQuota(token: string, accountId: string | null): Promise
   if (rateLimit?.secondary_window != null) {
     const w = rateLimit.secondary_window;
     windows.push({
-      label: "Weekly",
+      label: secondsToWindowLabel(w.limit_window_seconds),
       usedPercent: w.used_percent ?? null,
       resetsAt: w.reset_at ?? null,
       valueLabel: null,
