@@ -591,39 +591,50 @@ export function IssuesList({
                 <Link
                   key={issue.id}
                   to={`/issues/${issue.identifier ?? issue.id}`}
-                  className="flex flex-col gap-1 py-2.5 pl-2 pr-3 text-sm border-b border-border last:border-b-0 cursor-pointer hover:bg-accent/50 transition-colors no-underline text-inherit sm:flex-row sm:items-center sm:gap-2 sm:py-2 sm:pl-1"
+                  className="flex items-start gap-2 py-2.5 pl-2 pr-3 text-sm border-b border-border last:border-b-0 cursor-pointer hover:bg-accent/50 transition-colors no-underline text-inherit sm:items-center sm:py-2 sm:pl-1"
                 >
-                  {/* Title line - first on mobile, middle on desktop */}
-                  <span className="line-clamp-2 text-sm pl-1 sm:order-2 sm:flex-1 sm:min-w-0 sm:pl-0 sm:line-clamp-none sm:truncate">
-                    {issue.title}
+                  {/* Status icon - left column on mobile, inline on desktop */}
+                  <span className="shrink-0 pt-0.5 sm:hidden" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <StatusIcon
+                      status={issue.status}
+                      onChange={(s) => onUpdateIssue(issue.id, { status: s })}
+                    />
                   </span>
 
-                  {/* Metadata line - second on mobile, first on desktop */}
-                  <span className="flex items-center gap-2 sm:order-1 sm:shrink-0">
-                    {/* Spacer matching caret width so status icon aligns with group title (hidden on mobile) */}
-                    <span className="w-3.5 shrink-0 hidden sm:block" />
-                    <PriorityIcon priority={issue.priority} />
-                    <span className="shrink-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                      <StatusIcon
-                        status={issue.status}
-                        onChange={(s) => onUpdateIssue(issue.id, { status: s })}
-                      />
+                  {/* Right column on mobile: title + metadata stacked */}
+                  <span className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
+                    {/* Title line */}
+                    <span className="line-clamp-2 text-sm sm:order-2 sm:flex-1 sm:min-w-0 sm:line-clamp-none sm:truncate">
+                      {issue.title}
                     </span>
-                    <span className="text-xs text-muted-foreground font-mono shrink-0">
-                      {issue.identifier ?? issue.id.slice(0, 8)}
-                    </span>
-                    {liveIssueIds?.has(issue.id) && (
-                      <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-blue-500/10">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-                        </span>
-                        <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hidden sm:inline">Live</span>
+
+                    {/* Metadata line */}
+                    <span className="flex items-center gap-2 sm:order-1 sm:shrink-0">
+                      {/* Spacer matching caret width so status icon aligns with group title (hidden on mobile) */}
+                      <span className="w-3.5 shrink-0 hidden sm:block" />
+                      <span className="hidden sm:inline-flex"><PriorityIcon priority={issue.priority} /></span>
+                      <span className="hidden shrink-0 sm:inline-flex" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                        <StatusIcon
+                          status={issue.status}
+                          onChange={(s) => onUpdateIssue(issue.id, { status: s })}
+                        />
                       </span>
-                    )}
-                    <span className="text-xs text-muted-foreground sm:hidden">&middot;</span>
-                    <span className="text-xs text-muted-foreground sm:hidden">
-                      {timeAgo(issue.updatedAt)}
+                      <span className="text-xs text-muted-foreground font-mono shrink-0">
+                        {issue.identifier ?? issue.id.slice(0, 8)}
+                      </span>
+                      {liveIssueIds?.has(issue.id) && (
+                        <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-full bg-blue-500/10">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                          </span>
+                          <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hidden sm:inline">Live</span>
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground sm:hidden">&middot;</span>
+                      <span className="text-xs text-muted-foreground sm:hidden">
+                        {timeAgo(issue.updatedAt)}
+                      </span>
                     </span>
                   </span>
 

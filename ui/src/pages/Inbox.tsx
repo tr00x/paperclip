@@ -841,9 +841,14 @@ export function Inbox() {
               {staleIssues.map((issue) => (
                 <div
                   key={issue.id}
-                  className="group/stale relative flex items-start gap-3 overflow-hidden px-4 py-3 transition-colors hover:bg-accent/50"
+                  className="group/stale relative flex items-start gap-2 overflow-hidden px-3 py-3 transition-colors hover:bg-accent/50 sm:items-center sm:gap-3 sm:px-4"
                 >
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
+                  {/* Status icon - left column on mobile; Clock icon on desktop */}
+                  <span className="shrink-0 pt-0.5 sm:hidden">
+                    <StatusIcon status={issue.status} />
+                  </span>
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground hidden sm:block sm:mt-0" />
+
                   <Link
                     to={`/issues/${issue.identifier ?? issue.id}`}
                     className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1 no-underline text-inherit sm:flex-row sm:items-center sm:gap-3"
@@ -852,8 +857,8 @@ export function Inbox() {
                       {issue.title}
                     </span>
                     <span className="flex items-center gap-2 sm:order-1 sm:shrink-0">
-                      <PriorityIcon priority={issue.priority} />
-                      <StatusIcon status={issue.status} />
+                      <span className="hidden sm:inline-flex"><PriorityIcon priority={issue.priority} /></span>
+                      <span className="hidden sm:inline-flex"><StatusIcon status={issue.status} /></span>
                       <span className="shrink-0 text-xs font-mono text-muted-foreground">
                         {issue.identifier ?? issue.id.slice(0, 8)}
                       </span>
@@ -900,54 +905,90 @@ export function Inbox() {
                   <Link
                     key={issue.id}
                     to={`/issues/${issue.identifier ?? issue.id}`}
-                    className="flex min-w-0 cursor-pointer flex-col gap-1 px-3 py-3 no-underline text-inherit transition-colors hover:bg-accent/50 sm:flex-row sm:items-center sm:gap-3 sm:px-4"
+                    className="flex min-w-0 cursor-pointer items-start gap-2 px-3 py-3 no-underline text-inherit transition-colors hover:bg-accent/50 sm:items-center sm:gap-3 sm:px-4"
                   >
-                    <span className="line-clamp-2 text-sm sm:order-2 sm:flex-1 sm:min-w-0 sm:line-clamp-none sm:truncate">
-                      {issue.title}
+                    {/* Status icon - left column on mobile, inline on desktop */}
+                    <span className="shrink-0 pt-0.5 sm:hidden">
+                      <StatusIcon status={issue.status} />
                     </span>
-                    <span className="flex items-center gap-2 sm:order-1 sm:shrink-0">
-                      {(isUnread || isFading) ? (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            markReadMutation.mutate(issue.id);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
+
+                    {/* Right column on mobile: title + metadata stacked */}
+                    <span className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
+                      <span className="line-clamp-2 text-sm sm:order-2 sm:flex-1 sm:min-w-0 sm:line-clamp-none sm:truncate">
+                        {issue.title}
+                      </span>
+                      <span className="flex items-center gap-2 sm:order-1 sm:shrink-0">
+                        {(isUnread || isFading) ? (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               markReadMutation.mutate(issue.id);
-                            }
-                          }}
-                          className="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-blue-500/20"
-                          aria-label="Mark as read"
-                        >
-                          <span
-                            className={`h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 transition-opacity duration-300 ${
-                              isFading ? "opacity-0" : "opacity-100"
-                            }`}
-                          />
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                markReadMutation.mutate(issue.id);
+                              }
+                            }}
+                            className="hidden sm:inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-blue-500/20"
+                            aria-label="Mark as read"
+                          >
+                            <span
+                              className={`h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 transition-opacity duration-300 ${
+                                isFading ? "opacity-0" : "opacity-100"
+                              }`}
+                            />
+                          </span>
+                        ) : (
+                          <span className="hidden sm:inline-flex h-4 w-4 shrink-0" />
+                        )}
+                        <span className="hidden sm:inline-flex"><PriorityIcon priority={issue.priority} /></span>
+                        <span className="hidden sm:inline-flex"><StatusIcon status={issue.status} /></span>
+                        <span className="text-xs font-mono text-muted-foreground">
+                          {issue.identifier ?? issue.id.slice(0, 8)}
                         </span>
-                      ) : (
-                        <span className="inline-flex h-4 w-4 shrink-0" />
-                      )}
-                      <PriorityIcon priority={issue.priority} />
-                      <StatusIcon status={issue.status} />
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {issue.identifier ?? issue.id.slice(0, 8)}
-                      </span>
-                      <span className="text-xs text-muted-foreground sm:hidden">
-                        &middot;
-                      </span>
-                      <span className="text-xs text-muted-foreground sm:order-last">
-                        {issue.lastExternalCommentAt
-                          ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
-                          : `updated ${timeAgo(issue.updatedAt)}`}
+                        <span className="text-xs text-muted-foreground sm:hidden">
+                          &middot;
+                        </span>
+                        <span className="text-xs text-muted-foreground sm:order-last">
+                          {issue.lastExternalCommentAt
+                            ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
+                            : `updated ${timeAgo(issue.updatedAt)}`}
+                        </span>
                       </span>
                     </span>
+
+                    {/* Unread dot - right side, vertically centered (mobile only; desktop keeps inline) */}
+                    {(isUnread || isFading) && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          markReadMutation.mutate(issue.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            markReadMutation.mutate(issue.id);
+                          }
+                        }}
+                        className="shrink-0 self-center cursor-pointer sm:hidden"
+                        aria-label="Mark as read"
+                      >
+                        <span
+                          className={`block h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 transition-opacity duration-300 ${
+                            isFading ? "opacity-0" : "opacity-100"
+                          }`}
+                        />
+                      </span>
+                    )}
                   </Link>
                 );
               })}
