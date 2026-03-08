@@ -841,26 +841,26 @@ export function Inbox() {
               {staleIssues.map((issue) => (
                 <div
                   key={issue.id}
-                  className="group/stale relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50"
+                  className="group/stale relative flex items-center gap-3 overflow-hidden px-4 py-3 transition-colors hover:bg-accent/50"
                 >
                   <Link
                     to={`/issues/${issue.identifier ?? issue.id}`}
-                    className="flex flex-1 cursor-pointer items-center gap-3 no-underline text-inherit"
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 no-underline text-inherit"
                   >
                     <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <PriorityIcon priority={issue.priority} />
                     <StatusIcon status={issue.status} />
-                    <span className="text-xs font-mono text-muted-foreground">
+                    <span className="shrink-0 text-xs font-mono text-muted-foreground">
                       {issue.identifier ?? issue.id.slice(0, 8)}
                     </span>
-                    <span className="flex-1 truncate text-sm">{issue.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{issue.title}</span>
                     {issue.assigneeAgentId &&
                       (() => {
                         const name = agentName(issue.assigneeAgentId);
                         return name ? (
                           <Identity name={name} size="sm" />
                         ) : (
-                          <span className="font-mono text-xs text-muted-foreground">
+                          <span className="shrink-0 font-mono text-xs text-muted-foreground">
                             {issue.assigneeAgentId.slice(0, 8)}
                           </span>
                         );
