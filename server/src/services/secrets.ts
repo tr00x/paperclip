@@ -308,10 +308,11 @@ export function secretService(db: Db) {
       return normalized;
     },
 
-    resolveEnvBindings: async (companyId: string, envValue: unknown) => {
+    resolveEnvBindings: async (companyId: string, envValue: unknown): Promise<{ env: Record<string, string>; secretKeys: Set<string> }> => {
       const record = asRecord(envValue);
-      if (!record) return {} as Record<string, string>;
+      if (!record) return { env: {} as Record<string, string>, secretKeys: new Set<string>() };
       const resolved: Record<string, string> = {};
+      const secretKeys = new Set<string>();
 
       for (const [key, rawBinding] of Object.entries(record)) {
         if (!ENV_KEY_RE.test(key)) {
@@ -326,9 +327,10 @@ export function secretService(db: Db) {
           resolved[key] = binding.value;
         } else {
           resolved[key] = await resolveSecretValue(companyId, binding.secretId, binding.version);
+          secretKeys.add(key);
         }
       }
-      return resolved;
+      return { env: resolved, secretKeys };
     },
 
     resolveAdapterConfigForRuntime: async (companyId: string, adapterConfig: Record<string, unknown>): Promise<{ config: Record<string, unknown>; secretKeys: Set<string> }> => {
