@@ -259,11 +259,14 @@ export function Costs() {
   // totals are derived from byProvider (already memoized on providerData) so this memo
   // only rebuilds when the underlying data actually changes, not on every query refetch. ----------
   const providerTabItems = useMemo(() => {
-    const allTokens = providers.reduce(
+    // derive provider keys inline so this memo only rebuilds when byProvider changes,
+    // not on the extra tick caused by the derived `providers` memo also changing.
+    const providerKeys = Array.from(byProvider.keys());
+    const allTokens = providerKeys.reduce(
       (s, p) => s + (byProvider.get(p)?.reduce((a, r) => a + r.inputTokens + r.outputTokens, 0) ?? 0),
       0,
     );
-    const allCents = providers.reduce(
+    const allCents = providerKeys.reduce(
       (s, p) => s + (byProvider.get(p)?.reduce((a, r) => a + r.costCents, 0) ?? 0),
       0,
     );
@@ -273,7 +276,7 @@ export function Costs() {
         label: (
           <span className="flex items-center gap-1.5">
             <span>All providers</span>
-            {providers.length > 0 && (
+            {providerKeys.length > 0 && (
               <>
                 <span className="text-xs text-muted-foreground font-mono">
                   {formatTokens(allTokens)}
@@ -286,12 +289,12 @@ export function Costs() {
           </span>
         ),
       },
-      ...providers.map((p) => ({
+      ...providerKeys.map((p) => ({
         value: p,
         label: <ProviderTabLabel provider={p} rows={byProvider.get(p) ?? []} />,
       })),
     ];
-  }, [providers, byProvider]);
+  }, [byProvider]);
 
   // ---------- guard ----------
 
@@ -483,7 +486,7 @@ export function Costs() {
                       <div className="space-y-2">
                         {spendData.byProject.map((row, i) => (
                           <div
-                            key={row.projectId ?? `na-${i}`}
+                            key={row.projectId ?? "unattributed"}
                             className="flex items-center justify-between text-sm"
                           >
                             <span className="truncate">
