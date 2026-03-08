@@ -189,6 +189,8 @@ export type {
   PluginJobRecord,
   PluginJobRunRecord,
   PluginWebhookDeliveryRecord,
+  QuotaWindow,
+  ProviderQuotaResult,
 } from "./types/index.js";
 
 export {

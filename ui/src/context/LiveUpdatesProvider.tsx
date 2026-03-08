@@ -415,6 +415,7 @@ function invalidateActivityQueries(
     queryClient.invalidateQueries({ queryKey: queryKeys.costs(companyId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.usageByProvider(companyId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.usageWindowSpend(companyId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.usageQuotaWindows(companyId) });
     return;
   }
 

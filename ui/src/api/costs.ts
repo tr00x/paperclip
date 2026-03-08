@@ -1,4 +1,4 @@
-import type { CostSummary, CostByAgent, CostByProviderModel, CostWindowSpendRow } from "@paperclipai/shared";
+import type { CostSummary, CostByAgent, CostByProviderModel, CostWindowSpendRow, ProviderQuotaResult } from "@paperclipai/shared";
 import { api } from "./client";
 
 export interface CostByProject {
@@ -28,4 +28,6 @@ export const costsApi = {
     api.get<CostByProviderModel[]>(`/companies/${companyId}/costs/by-provider${dateParams(from, to)}`),
   windowSpend: (companyId: string) =>
     api.get<CostWindowSpendRow[]>(`/companies/${companyId}/costs/window-spend`),
+  quotaWindows: (companyId: string) =>
+    api.get<ProviderQuotaResult[]>(`/companies/${companyId}/costs/quota-windows`),
 };

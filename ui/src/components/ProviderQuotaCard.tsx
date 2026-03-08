@@ -1,4 +1,4 @@
-import type { CostByProviderModel, CostWindowSpendRow } from "@paperclipai/shared";
+import type { CostByProviderModel, CostWindowSpendRow, QuotaWindow } from "@paperclipai/shared";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { QuotaBar } from "./QuotaBar";
 import { formatCents, formatTokens, providerDisplayName } from "@/lib/utils";
@@ -15,6 +15,8 @@ interface ProviderQuotaCardProps {
   /** rolling window rows for this provider: 5h, 24h, 7d */
   windowRows: CostWindowSpendRow[];
   showDeficitNotch: boolean;
+  /** live subscription quota windows from the provider's own api */
+  quotaWindows?: QuotaWindow[];
 }
 
 export function ProviderQuotaCard({
@@ -25,6 +27,7 @@ export function ProviderQuotaCard({
   weekSpendCents,
   windowRows,
   showDeficitNotch,
+  quotaWindows = [],
 }: ProviderQuotaCardProps) {
   const totalInputTokens = rows.reduce((s, r) => s + r.inputTokens, 0);
   const totalOutputTokens = rows.reduce((s, r) => s + r.outputTokens, 0);
@@ -149,6 +152,55 @@ export function ProviderQuotaCard({
             </>
           );
         })()}
+
+        {/* subscription quota windows from provider api — shown when data is available */}
+        {quotaWindows.length > 0 && (
+          <>
+            <div className="border-t border-border" />
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Subscription quota
+              </p>
+              <div className="space-y-2.5">
+                {quotaWindows.map((qw) => {
+                  const pct = qw.usedPercent ?? 0;
+                  const fillColor =
+                    pct >= 90
+                      ? "bg-red-400"
+                      : pct >= 70
+                        ? "bg-yellow-400"
+                        : "bg-green-400";
+                  return (
+                    <div key={qw.label} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-mono text-muted-foreground shrink-0">{qw.label}</span>
+                        <span className="flex-1" />
+                        {qw.valueLabel != null ? (
+                          <span className="font-medium tabular-nums">{qw.valueLabel}</span>
+                        ) : qw.usedPercent != null ? (
+                          <span className="font-medium tabular-nums">{qw.usedPercent}% used</span>
+                        ) : null}
+                      </div>
+                      {qw.usedPercent != null && (
+                        <div className="h-1.5 w-full border border-border overflow-hidden">
+                          <div
+                            className={`h-full transition-[width] duration-150 ${fillColor}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      )}
+                      {qw.resetsAt && (
+                        <p className="text-xs text-muted-foreground">
+                          resets {new Date(qw.resetsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* subscription usage — shown when any subscription-billed runs exist */}
         {totalSubRuns > 0 && (

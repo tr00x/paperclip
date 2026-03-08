@@ -4,6 +4,7 @@ import { createCostEventSchema, updateBudgetSchema } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
 import { costService, companyService, agentService, logActivity } from "../services/index.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
+import { fetchAllQuotaWindows } from "../services/quota-windows.js";
 
 export function costRoutes(db: Db) {
   const router = Router();
@@ -75,6 +76,12 @@ export function costRoutes(db: Db) {
     assertCompanyAccess(req, companyId);
     const rows = await costs.windowSpend(companyId);
     res.json(rows);
+  });
+
+  router.get("/companies/:companyId/costs/quota-windows", async (req, res) => {
+    assertBoard(req);
+    const results = await fetchAllQuotaWindows();
+    res.json(results);
   });
 
   router.get("/companies/:companyId/costs/by-project", async (req, res) => {

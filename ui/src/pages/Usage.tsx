@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { CostByProviderModel, CostWindowSpendRow } from "@paperclipai/shared";
+import type { CostByProviderModel, CostWindowSpendRow, QuotaWindow } from "@paperclipai/shared";
 import { costsApi } from "../api/costs";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -150,6 +150,15 @@ export function Usage() {
     staleTime: 10_000,
   });
 
+  const { data: quotaData } = useQuery({
+    queryKey: queryKeys.usageQuotaWindows(selectedCompanyId!),
+    queryFn: () => costsApi.quotaWindows(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+    // quota windows change infrequently; refresh every 5 minutes
+    refetchInterval: 300_000,
+    staleTime: 60_000,
+  });
+
   // rows grouped by provider
   const byProvider = useMemo(() => {
     const map = new Map<string, CostByProviderModel[]>();
@@ -180,6 +189,17 @@ export function Usage() {
     }
     return map;
   }, [windowData]);
+
+  // quota windows from the provider's own api, keyed by provider
+  const quotaWindowsByProvider = useMemo(() => {
+    const map = new Map<string, QuotaWindow[]>();
+    for (const result of quotaData ?? []) {
+      if (result.ok && result.windows.length > 0) {
+        map.set(result.provider, result.windows);
+      }
+    }
+    return map;
+  }, [quotaData]);
 
   // compute deficit notch per provider: only meaningful for mtd — projects spend to month end
   // and flags when that projection exceeds the provider's pro-rata budget share.
@@ -292,6 +312,7 @@ export function Usage() {
                     weekSpendCents={weekSpendByProvider.get(p) ?? 0}
                     windowRows={windowSpendByProvider.get(p) ?? []}
                     showDeficitNotch={providerDeficitNotch(p)}
+                    quotaWindows={quotaWindowsByProvider.get(p) ?? []}
                   />
                 ))}
               </div>
@@ -308,6 +329,7 @@ export function Usage() {
                 weekSpendCents={weekSpendByProvider.get(p) ?? 0}
                 windowRows={windowSpendByProvider.get(p) ?? []}
                 showDeficitNotch={providerDeficitNotch(p)}
+                quotaWindows={quotaWindowsByProvider.get(p) ?? []}
               />
             </TabsContent>
           ))}
