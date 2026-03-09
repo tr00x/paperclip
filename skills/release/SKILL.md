@@ -13,10 +13,11 @@ Run the full Paperclip release as a maintainer workflow, not just an npm publish
 This skill coordinates:
 
 - stable changelog drafting via `release-changelog`
+- release-train setup via `scripts/release-start.sh`
 - prerelease canary publishing via `scripts/release.sh --canary`
 - Docker smoke testing via `scripts/docker-onboard-smoke.sh`
 - stable publishing via `scripts/release.sh`
-- pushing the release commit and tag
+- pushing the stable branch commit and tag
 - GitHub Release creation via `scripts/create-github-release.sh`
 - website / announcement follow-up tasks
 
@@ -36,7 +37,7 @@ Before proceeding, verify all of the following:
 2. The repo working tree is clean, including untracked files.
 3. There are commits since the last stable tag.
 4. The release SHA has passed the verification gate or is about to.
-5. If package manifests changed, the CI-owned `pnpm-lock.yaml` refresh is already merged on `master`.
+5. If package manifests changed, the CI-owned `pnpm-lock.yaml` refresh is already merged on `master` before the release branch is cut.
 6. npm publish rights are available locally, or the GitHub release workflow is being used with trusted publishing.
 7. If running through Paperclip, you have issue context for status updates and follow-up task creation.
 
@@ -55,13 +56,15 @@ Collect these inputs up front:
 
 Paperclip now uses this release model:
 
-1. Draft the **stable** changelog as `releases/vX.Y.Z.md`
-2. Publish one or more **prerelease canaries** such as `X.Y.Z-canary.0`
-3. Smoke test the canary via Docker
-4. Publish the stable version `X.Y.Z`
-5. Push the release commit and tag
-6. Create the GitHub Release
-7. Complete website and announcement surfaces
+1. Start or resume `release/X.Y.Z`
+2. Draft the **stable** changelog as `releases/vX.Y.Z.md`
+3. Publish one or more **prerelease canaries** such as `X.Y.Z-canary.0`
+4. Smoke test the canary via Docker
+5. Publish the stable version `X.Y.Z`
+6. Push the stable branch commit and tag
+7. Create the GitHub Release
+8. Merge `release/X.Y.Z` back to `master` without squash or rebase
+9. Complete website and announcement surfaces
 
 Critical consequence:
 
@@ -70,7 +73,13 @@ Critical consequence:
 
 ## Step 1 — Decide the Stable Version
 
-Run release preflight first:
+Start the release train first:
+
+```bash
+./scripts/release-start.sh {patch|minor|major}
+```
+
+Then run release preflight:
 
 ```bash
 ./scripts/release-preflight.sh canary {patch|minor|major}
@@ -125,7 +134,7 @@ The GitHub Actions release workflow installs with `pnpm install --frozen-lockfil
 
 ## Step 4 — Publish a Canary
 
-Run:
+Run from the `release/X.Y.Z` branch:
 
 ```bash
 ./scripts/release.sh {patch|minor|major} --canary --dry-run
@@ -203,11 +212,13 @@ Stable publish does **not** push the release for you.
 After stable publish succeeds:
 
 ```bash
-git push public-gh HEAD:master --follow-tags
+git push public-gh HEAD --follow-tags
 ./scripts/create-github-release.sh X.Y.Z
 ```
 
 Use the stable changelog file as the GitHub Release notes source.
+
+Then open the PR from `release/X.Y.Z` back to `master` and merge without squash or rebase.
 
 ## Step 8 — Finish the Other Surfaces
 

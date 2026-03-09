@@ -8,10 +8,11 @@ For the maintainer release workflow, use [doc/RELEASING.md](RELEASING.md). This 
 
 Use these scripts instead of older one-off publish commands:
 
+- [`scripts/release-start.sh`](../scripts/release-start.sh) to create or resume `release/X.Y.Z`
 - [`scripts/release-preflight.sh`](../scripts/release-preflight.sh) before any canary or stable release
 - [`scripts/release.sh`](../scripts/release.sh) for canary and stable npm publishes
 - [`scripts/rollback-latest.sh`](../scripts/rollback-latest.sh) to repoint `latest` during rollback
-- [`scripts/create-github-release.sh`](../scripts/create-github-release.sh) after a stable push
+- [`scripts/create-github-release.sh`](../scripts/create-github-release.sh) after pushing the stable branch tag
 
 ## Why the CLI needs special packaging
 
@@ -87,7 +88,7 @@ This means:
 
 Stable releases publish normal semver versions such as `1.2.3` under the npm dist-tag `latest`.
 
-The stable publish flow also creates the local release commit and git tag. Pushing the commit/tag and creating the GitHub Release happen afterward as separate maintainer steps.
+The stable publish flow also creates the local release commit and git tag on `release/X.Y.Z`. Pushing that branch commit/tag, creating the GitHub Release, and merging the release branch back to `master` happen afterward as separate maintainer steps.
 
 ## Rollback model
 
@@ -109,7 +110,7 @@ Recommended CI release setup:
 
 - use npm trusted publishing via GitHub OIDC
 - require approval through the `npm-release` environment
-- run releases from `master`
+- run releases from `release/X.Y.Z`
 - use canary first, then stable
 
 ## Related Files

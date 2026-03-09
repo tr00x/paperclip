@@ -2,7 +2,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PUBLISH_REMOTE="${PUBLISH_REMOTE:-public-gh}"
+# shellcheck source=./release-lib.sh
+. "$REPO_ROOT/scripts/release-lib.sh"
 
 dry_run=false
 version=""
@@ -17,7 +18,7 @@ Examples:
   ./scripts/create-github-release.sh 1.2.3 --dry-run
 
 Notes:
-  - Run this after pushing the release commit and tag.
+  - Run this after pushing the stable release branch and tag.
   - If the release already exists, this script updates its title and notes.
 EOF
 }
@@ -52,6 +53,7 @@ fi
 
 tag="v$version"
 notes_file="$REPO_ROOT/releases/${tag}.md"
+PUBLISH_REMOTE="$(resolve_release_remote)"
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "Error: gh CLI is required to create GitHub releases." >&2

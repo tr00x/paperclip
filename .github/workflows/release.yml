@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/master'
+    if: startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -68,7 +68,7 @@ jobs:
         run: pnpm build
 
   publish:
-    if: github.ref == 'refs/heads/master'
+    if: startsWith(github.ref, 'refs/heads/release/')
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -115,9 +115,9 @@ jobs:
           fi
           ./scripts/release.sh "${args[@]}"
 
-      - name: Push stable release commit and tag
+      - name: Push stable release branch commit and tag
         if: inputs.channel == 'stable' && !inputs.dry_run
-        run: git push origin HEAD:master --follow-tags
+        run: git push origin "HEAD:${GITHUB_REF_NAME}" --follow-tags
 
       - name: Create GitHub Release
         if: inputs.channel == 'stable' && !inputs.dry_run

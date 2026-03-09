@@ -106,6 +106,25 @@ Guidelines:
 - keep highlights short and concrete
 - spell out upgrade actions for breaking changes
 
+### Inline PR and contributor attribution
+
+When a bullet item clearly maps to a merged pull request, add inline attribution at the
+end of the entry in this format:
+
+```
+- **Feature name** — Description. ([#123](https://github.com/paperclipai/paperclip/pull/123), @contributor1, @contributor2)
+```
+
+Rules:
+
+- Only add a PR link when you can confidently trace the bullet to a specific merged PR.
+  Use merge commit messages (`Merge pull request #N from user/branch`) to map PRs.
+- List the contributor(s) who authored the PR. Use GitHub usernames, not real names or emails.
+- If multiple PRs contributed to a single bullet, list them all: `([#10](url), [#12](url), @user1, @user2)`.
+- If you cannot determine the PR number or contributor with confidence, omit the attribution
+  parenthetical — do not guess.
+- Core maintainer commits that don't have an external PR can omit the parenthetical.
+
 ## Step 5 — Write the File
 
 Template:
@@ -124,9 +143,28 @@ Template:
 ## Fixes
 
 ## Upgrade Guide
+
+## Contributors
+
+Thank you to everyone who contributed to this release!
+
+@username1, @username2, @username3
 ```
 
 Omit empty sections except `Highlights`, `Improvements`, and `Fixes`, which should usually exist.
+
+The `Contributors` section should always be included. List every person who authored
+commits in the release range, @-mentioning them by their **GitHub username** (not their
+real name or email). To find GitHub usernames:
+
+1. Extract usernames from merge commit messages: `git log v{last}..HEAD --oneline --merges` — the branch prefix (e.g. `from username/branch`) gives the GitHub username.
+2. For noreply emails like `user@users.noreply.github.com`, the username is the part before `@`.
+3. For contributors whose username is ambiguous, check `gh api users/{guess}` or the PR page.
+
+**Never expose contributor email addresses.** Use `@username` only.
+
+Exclude bot accounts (e.g. `lockfile-bot`, `dependabot`) from the list. List contributors
+in alphabetical order by GitHub username (case-insensitive).
 
 ## Step 6 — Review Before Release
 
