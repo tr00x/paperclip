@@ -283,9 +283,7 @@ pnpm --filter @paperclipai/adapter-openclaw-gateway build
 pnpm --filter @paperclipai/server build
 
 # Build UI and bundle into server package for static serving
-pnpm --filter @paperclipai/ui build
-rm -rf "$REPO_ROOT/server/ui-dist"
-cp -r "$REPO_ROOT/ui/dist" "$REPO_ROOT/server/ui-dist"
+bash "$REPO_ROOT/scripts/prepare-server-ui-dist.sh"
 
 # Bundle skills into packages that need them (adapters + server)
 for pkg_dir in server packages/adapters/claude-local packages/adapters/codex-local; do
