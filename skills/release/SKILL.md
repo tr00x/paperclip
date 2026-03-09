@@ -36,8 +36,9 @@ Before proceeding, verify all of the following:
 2. The repo working tree is clean, including untracked files.
 3. There are commits since the last stable tag.
 4. The release SHA has passed the verification gate or is about to.
-5. npm publish rights are available locally, or the GitHub release workflow is being used with trusted publishing.
-6. If running through Paperclip, you have issue context for status updates and follow-up task creation.
+5. If package manifests changed, the CI-owned `pnpm-lock.yaml` refresh is already merged on `master`.
+6. npm publish rights are available locally, or the GitHub release workflow is being used with trusted publishing.
+7. If running through Paperclip, you have issue context for status updates and follow-up task creation.
 
 If any precondition fails, stop and report the blocker.
 
@@ -119,6 +120,8 @@ pnpm build
 ```
 
 If the release will be run through GitHub Actions, the workflow can rerun this gate. Still report whether the local tree currently passes.
+
+The GitHub Actions release workflow installs with `pnpm install --frozen-lockfile`. Treat that as a release invariant, not a nuisance: if manifests changed and the lockfile refresh PR has not landed yet, stop and wait for `master` to contain the committed lockfile before shipping.
 
 ## Step 4 — Publish a Canary
 

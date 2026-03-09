@@ -26,20 +26,23 @@ Treat those as related but separate. npm can succeed while the GitHub Release is
 Use this when you want an installable prerelease without changing `latest`.
 
 ```bash
-# 0. Preflight the canary candidate
+# 0. Confirm master already has the CI-owned lockfile refresh merged
+#    If package manifests changed recently, wait for the refresh-lockfile PR first.
+
+# 1. Preflight the canary candidate
 ./scripts/release-preflight.sh canary patch
 
-# 1. Draft or update the stable changelog for the intended stable version
+# 2. Draft or update the stable changelog for the intended stable version
 VERSION=0.2.8
 claude --print --output-format stream-json --verbose --dangerously-skip-permissions --model claude-opus-4-6 "Use the release-changelog skill to draft or update releases/v${VERSION}.md for Paperclip. Read doc/RELEASING.md and skills/release-changelog/SKILL.md, then generate the stable changelog for v${VERSION} from commits since the last stable tag. Do not create a canary changelog."
 
-# 2. Preview the canary release
+# 3. Preview the canary release
 ./scripts/release.sh patch --canary --dry-run
 
-# 3. Publish the canary
+# 4. Publish the canary
 ./scripts/release.sh patch --canary
 
-# 4. Smoke test what users will actually install
+# 5. Smoke test what users will actually install
 PAPERCLIPAI_VERSION=canary ./scripts/docker-onboard-smoke.sh
 
 # Users install with:
@@ -60,27 +63,30 @@ Result:
 Use this only after the canary SHA is good enough to become the public default.
 
 ```bash
-# 0. Start from the vetted commit
+# 0. Confirm master already has the CI-owned lockfile refresh merged
+#    If package manifests changed recently, wait for the refresh-lockfile PR first.
+
+# 1. Start from the vetted commit
 git checkout master
 git pull
 
-# 1. Preflight the stable candidate
+# 2. Preflight the stable candidate
 ./scripts/release-preflight.sh stable patch
 
-# 2. Confirm the stable changelog exists
+# 3. Confirm the stable changelog exists
 VERSION=0.2.8
 ls "releases/v${VERSION}.md"
 
-# 3. Preview the stable publish
+# 4. Preview the stable publish
 ./scripts/release.sh patch --dry-run
 
-# 4. Publish the stable release to npm and create the local release commit + tag
+# 5. Publish the stable release to npm and create the local release commit + tag
 ./scripts/release.sh patch
 
-# 5. Push the release commit and tag
+# 6. Push the release commit and tag
 git push public-gh HEAD:master --follow-tags
 
-# 6. Create or update the GitHub Release from the pushed tag
+# 7. Create or update the GitHub Release from the pushed tag
 ./scripts/create-github-release.sh X.Y.Z
 ```
 
@@ -163,6 +169,7 @@ The workflow:
 
 - [ ] The working tree is clean, including untracked files
 - [ ] The target branch and SHA are the ones you actually want to release
+- [ ] If package manifests changed, the CI-owned `pnpm-lock.yaml` refresh is already merged on `master`
 - [ ] The required verification gate passed on that exact SHA
 - [ ] The bump type is correct for the user-visible impact
 - [ ] The stable changelog file exists or is ready to be written at `releases/vX.Y.Z.md`
@@ -201,6 +208,8 @@ pnpm build
 ```
 
 This matches [`.github/workflows/pr-verify.yml`](../.github/workflows/pr-verify.yml). Run it before claiming a release candidate is ready.
+
+The release workflow at [`.github/workflows/release.yml`](../.github/workflows/release.yml) installs with `pnpm install --frozen-lockfile`. That is intentional. Releases must use the exact dependency graph already committed on `master`; if manifests changed and the CI-owned lockfile refresh has not landed yet, the release should fail until that prerequisite is merged.
 
 For release work, prefer:
 
