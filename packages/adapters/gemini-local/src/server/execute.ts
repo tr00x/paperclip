@@ -19,7 +19,13 @@ import {
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "../index.js";
-import { isGeminiUnknownSessionError, parseGeminiJsonl } from "./parse.js";
+import {
+  describeGeminiFailure,
+  detectGeminiAuthRequired,
+  isGeminiTurnLimitResult,
+  isGeminiUnknownSessionError,
+  parseGeminiJsonl,
+} from "./parse.js";
 import { firstNonEmptyLine } from "./utils.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -93,7 +99,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   );
   const command = asString(config.command, "gemini");
   const model = asString(config.model, DEFAULT_GEMINI_LOCAL_MODEL).trim();
-  const yolo = asBoolean(config.yolo, false);
+  const approvalMode = asString(config.approvalMode, asBoolean(config.yolo, false) ? "yolo" : "default");
+  const sandbox = asBoolean(config.sandbox, false);
 
   const workspaceContext = parseObject(context.paperclipWorkspace);
   const workspaceCwd = asString(workspaceContext.cwd, "");
@@ -211,7 +218,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   }
   const commandNotes = (() => {
     const notes: string[] = ["Prompt is passed to Gemini as the final positional argument."];
-    if (yolo) notes.push("Added --approval-mode yolo for unattended execution.");
+    if (approvalMode !== "default") notes.push(`Added --approval-mode ${approvalMode} for unattended execution.`);
     if (!instructionsFilePath) return notes;
     if (instructionsPrefix.length > 0) {
       notes.push(
@@ -242,7 +249,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     const args = ["--output-format", "stream-json"];
     if (resumeSessionId) args.push("--resume", resumeSessionId);
     if (model && model !== DEFAULT_GEMINI_LOCAL_MODEL) args.push("--model", model);
-    if (yolo) args.push("--approval-mode", "yolo");
+    if (approvalMode !== "default") args.push("--approval-mode", approvalMode);
+    if (sandbox) {
+      args.push("--sandbox");
+    } else {
+      args.push("--sandbox=none");
+    }
     if (extraArgs.length > 0) args.push(...extraArgs);
     args.push(prompt);
     return args;
@@ -290,18 +302,31 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       parsed: ReturnType<typeof parseGeminiJsonl>;
     },
     clearSessionOnMissingSession = false,
+    isRetry = false,
   ): AdapterExecutionResult => {
+    const authMeta = detectGeminiAuthRequired({
+      parsed: attempt.parsed.resultEvent,
+      stdout: attempt.proc.stdout,
+      stderr: attempt.proc.stderr,
+    });
+
     if (attempt.proc.timedOut) {
       return {
         exitCode: attempt.proc.exitCode,
         signal: attempt.proc.signal,
         timedOut: true,
         errorMessage: `Timed out after ${timeoutSec}s`,
+        errorCode: authMeta.requiresAuth ? "gemini_auth_required" : null,
         clearSession: clearSessionOnMissingSession,
       };
     }
 
-    const resolvedSessionId = attempt.parsed.sessionId ?? runtimeSessionId ?? runtime.sessionId ?? null;
+    const clearSessionForTurnLimit = isGeminiTurnLimitResult(attempt.parsed.resultEvent, attempt.proc.exitCode);
+
+    // On retry, don't fall back to old session ID — the old session was stale
+    const canFallbackToRuntimeSession = !isRetry;
+    const resolvedSessionId = attempt.parsed.sessionId
+      ?? (canFallbackToRuntimeSession ? (runtimeSessionId ?? runtime.sessionId ?? null) : null);
     const resolvedSessionParams = resolvedSessionId
       ? ({
         sessionId: resolvedSessionId,
@@ -313,8 +338,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       : null;
     const parsedError = typeof attempt.parsed.errorMessage === "string" ? attempt.parsed.errorMessage.trim() : "";
     const stderrLine = firstNonEmptyLine(attempt.proc.stderr);
+    const structuredFailure = attempt.parsed.resultEvent
+      ? describeGeminiFailure(attempt.parsed.resultEvent)
+      : null;
     const fallbackErrorMessage =
       parsedError ||
+      structuredFailure ||
       stderrLine ||
       `Gemini exited with code ${attempt.proc.exitCode ?? -1}`;
 
@@ -323,6 +352,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       signal: attempt.proc.signal,
       timedOut: false,
       errorMessage: (attempt.proc.exitCode ?? 0) === 0 ? null : fallbackErrorMessage,
+      errorCode: authMeta.requiresAuth ? "gemini_auth_required" : null,
       usage: attempt.parsed.usage,
       sessionId: resolvedSessionId,
       sessionParams: resolvedSessionParams,
@@ -331,12 +361,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       model,
       billingType,
       costUsd: attempt.parsed.costUsd,
-      resultJson: {
+      resultJson: attempt.parsed.resultEvent ?? {
         stdout: attempt.proc.stdout,
         stderr: attempt.proc.stderr,
       },
       summary: attempt.parsed.summary,
-      clearSession: Boolean(clearSessionOnMissingSession && !resolvedSessionId),
+      clearSession: clearSessionForTurnLimit || Boolean(clearSessionOnMissingSession && !resolvedSessionId),
     };
   };
 
@@ -353,7 +383,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         `[paperclip] Gemini resume session "${sessionId}" is unavailable; retrying with a fresh session.\n`,
       );
       const retry = await runAttempt(null);
-      return toResult(retry, true);
+      return toResult(retry, true, true);
     }
 
     return toResult(initial);

@@ -15,7 +15,7 @@ import {
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "../index.js";
-import { parseGeminiJsonl } from "./parse.js";
+import { detectGeminiAuthRequired, parseGeminiJsonl } from "./parse.js";
 import { firstNonEmptyLine } from "./utils.js";
 
 function summarizeStatus(checks: AdapterEnvironmentCheck[]): AdapterEnvironmentTestResult["status"] {
@@ -40,9 +40,6 @@ function summarizeProbeDetail(stdout: string, stderr: string, parsedError: strin
   const max = 240;
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }
-
-const GEMINI_AUTH_REQUIRED_RE =
-  /(?:authentication\s+required|not\s+authenticated|not\s+logged\s+in|login\s+required|unauthorized|invalid(?:\s+or\s+missing)?\s+api(?:[_\s-]?key)?|gemini[_\s-]?api[_\s-]?key|google[_\s-]?api[_\s-]?key|run\s+`?gemini\s+auth(?:\s+login)?`?\s+first|api(?:[_\s-]?key)?(?:\s+is)?\s+required)/i;
 
 export async function testEnvironment(
   ctx: AdapterEnvironmentTestContext,
@@ -94,15 +91,19 @@ export async function testEnvironment(
   const hostGeminiApiKey = process.env.GEMINI_API_KEY;
   const configGoogleApiKey = env.GOOGLE_API_KEY;
   const hostGoogleApiKey = process.env.GOOGLE_API_KEY;
+  const hasGca = env.GOOGLE_GENAI_USE_GCA === "true" || process.env.GOOGLE_GENAI_USE_GCA === "true";
   if (
     isNonEmpty(configGeminiApiKey) ||
     isNonEmpty(hostGeminiApiKey) ||
     isNonEmpty(configGoogleApiKey) ||
-    isNonEmpty(hostGoogleApiKey)
+    isNonEmpty(hostGoogleApiKey) ||
+    hasGca
   ) {
-    const source = isNonEmpty(configGeminiApiKey) || isNonEmpty(configGoogleApiKey)
-      ? "adapter config env"
-      : "server environment";
+    const source = hasGca
+      ? "Google account login (GCA)"
+      : isNonEmpty(configGeminiApiKey) || isNonEmpty(configGoogleApiKey)
+        ? "adapter config env"
+        : "server environment";
     checks.push({
       code: "gemini_api_key_present",
       level: "info",
@@ -114,7 +115,7 @@ export async function testEnvironment(
       code: "gemini_api_key_missing",
       level: "warn",
       message: "No Gemini API key was detected. Gemini runs may fail until auth is configured.",
-      hint: "Set GEMINI_API_KEY or GOOGLE_API_KEY in adapter env/shell, or run `gemini auth` / `gemini auth login`.",
+      hint: "Set GEMINI_API_KEY or GOOGLE_API_KEY in adapter env/shell, run `gemini auth` / `gemini auth login`, or set GOOGLE_GENAI_USE_GCA=true for Google account auth.",
     });
   }
 
@@ -158,7 +159,11 @@ export async function testEnvironment(
       );
       const parsed = parseGeminiJsonl(probe.stdout);
       const detail = summarizeProbeDetail(probe.stdout, probe.stderr, parsed.errorMessage);
-      const authEvidence = `${parsed.errorMessage ?? ""}\n${probe.stdout}\n${probe.stderr}`.trim();
+      const authMeta = detectGeminiAuthRequired({
+        parsed: parsed.resultEvent,
+        stdout: probe.stdout,
+        stderr: probe.stderr,
+      });
 
       if (probe.timedOut) {
         checks.push({
@@ -183,7 +188,7 @@ export async function testEnvironment(
               hint: "Try `gemini --output-format json \"Respond with hello.\"` manually to inspect full output.",
             }),
         });
-      } else if (GEMINI_AUTH_REQUIRED_RE.test(authEvidence)) {
+      } else if (authMeta.requiresAuth) {
         checks.push({
           code: "gemini_hello_probe_auth_required",
           level: "warn",
