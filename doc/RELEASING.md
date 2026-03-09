@@ -26,24 +26,20 @@ Treat those as related but separate. npm can succeed while the GitHub Release is
 Use this when you want an installable prerelease without changing `latest`.
 
 ```bash
-# 0. Start clean
-git status --short
+# 0. Preflight the canary candidate
+./scripts/release-preflight.sh canary patch
 
-# 1. Verify the candidate SHA
-pnpm -r typecheck
-pnpm test:run
-pnpm build
+# 1. Draft or update the stable changelog for the intended stable version
+VERSION=0.2.8
+claude -p "Use the release-changelog skill to draft or update releases/v${VERSION}.md for Paperclip. Read doc/RELEASING.md and skills/release-changelog/SKILL.md, then generate the stable changelog for v${VERSION} from commits since the last stable tag. Do not create a canary changelog."
 
-# 2. Draft or update the stable changelog
-#    releases/vX.Y.Z.md
-
-# 3. Preview the canary release
+# 2. Preview the canary release
 ./scripts/release.sh patch --canary --dry-run
 
-# 4. Publish the canary
+# 3. Publish the canary
 ./scripts/release.sh patch --canary
 
-# 5. Smoke test what users will actually install
+# 4. Smoke test what users will actually install
 PAPERCLIPAI_VERSION=canary ./scripts/docker-onboard-smoke.sh
 
 # Users install with:
@@ -57,6 +53,7 @@ Result:
 - no git tag is created
 - no GitHub Release is created
 - the working tree returns to clean after the script finishes
+- after stable `0.2.7`, a patch canary targets `0.2.8-canary.0`, never `0.2.7-canary.N`
 
 ### Stable release
 
@@ -66,15 +63,13 @@ Use this only after the canary SHA is good enough to become the public default.
 # 0. Start from the vetted commit
 git checkout master
 git pull
-git status --short
 
-# 1. Verify again on the exact release SHA
-pnpm -r typecheck
-pnpm test:run
-pnpm build
+# 1. Preflight the stable candidate
+./scripts/release-preflight.sh stable patch
 
 # 2. Confirm the stable changelog exists
-ls releases/v*.md
+VERSION=0.2.8
+ls "releases/v${VERSION}.md"
 
 # 3. Preview the stable publish
 ./scripts/release.sh patch --dry-run
@@ -174,6 +169,15 @@ pnpm build
 
 This matches [`.github/workflows/pr-verify.yml`](../.github/workflows/pr-verify.yml). Run it before claiming a release candidate is ready.
 
+For release work, prefer:
+
+```bash
+./scripts/release-preflight.sh canary <patch|minor|major>
+./scripts/release-preflight.sh stable <patch|minor|major>
+```
+
+That script runs the verification gate and prints the computed target versions before you publish anything.
+
 ## Versioning Policy
 
 ### Stable versions
@@ -200,6 +204,11 @@ That gives you three useful properties:
 
 We do **not** create separate changelog files for canary versions.
 
+Concrete example:
+
+- if the latest stable release is `0.2.7`, a patch canary is `0.2.8-canary.0`
+- `0.2.7-canary.0` is invalid, because `0.2.7` is already the shipped stable version
+
 ## Changelog Policy
 
 The maintainer changelog source of truth is:
@@ -222,7 +231,23 @@ Package-level `CHANGELOG.md` files are generated as part of the release mechanic
 
 ### 1. Decide the bump
 
-Review the range since the last stable tag:
+Run preflight first:
+
+```bash
+./scripts/release-preflight.sh canary <patch|minor|major>
+# or
+./scripts/release-preflight.sh stable <patch|minor|major>
+```
+
+That command:
+
+- verifies the worktree is clean, including untracked files
+- shows the last stable tag and computed next versions
+- shows the commit range since the last stable tag
+- highlights migration and breaking-change signals
+- runs `pnpm -r typecheck`, `pnpm test:run`, and `pnpm build`
+
+If you want the raw inputs separately, review the range since the last stable tag:
 
 ```bash
 LAST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -1)
@@ -239,7 +264,8 @@ Use the higher bump if there is any doubt.
 Create or update:
 
 ```bash
-releases/vX.Y.Z.md
+VERSION=X.Y.Z
+claude -p "Use the release-changelog skill to draft or update releases/v${VERSION}.md for Paperclip. Read doc/RELEASING.md and skills/release-changelog/SKILL.md, then generate the stable changelog for v${VERSION} from commits since the last stable tag. Do not create a canary changelog."
 ```
 
 This is deliberate. The release notes should describe the stable story, not the canary mechanics.
@@ -269,6 +295,12 @@ This means the script is safe to repeat as many times as needed while iterating:
 - `1.2.3-canary.2`
 
 The target stable release can still remain `1.2.3`.
+
+Guardrail:
+
+- the canary is always derived from the **next stable version**
+- after stable `0.2.7`, the next patch canary is `0.2.8-canary.0`
+- the scripts refuse to publish `0.2.7-canary.N` once `0.2.7` is already the stable release
 
 ### 4. Smoke test the canary
 
@@ -426,6 +458,7 @@ Rollback procedure:
 ## Scripts Reference
 
 - [`scripts/release.sh`](../scripts/release.sh) — stable and canary npm publish flow
+- [`scripts/release-preflight.sh`](../scripts/release-preflight.sh) — clean-tree, version-plan, and verification-gate preflight
 - [`scripts/create-github-release.sh`](../scripts/create-github-release.sh) — create or update the GitHub Release after push
 - [`scripts/rollback-latest.sh`](../scripts/rollback-latest.sh) — repoint `latest` to the last good stable release
 - [`scripts/docker-onboard-smoke.sh`](../scripts/docker-onboard-smoke.sh) — Docker smoke test for the installed CLI

@@ -309,6 +309,14 @@ if [ "$canary" = true ]; then
   TARGET_PUBLISH_VERSION="$(next_canary_version "$TARGET_STABLE_VERSION")"
 fi
 
+if [ "$TARGET_STABLE_VERSION" = "$CURRENT_STABLE_VERSION" ]; then
+  fail "next stable version matches the current stable version. Refusing to publish."
+fi
+
+if [[ "$TARGET_PUBLISH_VERSION" == "${CURRENT_STABLE_VERSION}-canary."* ]]; then
+  fail "canary versions must be derived from the next stable version, never ${CURRENT_STABLE_VERSION}-canary.N."
+fi
+
 PUBLIC_PACKAGE_INFO="$(list_public_package_info)"
 PUBLIC_PACKAGE_NAMES="$(printf '%s\n' "$PUBLIC_PACKAGE_INFO" | cut -f2)"
 PUBLIC_PACKAGE_DIRS="$(printf '%s\n' "$PUBLIC_PACKAGE_INFO" | cut -f1)"
@@ -324,6 +332,7 @@ info "  Current stable version: $CURRENT_STABLE_VERSION"
 if [ "$canary" = true ]; then
   info "  Target stable version: $TARGET_STABLE_VERSION"
   info "  Canary version: $TARGET_PUBLISH_VERSION"
+  info "  Guard: canary is derived from next stable version, not ${CURRENT_STABLE_VERSION}-canary.N"
 else
   info "  Stable version: $TARGET_STABLE_VERSION"
 fi

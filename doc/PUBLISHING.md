@@ -8,6 +8,7 @@ For the maintainer release workflow, use [doc/RELEASING.md](RELEASING.md). This 
 
 Use these scripts instead of older one-off publish commands:
 
+- [`scripts/release-preflight.sh`](../scripts/release-preflight.sh) before any canary or stable release
 - [`scripts/release.sh`](../scripts/release.sh) for canary and stable npm publishes
 - [`scripts/rollback-latest.sh`](../scripts/rollback-latest.sh) to repoint `latest` during rollback
 - [`scripts/create-github-release.sh`](../scripts/create-github-release.sh) after a stable push

@@ -69,7 +69,15 @@ Critical consequence:
 
 ## Step 1 — Decide the Stable Version
 
-Use the last stable tag as the base:
+Run release preflight first:
+
+```bash
+./scripts/release-preflight.sh canary {patch|minor|major}
+# or
+./scripts/release-preflight.sh stable {patch|minor|major}
+```
+
+Then use the last stable tag as the base:
 
 ```bash
 LAST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -1)
@@ -127,6 +135,11 @@ What this means:
 - `latest` remains unchanged
 - no git tag is created
 - the script cleans the working tree afterward
+
+Guard:
+
+- if the current stable is `0.2.7`, the next patch canary is `0.2.8-canary.0`
+- the tooling must never publish `0.2.7-canary.N` after `0.2.7` is already stable
 
 After publish, verify:
 
