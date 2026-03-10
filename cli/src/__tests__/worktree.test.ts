@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { copySeededSecretsKey, rebindWorkspaceCwd } from "../commands/worktree.js";
+import { copyGitHooksToWorktreeGitDir, copySeededSecretsKey, rebindWorkspaceCwd } from "../commands/worktree.js";
 import {
   buildWorktreeConfig,
   buildWorktreeEnvEntries,
@@ -198,5 +199,53 @@ describe("worktree helpers", () => {
         workspaceCwd: "/Users/example/other-project",
       }),
     ).toBeNull();
+  });
+
+  it("copies shared git hooks into a linked worktree git dir", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-worktree-hooks-"));
+    const repoRoot = path.join(tempRoot, "repo");
+    const worktreePath = path.join(tempRoot, "repo-feature");
+
+    try {
+      fs.mkdirSync(repoRoot, { recursive: true });
+      execFileSync("git", ["init"], { cwd: repoRoot, stdio: "ignore" });
+      execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: repoRoot, stdio: "ignore" });
+      execFileSync("git", ["config", "user.name", "Test User"], { cwd: repoRoot, stdio: "ignore" });
+      fs.writeFileSync(path.join(repoRoot, "README.md"), "# temp\n", "utf8");
+      execFileSync("git", ["add", "README.md"], { cwd: repoRoot, stdio: "ignore" });
+      execFileSync("git", ["commit", "-m", "Initial commit"], { cwd: repoRoot, stdio: "ignore" });
+
+      const sourceHooksDir = path.join(repoRoot, ".git", "hooks");
+      const sourceHookPath = path.join(sourceHooksDir, "pre-commit");
+      const sourceTokensPath = path.join(sourceHooksDir, "forbidden-tokens.txt");
+      fs.writeFileSync(sourceHookPath, "#!/usr/bin/env bash\nexit 0\n", { encoding: "utf8", mode: 0o755 });
+      fs.chmodSync(sourceHookPath, 0o755);
+      fs.writeFileSync(sourceTokensPath, "secret-token\n", "utf8");
+
+      execFileSync("git", ["worktree", "add", "--detach", worktreePath], { cwd: repoRoot, stdio: "ignore" });
+
+      const copied = copyGitHooksToWorktreeGitDir(worktreePath);
+      const worktreeGitDir = execFileSync("git", ["rev-parse", "--git-dir"], {
+        cwd: worktreePath,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+      const resolvedSourceHooksDir = fs.realpathSync(sourceHooksDir);
+      const resolvedTargetHooksDir = fs.realpathSync(path.resolve(worktreePath, worktreeGitDir, "hooks"));
+      const targetHookPath = path.join(resolvedTargetHooksDir, "pre-commit");
+      const targetTokensPath = path.join(resolvedTargetHooksDir, "forbidden-tokens.txt");
+
+      expect(copied).toMatchObject({
+        sourceHooksPath: resolvedSourceHooksDir,
+        targetHooksPath: resolvedTargetHooksDir,
+        copied: true,
+      });
+      expect(fs.readFileSync(targetHookPath, "utf8")).toBe("#!/usr/bin/env bash\nexit 0\n");
+      expect(fs.statSync(targetHookPath).mode & 0o111).not.toBe(0);
+      expect(fs.readFileSync(targetTokensPath, "utf8")).toBe("secret-token\n");
+    } finally {
+      execFileSync("git", ["worktree", "remove", "--force", worktreePath], { cwd: repoRoot, stdio: "ignore" });
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 });
