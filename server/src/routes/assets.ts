@@ -50,7 +50,7 @@ export function assetRoutes(db: Db, storage: StorageService) {
 
     const contentType = (file.mimetype || "").toLowerCase();
     if (!isAllowedContentType(contentType)) {
-      res.status(422).json({ error: `Unsupported image type: ${contentType || "unknown"}` });
+      res.status(422).json({ error: `Unsupported file type: ${contentType || "unknown"}` });
       return;
     }
     if (file.buffer.length <= 0) {
