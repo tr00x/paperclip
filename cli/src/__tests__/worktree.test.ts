@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { copySeededSecretsKey } from "../commands/worktree.js";
+import { copySeededSecretsKey, rebindWorkspaceCwd } from "../commands/worktree.js";
 import {
   buildWorktreeConfig,
   buildWorktreeEnvEntries,
@@ -170,5 +170,33 @@ describe("worktree helpers", () => {
     } finally {
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  it("rebinds same-repo workspace paths onto the current worktree root", () => {
+    expect(
+      rebindWorkspaceCwd({
+        sourceRepoRoot: "/Users/example/paperclip",
+        targetRepoRoot: "/Users/example/paperclip-pr-432",
+        workspaceCwd: "/Users/example/paperclip",
+      }),
+    ).toBe("/Users/example/paperclip-pr-432");
+
+    expect(
+      rebindWorkspaceCwd({
+        sourceRepoRoot: "/Users/example/paperclip",
+        targetRepoRoot: "/Users/example/paperclip-pr-432",
+        workspaceCwd: "/Users/example/paperclip/packages/db",
+      }),
+    ).toBe("/Users/example/paperclip-pr-432/packages/db");
+  });
+
+  it("does not rebind paths outside the source repo root", () => {
+    expect(
+      rebindWorkspaceCwd({
+        sourceRepoRoot: "/Users/example/paperclip",
+        targetRepoRoot: "/Users/example/paperclip-pr-432",
+        workspaceCwd: "/Users/example/other-project",
+      }),
+    ).toBeNull();
   });
 });
