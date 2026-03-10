@@ -57,6 +57,7 @@ export interface IssueFilters {
   touchedByUserId?: string;
   unreadForUserId?: string;
   projectId?: string;
+  parentId?: string;
   labelId?: string;
   q?: string;
 }
@@ -462,6 +463,7 @@ export function issueService(db: Db) {
         conditions.push(unreadForUserCondition(companyId, unreadForUserId));
       }
       if (filters?.projectId) conditions.push(eq(issues.projectId, filters.projectId));
+      if (filters?.parentId) conditions.push(eq(issues.parentId, filters.parentId));
       if (filters?.labelId) {
         const labeledIssueIds = await db
           .select({ issueId: issueLabels.issueId })
