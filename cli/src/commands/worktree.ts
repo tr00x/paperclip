@@ -1,4 +1,16 @@
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -80,6 +92,14 @@ type EmbeddedPostgresHandle = {
 type GitWorkspaceInfo = {
   root: string;
   commonDir: string;
+  gitDir: string;
+  hooksPath: string;
+};
+
+type CopiedGitHooksResult = {
+  sourceHooksPath: string;
+  targetHooksPath: string;
+  copied: boolean;
 };
 
 type SeedWorktreeDatabaseResult = {
@@ -162,13 +182,86 @@ function detectGitWorkspaceInfo(cwd: string): GitWorkspaceInfo | null {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
+    const gitDirRaw = execFileSync("git", ["rev-parse", "--git-dir"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const hooksPathRaw = execFileSync("git", ["rev-parse", "--git-path", "hooks"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
     return {
       root: path.resolve(root),
       commonDir: path.resolve(root, commonDirRaw),
+      gitDir: path.resolve(root, gitDirRaw),
+      hooksPath: path.resolve(root, hooksPathRaw),
     };
   } catch {
     return null;
   }
+}
+
+function copyDirectoryContents(sourceDir: string, targetDir: string): boolean {
+  if (!existsSync(sourceDir)) return false;
+
+  const entries = readdirSync(sourceDir, { withFileTypes: true });
+  if (entries.length === 0) return false;
+
+  mkdirSync(targetDir, { recursive: true });
+
+  let copied = false;
+  for (const entry of entries) {
+    const sourcePath = path.resolve(sourceDir, entry.name);
+    const targetPath = path.resolve(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      mkdirSync(targetPath, { recursive: true });
+      copyDirectoryContents(sourcePath, targetPath);
+      copied = true;
+      continue;
+    }
+
+    if (entry.isSymbolicLink()) {
+      rmSync(targetPath, { recursive: true, force: true });
+      symlinkSync(readlinkSync(sourcePath), targetPath);
+      copied = true;
+      continue;
+    }
+
+    copyFileSync(sourcePath, targetPath);
+    try {
+      chmodSync(targetPath, statSync(sourcePath).mode & 0o777);
+    } catch {
+      // best effort
+    }
+    copied = true;
+  }
+
+  return copied;
+}
+
+export function copyGitHooksToWorktreeGitDir(cwd: string): CopiedGitHooksResult | null {
+  const workspace = detectGitWorkspaceInfo(cwd);
+  if (!workspace) return null;
+
+  const sourceHooksPath = workspace.hooksPath;
+  const targetHooksPath = path.resolve(workspace.gitDir, "hooks");
+
+  if (sourceHooksPath === targetHooksPath) {
+    return {
+      sourceHooksPath,
+      targetHooksPath,
+      copied: false,
+    };
+  }
+
+  return {
+    sourceHooksPath,
+    targetHooksPath,
+    copied: copyDirectoryContents(sourceHooksPath, targetHooksPath),
+  };
 }
 
 export function rebindWorkspaceCwd(input: {
@@ -493,6 +586,7 @@ export async function worktreeInitCommand(opts: WorktreeInitOptions): Promise<vo
   mergePaperclipEnvEntries(buildWorktreeEnvEntries(paths), paths.envPath);
   ensureAgentJwtSecret(paths.configPath);
   loadPaperclipEnvFile(paths.configPath);
+  const copiedGitHooks = copyGitHooksToWorktreeGitDir(cwd);
 
   let seedSummary: string | null = null;
   let reboundWorkspaceSummary: SeedWorktreeDatabaseResult["reboundWorkspaces"] = [];
@@ -527,6 +621,11 @@ export async function worktreeInitCommand(opts: WorktreeInitOptions): Promise<vo
   p.log.message(pc.dim(`Isolated home: ${paths.homeDir}`));
   p.log.message(pc.dim(`Instance: ${paths.instanceId}`));
   p.log.message(pc.dim(`Server port: ${serverPort} | DB port: ${databasePort}`));
+  if (copiedGitHooks?.copied) {
+    p.log.message(
+      pc.dim(`Mirrored git hooks: ${copiedGitHooks.sourceHooksPath} -> ${copiedGitHooks.targetHooksPath}`),
+    );
+  }
   if (seedSummary) {
     p.log.message(pc.dim(`Seed mode: ${seedMode}`));
     p.log.message(pc.dim(`Seed snapshot: ${seedSummary}`));
