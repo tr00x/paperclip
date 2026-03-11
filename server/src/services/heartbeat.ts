@@ -24,6 +24,7 @@ import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { parseObject, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } from "../adapters/utils.js";
 import { secretService } from "./secrets.js";
 import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
+import { summarizeHeartbeatRunResultJson } from "./heartbeat-run-summary.js";
 import {
   buildWorkspaceReadyComment,
   ensureRuntimeServicesForRun,
@@ -46,38 +47,6 @@ const DEFERRED_WAKE_CONTEXT_KEY = "_paperclipWakeContext";
 const startLocksByAgent = new Map<string, Promise<void>>();
 const REPO_ONLY_CWD_SENTINEL = "/__paperclip_repo_only__";
 
-const summarizedHeartbeatRunResultJson = sql<Record<string, unknown> | null>`
-  CASE
-    WHEN ${heartbeatRuns.resultJson} IS NULL THEN NULL
-    ELSE NULLIF(
-      jsonb_strip_nulls(
-        jsonb_build_object(
-          'summary', CASE
-            WHEN ${heartbeatRuns.resultJson} ->> 'summary' IS NULL THEN NULL
-            ELSE left(${heartbeatRuns.resultJson} ->> 'summary', 500)
-          END,
-          'result', CASE
-            WHEN ${heartbeatRuns.resultJson} ->> 'result' IS NULL THEN NULL
-            ELSE left(${heartbeatRuns.resultJson} ->> 'result', 500)
-          END,
-          'message', CASE
-            WHEN ${heartbeatRuns.resultJson} ->> 'message' IS NULL THEN NULL
-            ELSE left(${heartbeatRuns.resultJson} ->> 'message', 500)
-          END,
-          'error', CASE
-            WHEN ${heartbeatRuns.resultJson} ->> 'error' IS NULL THEN NULL
-            ELSE left(${heartbeatRuns.resultJson} ->> 'error', 500)
-          END,
-          'total_cost_usd', ${heartbeatRuns.resultJson} -> 'total_cost_usd',
-          'cost_usd', ${heartbeatRuns.resultJson} -> 'cost_usd',
-          'costUsd', ${heartbeatRuns.resultJson} -> 'costUsd'
-        )
-      ),
-      '{}'::jsonb
-    )
-  END
-`;
-
 const heartbeatRunListColumns = {
   id: heartbeatRuns.id,
   companyId: heartbeatRuns.companyId,
@@ -92,7 +61,7 @@ const heartbeatRunListColumns = {
   exitCode: heartbeatRuns.exitCode,
   signal: heartbeatRuns.signal,
   usageJson: heartbeatRuns.usageJson,
-  resultJson: summarizedHeartbeatRunResultJson.as("resultJson"),
+  resultJson: heartbeatRuns.resultJson,
   sessionIdBefore: heartbeatRuns.sessionIdBefore,
   sessionIdAfter: heartbeatRuns.sessionIdAfter,
   logStore: heartbeatRuns.logStore,
@@ -2336,10 +2305,11 @@ export function heartbeatService(db: Db) {
         )
         .orderBy(desc(heartbeatRuns.createdAt));
 
-      if (limit) {
-        return query.limit(limit);
-      }
-      return query;
+      const rows = limit ? await query.limit(limit) : await query;
+      return rows.map((row) => ({
+        ...row,
+        resultJson: summarizeHeartbeatRunResultJson(row.resultJson),
+      }));
     },
 
     getRun,
