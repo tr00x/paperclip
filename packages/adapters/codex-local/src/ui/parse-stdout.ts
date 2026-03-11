@@ -64,6 +64,7 @@ function parseCommandExecutionItem(
       kind: "tool_call",
       ts,
       name: "command_execution",
+      toolUseId: id || command || "command_execution",
       input: {
         id,
         command,
@@ -148,6 +149,7 @@ function parseCodexItem(
       kind: "tool_call",
       ts,
       name: asString(item.name, "unknown"),
+      toolUseId: asString(item.id),
       input: item.input ?? {},
     }];
   }

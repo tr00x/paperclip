@@ -70,6 +70,7 @@ describe("codex_local ui stdout parser", () => {
         kind: "tool_call",
         ts,
         name: "command_execution",
+        toolUseId: "item_2",
         input: { id: "item_2", command: "/bin/zsh -lc ls" },
       },
     ]);
