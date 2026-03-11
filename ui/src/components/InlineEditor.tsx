@@ -132,7 +132,7 @@ export function InlineEditor({
   return (
     <DisplayTag
       className={cn(
-        "cursor-pointer rounded hover:bg-accent/50 transition-colors",
+        "cursor-pointer rounded hover:bg-accent/50 transition-colors overflow-hidden",
         pad,
         !value && "text-muted-foreground italic",
         className
