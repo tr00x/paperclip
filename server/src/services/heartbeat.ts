@@ -46,6 +46,69 @@ const DEFERRED_WAKE_CONTEXT_KEY = "_paperclipWakeContext";
 const startLocksByAgent = new Map<string, Promise<void>>();
 const REPO_ONLY_CWD_SENTINEL = "/__paperclip_repo_only__";
 
+const summarizedHeartbeatRunResultJson = sql<Record<string, unknown> | null>`
+  CASE
+    WHEN ${heartbeatRuns.resultJson} IS NULL THEN NULL
+    ELSE NULLIF(
+      jsonb_strip_nulls(
+        jsonb_build_object(
+          'summary', CASE
+            WHEN ${heartbeatRuns.resultJson} ->> 'summary' IS NULL THEN NULL
+            ELSE left(${heartbeatRuns.resultJson} ->> 'summary', 500)
+          END,
+          'result', CASE
+            WHEN ${heartbeatRuns.resultJson} ->> 'result' IS NULL THEN NULL
+            ELSE left(${heartbeatRuns.resultJson} ->> 'result', 500)
+          END,
+          'message', CASE
+            WHEN ${heartbeatRuns.resultJson} ->> 'message' IS NULL THEN NULL
+            ELSE left(${heartbeatRuns.resultJson} ->> 'message', 500)
+          END,
+          'error', CASE
+            WHEN ${heartbeatRuns.resultJson} ->> 'error' IS NULL THEN NULL
+            ELSE left(${heartbeatRuns.resultJson} ->> 'error', 500)
+          END,
+          'total_cost_usd', ${heartbeatRuns.resultJson} -> 'total_cost_usd',
+          'cost_usd', ${heartbeatRuns.resultJson} -> 'cost_usd',
+          'costUsd', ${heartbeatRuns.resultJson} -> 'costUsd'
+        )
+      ),
+      '{}'::jsonb
+    )
+  END
+`;
+
+const heartbeatRunListColumns = {
+  id: heartbeatRuns.id,
+  companyId: heartbeatRuns.companyId,
+  agentId: heartbeatRuns.agentId,
+  invocationSource: heartbeatRuns.invocationSource,
+  triggerDetail: heartbeatRuns.triggerDetail,
+  status: heartbeatRuns.status,
+  startedAt: heartbeatRuns.startedAt,
+  finishedAt: heartbeatRuns.finishedAt,
+  error: heartbeatRuns.error,
+  wakeupRequestId: heartbeatRuns.wakeupRequestId,
+  exitCode: heartbeatRuns.exitCode,
+  signal: heartbeatRuns.signal,
+  usageJson: heartbeatRuns.usageJson,
+  resultJson: summarizedHeartbeatRunResultJson.as("resultJson"),
+  sessionIdBefore: heartbeatRuns.sessionIdBefore,
+  sessionIdAfter: heartbeatRuns.sessionIdAfter,
+  logStore: heartbeatRuns.logStore,
+  logRef: heartbeatRuns.logRef,
+  logBytes: heartbeatRuns.logBytes,
+  logSha256: heartbeatRuns.logSha256,
+  logCompressed: heartbeatRuns.logCompressed,
+  stdoutExcerpt: sql<string | null>`NULL`.as("stdoutExcerpt"),
+  stderrExcerpt: sql<string | null>`NULL`.as("stderrExcerpt"),
+  errorCode: heartbeatRuns.errorCode,
+  externalRunId: heartbeatRuns.externalRunId,
+  contextSnapshot: heartbeatRuns.contextSnapshot,
+  createdAt: heartbeatRuns.createdAt,
+  updatedAt: heartbeatRuns.updatedAt,
+} as const;
+
 function appendExcerpt(prev: string, chunk: string) {
   return appendWithCap(prev, chunk, MAX_EXCERPT_BYTES);
 }
@@ -2260,9 +2323,9 @@ export function heartbeatService(db: Db) {
   }
 
   return {
-    list: (companyId: string, agentId?: string, limit?: number) => {
+    list: async (companyId: string, agentId?: string, limit?: number) => {
       const query = db
-        .select()
+        .select(heartbeatRunListColumns)
         .from(heartbeatRuns)
         .where(
           agentId
