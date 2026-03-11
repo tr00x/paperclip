@@ -729,7 +729,7 @@ function TranscriptCommandGroup({
           ))}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-semibold uppercase leading-none tracking-[0.18em] text-muted-foreground">
+          <div className="text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-muted-foreground/70">
             {title}
           </div>
           {subtitle && (
@@ -854,7 +854,7 @@ function TranscriptEventRow({
             </div>
           ) : (
             <div className={cn("whitespace-pre-wrap break-words", compact ? "text-[11px]" : "text-xs")}>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">
                 {block.label}
               </span>
               {block.text ? <span className="ml-2">{block.text}</span> : null}
