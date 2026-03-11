@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AGENT_ADAPTER_TYPES } from "@paperclipai/shared";
 import type {
@@ -221,7 +221,11 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   }
 
   /** Build accumulated patch and send to parent */
-  function handleSave() {
+  const handleCancel = useCallback(() => {
+    setOverlay({ ...emptyOverlay });
+  }, []);
+
+  const handleSave = useCallback(() => {
     if (isCreate || !isDirty) return;
     const agent = props.agent;
     const patch: Record<string, unknown> = {};
@@ -248,21 +252,24 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     }
 
     props.onSave(patch);
-  }
+  }, [isCreate, isDirty, overlay, props]);
 
   useEffect(() => {
     if (!isCreate) {
       props.onDirtyChange?.(isDirty);
-      props.onSaveActionChange?.(() => handleSave());
-      props.onCancelActionChange?.(() => setOverlay({ ...emptyOverlay }));
-      return () => {
-        props.onSaveActionChange?.(null);
-        props.onCancelActionChange?.(null);
-        props.onDirtyChange?.(false);
-      };
+      props.onSaveActionChange?.(handleSave);
+      props.onCancelActionChange?.(handleCancel);
     }
-    return;
-  }, [isCreate, isDirty, props.onDirtyChange, props.onSaveActionChange, props.onCancelActionChange, overlay]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isCreate, isDirty, props.onDirtyChange, props.onSaveActionChange, props.onCancelActionChange, handleSave, handleCancel]);
+
+  useEffect(() => {
+    if (isCreate) return;
+    return () => {
+      props.onSaveActionChange?.(null);
+      props.onCancelActionChange?.(null);
+      props.onDirtyChange?.(false);
+    };
+  }, [isCreate, props.onDirtyChange, props.onSaveActionChange, props.onCancelActionChange]);
 
   // ---- Resolve values ----
   const config = !isCreate ? ((props.agent.adapterConfig ?? {}) as Record<string, unknown>) : {};

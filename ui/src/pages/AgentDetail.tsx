@@ -437,7 +437,7 @@ export function AgentDetail() {
     return <Navigate to={`/agents/${canonicalAgentRef}/dashboard`} replace />;
   }
   const isPendingApproval = agent.status === "pending_approval";
-  const showConfigActionBar = activeView === "configuration" && configDirty;
+  const showConfigActionBar = activeView === "configuration" && (configDirty || configSaving);
 
   return (
     <div className={cn("space-y-6", isMobile && showConfigActionBar && "pb-24")}>
@@ -1037,6 +1037,8 @@ function ConfigurationTab({
   updatePermissions: { mutate: (canCreate: boolean) => void; isPending: boolean };
 }) {
   const queryClient = useQueryClient();
+  const [awaitingRefreshAfterSave, setAwaitingRefreshAfterSave] = useState(false);
+  const lastAgentRef = useRef(agent);
 
   const { data: adapterModels } = useQuery({
     queryKey:
@@ -1049,16 +1051,31 @@ function ConfigurationTab({
 
   const updateAgent = useMutation({
     mutationFn: (data: Record<string, unknown>) => agentsApi.update(agent.id, data, companyId),
+    onMutate: () => {
+      setAwaitingRefreshAfterSave(true);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.urlKey) });
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.configRevisions(agent.id) });
     },
+    onError: () => {
+      setAwaitingRefreshAfterSave(false);
+    },
   });
 
   useEffect(() => {
-    onSavingChange(updateAgent.isPending);
-  }, [onSavingChange, updateAgent.isPending]);
+    if (awaitingRefreshAfterSave && agent !== lastAgentRef.current) {
+      setAwaitingRefreshAfterSave(false);
+    }
+    lastAgentRef.current = agent;
+  }, [agent, awaitingRefreshAfterSave]);
+
+  const isConfigSaving = updateAgent.isPending || awaitingRefreshAfterSave;
+
+  useEffect(() => {
+    onSavingChange(isConfigSaving);
+  }, [onSavingChange, isConfigSaving]);
 
   return (
     <div className="space-y-6">
@@ -1066,7 +1083,7 @@ function ConfigurationTab({
         mode="edit"
         agent={agent}
         onSave={(patch) => updateAgent.mutate(patch)}
-        isSaving={updateAgent.isPending}
+        isSaving={isConfigSaving}
         adapterModels={adapterModels}
         onDirtyChange={onDirtyChange}
         onSaveActionChange={onSaveActionChange}
