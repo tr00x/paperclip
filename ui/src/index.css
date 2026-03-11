@@ -591,25 +591,21 @@ a.paperclip-project-mention-chip {
   white-space: nowrap;
 }
 
-/* Keep MDXEditor popups above app dialogs when editor is inside a modal. */
-.paperclip-mdxeditor-scope [class*="_dialogOverlay_"],
-.paperclip-mdxeditor [class*="_dialogOverlay_"] {
+/* Keep MDXEditor popups above app dialogs, even when they portal to <body>. */
+[class*="_popupContainer_"] {
+  z-index: 81 !important;
+}
+
+[class*="_dialogOverlay_"] {
   z-index: 80;
 }
 
-.paperclip-mdxeditor-scope [class*="_dialogContent_"],
-.paperclip-mdxeditor-scope [class*="_largeDialogContent_"],
-.paperclip-mdxeditor-scope [class*="_popoverContent_"],
-.paperclip-mdxeditor-scope [class*="_linkDialogPopoverContent_"],
-.paperclip-mdxeditor-scope [class*="_tableColumnEditorPopoverContent_"],
-.paperclip-mdxeditor-scope [class*="_toolbarButtonDropdownContainer_"],
-.paperclip-mdxeditor-scope [class*="_toolbarNodeKindSelectContainer_"],
-.paperclip-mdxeditor [class*="_dialogContent_"],
-.paperclip-mdxeditor [class*="_largeDialogContent_"],
-.paperclip-mdxeditor [class*="_popoverContent_"],
-.paperclip-mdxeditor [class*="_linkDialogPopoverContent_"],
-.paperclip-mdxeditor [class*="_tableColumnEditorPopoverContent_"],
-.paperclip-mdxeditor [class*="_toolbarButtonDropdownContainer_"],
-.paperclip-mdxeditor [class*="_toolbarNodeKindSelectContainer_"] {
+[class*="_dialogContent_"],
+[class*="_largeDialogContent_"],
+[class*="_popoverContent_"],
+[class*="_linkDialogPopoverContent_"],
+[class*="_tableColumnEditorPopoverContent_"],
+[class*="_toolbarButtonDropdownContainer_"],
+[class*="_toolbarNodeKindSelectContainer_"] {
   z-index: 81 !important;
 }
