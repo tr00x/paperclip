@@ -119,6 +119,14 @@ function nonEmpty(value: string | null | undefined): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+function isCurrentSourceConfigPath(sourceConfigPath: string): boolean {
+  const currentConfigPath = process.env.PAPERCLIP_CONFIG;
+  if (!currentConfigPath || currentConfigPath.trim().length === 0) {
+    return false;
+  }
+  return path.resolve(currentConfigPath) === path.resolve(sourceConfigPath);
+}
+
 function resolveWorktreeMakeName(name: string): string {
   const value = nonEmpty(name);
   if (!value) {
@@ -440,9 +448,10 @@ export function copySeededSecretsKey(input: {
 
   mkdirSync(path.dirname(input.targetKeyFilePath), { recursive: true });
 
+  const allowProcessEnvFallback = isCurrentSourceConfigPath(input.sourceConfigPath);
   const sourceInlineMasterKey =
     nonEmpty(input.sourceEnvEntries.PAPERCLIP_SECRETS_MASTER_KEY) ??
-    nonEmpty(process.env.PAPERCLIP_SECRETS_MASTER_KEY);
+    (allowProcessEnvFallback ? nonEmpty(process.env.PAPERCLIP_SECRETS_MASTER_KEY) : null);
   if (sourceInlineMasterKey) {
     writeFileSync(input.targetKeyFilePath, sourceInlineMasterKey, {
       encoding: "utf8",
@@ -458,7 +467,7 @@ export function copySeededSecretsKey(input: {
 
   const sourceKeyFileOverride =
     nonEmpty(input.sourceEnvEntries.PAPERCLIP_SECRETS_MASTER_KEY_FILE) ??
-    nonEmpty(process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE);
+    (allowProcessEnvFallback ? nonEmpty(process.env.PAPERCLIP_SECRETS_MASTER_KEY_FILE) : null);
   const sourceConfiguredKeyPath = sourceKeyFileOverride ?? input.sourceConfig.secrets.localEncrypted.keyFilePath;
   const sourceKeyFilePath = resolveRuntimeLikePath(sourceConfiguredKeyPath, input.sourceConfigPath);
 
