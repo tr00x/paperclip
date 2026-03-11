@@ -311,7 +311,12 @@ export function AgentDetail() {
       }
       return;
     }
-    const canonicalTab = activeView === "configuration" ? "configuration" : "dashboard";
+    const canonicalTab =
+      activeView === "configuration"
+        ? "configuration"
+        : activeView === "runs"
+          ? "runs"
+          : "dashboard";
     if (routeAgentRef !== canonicalAgentRef || urlTab !== canonicalTab) {
       navigate(`/agents/${canonicalAgentRef}/${canonicalTab}`, { replace: true });
       return;
@@ -558,15 +563,16 @@ export function AgentDetail() {
 
       {!urlRunId && (
         <Tabs
-          value={activeView === "configuration" ? "configuration" : "dashboard"}
+          value={activeView}
           onValueChange={(value) => navigate(`/agents/${canonicalAgentRef}/${value}`)}
         >
           <PageTabBar
             items={[
               { value: "dashboard", label: "Dashboard" },
               { value: "configuration", label: "Configuration" },
+              { value: "runs", label: "Runs" },
             ]}
-            value={activeView === "configuration" ? "configuration" : "dashboard"}
+            value={activeView}
             onValueChange={(value) => navigate(`/agents/${canonicalAgentRef}/${value}`)}
           />
         </Tabs>
