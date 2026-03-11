@@ -553,7 +553,10 @@ export function OnboardingWizard() {
           </button>
 
           {/* Left half — form */}
-          <div className="w-full md:w-1/2 flex flex-col overflow-y-auto">
+          <div className={cn(
+            "w-full flex flex-col overflow-y-auto transition-[width] duration-500 ease-in-out",
+            step === 1 ? "md:w-1/2" : "md:w-full"
+          )}>
             <div className="w-full max-w-md mx-auto my-auto px-8 py-12 shrink-0">
               {/* Progress tabs */}
               <div className="flex items-center gap-0 mb-8 border-b border-border">
@@ -1186,7 +1189,10 @@ export function OnboardingWizard() {
           </div>
 
           {/* Right half — ASCII art (hidden on mobile) */}
-          <div className="hidden md:block w-1/2 overflow-hidden bg-[#1d1d1d]">
+          <div className={cn(
+            "hidden md:block overflow-hidden bg-[#1d1d1d] transition-[width,opacity] duration-500 ease-in-out",
+            step === 1 ? "w-1/2 opacity-100" : "w-0 opacity-0"
+          )}>
             <AsciiArtAnimation />
           </div>
         </div>
