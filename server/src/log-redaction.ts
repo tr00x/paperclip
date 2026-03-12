@@ -8,6 +8,12 @@ interface CurrentUserRedactionOptions {
   homeDirs?: string[];
 }
 
+type CurrentUserCandidates = {
+  userNames: string[];
+  homeDirs: string[];
+  replacement: string;
+};
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const proto = Object.getPrototypeOf(value);
@@ -70,10 +76,24 @@ function defaultHomeDirs(userNames: string[]) {
   return uniqueNonEmpty(candidates);
 }
 
+let cachedCurrentUserCandidates: CurrentUserCandidates | null = null;
+
+function getDefaultCurrentUserCandidates(): CurrentUserCandidates {
+  if (cachedCurrentUserCandidates) return cachedCurrentUserCandidates;
+  const userNames = defaultUserNames();
+  cachedCurrentUserCandidates = {
+    userNames,
+    homeDirs: defaultHomeDirs(userNames),
+    replacement: CURRENT_USER_REDACTION_TOKEN,
+  };
+  return cachedCurrentUserCandidates;
+}
+
 function resolveCurrentUserCandidates(opts?: CurrentUserRedactionOptions) {
-  const userNames = uniqueNonEmpty(opts?.userNames ?? defaultUserNames());
-  const homeDirs = uniqueNonEmpty(opts?.homeDirs ?? defaultHomeDirs(userNames));
-  const replacement = opts?.replacement?.trim() || CURRENT_USER_REDACTION_TOKEN;
+  const defaults = getDefaultCurrentUserCandidates();
+  const userNames = uniqueNonEmpty(opts?.userNames ?? defaults.userNames);
+  const homeDirs = uniqueNonEmpty(opts?.homeDirs ?? defaults.homeDirs);
+  const replacement = opts?.replacement?.trim() || defaults.replacement;
   return { userNames, homeDirs, replacement };
 }
 
