@@ -181,10 +181,12 @@ for (const rel of roots) {
 rows.sort((a, b) => a[0].localeCompare(b[0]));
 
 for (const [dir, name] of rows) {
-  const key = `${dir}\t${name}`;
+  const pkgPath = path.join(root, dir, 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  const key = `${dir}\t${name}\t${pkg.version}`;
   if (seen.has(key)) continue;
   seen.add(key);
-  process.stdout.write(`${dir}\t${name}\n`);
+  process.stdout.write(`${dir}\t${name}\t${pkg.version}\n`);
 }
 NODE
 }
@@ -348,6 +350,7 @@ if [ "$canary" = true ]; then
   npx changeset pre enter canary
 fi
 npx changeset version
+VERSIONED_PACKAGE_INFO="$(list_public_package_info)"
 
 if [ "$canary" = true ]; then
   BASE_CANARY_VERSION="${TARGET_STABLE_VERSION}-canary.0"
@@ -403,6 +406,31 @@ else
     npx changeset publish
     release_info "  ✓ Published ${TARGET_PUBLISH_VERSION} under dist-tag latest"
   fi
+
+  release_info ""
+  release_info "==> Post-publish verification: Confirming npm package availability..."
+  VERIFY_ATTEMPTS="${NPM_PUBLISH_VERIFY_ATTEMPTS:-12}"
+  VERIFY_DELAY_SECONDS="${NPM_PUBLISH_VERIFY_DELAY_SECONDS:-5}"
+  MISSING_PUBLISHED_PACKAGES=""
+  while IFS=$'\t' read -r pkg_dir pkg_name pkg_version; do
+    [ -z "$pkg_name" ] && continue
+    release_info "  Checking $pkg_name@$pkg_version"
+    if wait_for_npm_package_version "$pkg_name" "$pkg_version" "$VERIFY_ATTEMPTS" "$VERIFY_DELAY_SECONDS"; then
+      release_info "    ✓ Found on npm"
+      continue
+    fi
+
+    if [ -n "$MISSING_PUBLISHED_PACKAGES" ]; then
+      MISSING_PUBLISHED_PACKAGES="${MISSING_PUBLISHED_PACKAGES}, "
+    fi
+    MISSING_PUBLISHED_PACKAGES="${MISSING_PUBLISHED_PACKAGES}${pkg_name}@${pkg_version}"
+  done <<< "$VERSIONED_PACKAGE_INFO"
+
+  if [ -n "$MISSING_PUBLISHED_PACKAGES" ]; then
+    release_fail "publish completed but npm never exposed: $MISSING_PUBLISHED_PACKAGES. Inspect the changeset publish output before treating this release as good."
+  fi
+
+  release_info "  ✓ Verified all versioned packages are available on npm"
 fi
 
 release_info ""
