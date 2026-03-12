@@ -16,6 +16,7 @@ import {
   ensurePaperclipSkillSymlink,
   ensurePathInEnv,
   listPaperclipSkillEntries,
+  removeMaintainerOnlySkillSymlinks,
   renderTemplate,
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
@@ -80,6 +81,16 @@ export async function ensureCodexSkillsInjected(
 
   const skillsHome = options.skillsHome ?? path.join(codexHomeDir(), "skills");
   await fs.mkdir(skillsHome, { recursive: true });
+  const removedSkills = await removeMaintainerOnlySkillSymlinks(
+    skillsHome,
+    skillsEntries.map((entry) => entry.name),
+  );
+  for (const skillName of removedSkills) {
+    await onLog(
+      "stderr",
+      `[paperclip] Removed maintainer-only Codex skill "${skillName}" from ${skillsHome}\n`,
+    );
+  }
   const linkSkill = options.linkSkill;
   for (const entry of skillsEntries) {
     const target = path.join(skillsHome, entry.name);

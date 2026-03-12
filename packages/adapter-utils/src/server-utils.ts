@@ -33,15 +33,21 @@ export const MAX_CAPTURE_BYTES = 4 * 1024 * 1024;
 export const MAX_EXCERPT_BYTES = 32 * 1024;
 const SENSITIVE_ENV_KEY = /(key|token|secret|password|passwd|authorization|cookie)/i;
 const PAPERCLIP_SKILL_ROOT_RELATIVE_CANDIDATES = [
-  "../../.agents/skills",
   "../../skills",
-  "../../../../../.agents/skills",
   "../../../../../skills",
 ];
 
 export interface PaperclipSkillEntry {
   name: string;
   source: string;
+}
+
+function normalizePathSlashes(value: string): string {
+  return value.replaceAll("\\", "/");
+}
+
+function isMaintainerOnlySkillTarget(candidate: string): boolean {
+  return normalizePathSlashes(candidate).includes("/.agents/skills/");
 }
 
 export function parseObject(value: unknown): Record<string, unknown> {
@@ -256,36 +262,44 @@ export async function ensureAbsoluteDirectory(
   }
 }
 
-export async function listPaperclipSkillEntries(moduleDir: string): Promise<PaperclipSkillEntry[]> {
-  const entriesByName = new Map<string, PaperclipSkillEntry>();
+export async function resolvePaperclipSkillsDir(
+  moduleDir: string,
+  additionalCandidates: string[] = [],
+): Promise<string | null> {
+  const candidates = [
+    ...PAPERCLIP_SKILL_ROOT_RELATIVE_CANDIDATES.map((relativePath) => path.resolve(moduleDir, relativePath)),
+    ...additionalCandidates.map((candidate) => path.resolve(candidate)),
+  ];
   const seenRoots = new Set<string>();
 
-  for (const relativePath of PAPERCLIP_SKILL_ROOT_RELATIVE_CANDIDATES) {
-    const root = path.resolve(moduleDir, relativePath);
+  for (const root of candidates) {
     if (seenRoots.has(root)) continue;
     seenRoots.add(root);
-
     const isDirectory = await fs.stat(root).then((stats) => stats.isDirectory()).catch(() => false);
-    if (!isDirectory) continue;
-
-    let entries: Awaited<ReturnType<typeof fs.readdir>>;
-    try {
-      entries = await fs.readdir(root, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (entriesByName.has(entry.name)) continue;
-      entriesByName.set(entry.name, {
-        name: entry.name,
-        source: path.join(root, entry.name),
-      });
-    }
+    if (isDirectory) return root;
   }
 
-  return Array.from(entriesByName.values());
+  return null;
+}
+
+export async function listPaperclipSkillEntries(
+  moduleDir: string,
+  additionalCandidates: string[] = [],
+): Promise<PaperclipSkillEntry[]> {
+  const root = await resolvePaperclipSkillsDir(moduleDir, additionalCandidates);
+  if (!root) return [];
+
+  try {
+    const entries = await fs.readdir(root, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => ({
+        name: entry.name,
+        source: path.join(root, entry.name),
+      }));
+  } catch {
+    return [];
+  }
 }
 
 export async function readPaperclipSkillMarkdown(
@@ -338,6 +352,44 @@ export async function ensurePaperclipSkillSymlink(
   await fs.unlink(target);
   await linkSkill(source, target);
   return "repaired";
+}
+
+export async function removeMaintainerOnlySkillSymlinks(
+  skillsHome: string,
+  allowedSkillNames: Iterable<string>,
+): Promise<string[]> {
+  const allowed = new Set(Array.from(allowedSkillNames));
+  try {
+    const entries = await fs.readdir(skillsHome, { withFileTypes: true });
+    const removed: string[] = [];
+    for (const entry of entries) {
+      if (allowed.has(entry.name)) continue;
+
+      const target = path.join(skillsHome, entry.name);
+      const existing = await fs.lstat(target).catch(() => null);
+      if (!existing?.isSymbolicLink()) continue;
+
+      const linkedPath = await fs.readlink(target).catch(() => null);
+      if (!linkedPath) continue;
+
+      const resolvedLinkedPath = path.isAbsolute(linkedPath)
+        ? linkedPath
+        : path.resolve(path.dirname(target), linkedPath);
+      if (
+        !isMaintainerOnlySkillTarget(linkedPath) &&
+        !isMaintainerOnlySkillTarget(resolvedLinkedPath)
+      ) {
+        continue;
+      }
+
+      await fs.unlink(target);
+      removed.push(entry.name);
+    }
+
+    return removed;
+  } catch {
+    return [];
+  }
 }
 
 export async function ensureCommandResolvable(command: string, cwd: string, env: NodeJS.ProcessEnv) {
