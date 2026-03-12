@@ -22,6 +22,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useCompanyPageMemory } from "../hooks/useCompanyPageMemory";
 import { healthApi } from "../api/health";
+import { shouldSyncCompanySelectionFromRoute } from "../lib/company-selection";
 import { queryKeys } from "../lib/queryKeys";
 import { cn } from "../lib/utils";
 import { NotFoundPage } from "../pages/NotFound";
@@ -36,6 +37,7 @@ export function Layout() {
     loading: companiesLoading,
     selectedCompany,
     selectedCompanyId,
+    selectionSource,
     setSelectedCompanyId,
   } = useCompany();
   const { theme, toggleTheme } = useTheme();
@@ -88,7 +90,13 @@ export function Layout() {
       return;
     }
 
-    if (selectedCompanyId !== matchedCompany.id) {
+    if (
+      shouldSyncCompanySelectionFromRoute({
+        selectionSource,
+        selectedCompanyId,
+        routeCompanyId: matchedCompany.id,
+      })
+    ) {
       setSelectedCompanyId(matchedCompany.id, { source: "route_sync" });
     }
   }, [
@@ -99,6 +107,7 @@ export function Layout() {
     location.pathname,
     location.search,
     navigate,
+    selectionSource,
     selectedCompanyId,
     setSelectedCompanyId,
   ]);
