@@ -12,7 +12,9 @@ import {
   buildPaperclipEnv,
   ensureAbsoluteDirectory,
   ensureCommandResolvable,
+  ensurePaperclipSkillSymlink,
   ensurePathInEnv,
+  listPaperclipSkillEntries,
   parseObject,
   redactEnvForLogs,
   renderTemplate,
@@ -29,10 +31,6 @@ import {
 import { firstNonEmptyLine } from "./utils.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
-const PAPERCLIP_SKILLS_CANDIDATES = [
-  path.resolve(__moduleDir, "../../skills"),
-  path.resolve(__moduleDir, "../../../../../skills"),
-];
 
 function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean {
   const raw = env[key];
@@ -73,14 +71,6 @@ function renderApiAccessNote(env: Record<string, string>): string {
   ].join("\n");
 }
 
-async function resolvePaperclipSkillsDir(): Promise<string | null> {
-  for (const candidate of PAPERCLIP_SKILLS_CANDIDATES) {
-    const isDir = await fs.stat(candidate).then((s) => s.isDirectory()).catch(() => false);
-    if (isDir) return candidate;
-  }
-  return null;
-}
-
 function geminiSkillsHome(): string {
   return path.join(os.homedir(), ".gemini", "skills");
 }
@@ -93,8 +83,8 @@ function geminiSkillsHome(): string {
 async function ensureGeminiSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
 ): Promise<void> {
-  const skillsDir = await resolvePaperclipSkillsDir();
-  if (!skillsDir) return;
+  const skillsEntries = await listPaperclipSkillEntries(__moduleDir);
+  if (skillsEntries.length === 0) return;
 
   const skillsHome = geminiSkillsHome();
   try {
@@ -107,27 +97,16 @@ async function ensureGeminiSkillsInjected(
     return;
   }
 
-  let entries: Dirent[];
-  try {
-    entries = await fs.readdir(skillsDir, { withFileTypes: true });
-  } catch (err) {
-    await onLog(
-      "stderr",
-      `[paperclip] Failed to read Paperclip skills from ${skillsDir}: ${err instanceof Error ? err.message : String(err)}\n`,
-    );
-    return;
-  }
-
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const source = path.join(skillsDir, entry.name);
+  for (const entry of skillsEntries) {
     const target = path.join(skillsHome, entry.name);
-    const existing = await fs.lstat(target).catch(() => null);
-    if (existing) continue;
 
     try {
-      await fs.symlink(source, target);
-      await onLog("stderr", `[paperclip] Linked Gemini skill: ${entry.name}\n`);
+      const result = await ensurePaperclipSkillSymlink(entry.source, target);
+      if (result === "skipped") continue;
+      await onLog(
+        "stderr",
+        `[paperclip] ${result === "repaired" ? "Repaired" : "Linked"} Gemini skill: ${entry.name}\n`,
+      );
     } catch (err) {
       await onLog(
         "stderr",

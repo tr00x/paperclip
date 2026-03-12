@@ -32,6 +32,17 @@ export const runningProcesses = new Map<string, RunningProcess>();
 export const MAX_CAPTURE_BYTES = 4 * 1024 * 1024;
 export const MAX_EXCERPT_BYTES = 32 * 1024;
 const SENSITIVE_ENV_KEY = /(key|token|secret|password|passwd|authorization|cookie)/i;
+const PAPERCLIP_SKILL_ROOT_RELATIVE_CANDIDATES = [
+  "../../.agents/skills",
+  "../../skills",
+  "../../../../../.agents/skills",
+  "../../../../../skills",
+];
+
+export interface PaperclipSkillEntry {
+  name: string;
+  source: string;
+}
 
 export function parseObject(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -243,6 +254,90 @@ export async function ensureAbsoluteDirectory(
     const reason = err instanceof Error ? err.message : String(err);
     throw new Error(`Could not create working directory "${cwd}": ${reason}`);
   }
+}
+
+export async function listPaperclipSkillEntries(moduleDir: string): Promise<PaperclipSkillEntry[]> {
+  const entriesByName = new Map<string, PaperclipSkillEntry>();
+  const seenRoots = new Set<string>();
+
+  for (const relativePath of PAPERCLIP_SKILL_ROOT_RELATIVE_CANDIDATES) {
+    const root = path.resolve(moduleDir, relativePath);
+    if (seenRoots.has(root)) continue;
+    seenRoots.add(root);
+
+    const isDirectory = await fs.stat(root).then((stats) => stats.isDirectory()).catch(() => false);
+    if (!isDirectory) continue;
+
+    let entries: Awaited<ReturnType<typeof fs.readdir>>;
+    try {
+      entries = await fs.readdir(root, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entriesByName.has(entry.name)) continue;
+      entriesByName.set(entry.name, {
+        name: entry.name,
+        source: path.join(root, entry.name),
+      });
+    }
+  }
+
+  return Array.from(entriesByName.values());
+}
+
+export async function readPaperclipSkillMarkdown(
+  moduleDir: string,
+  skillName: string,
+): Promise<string | null> {
+  const normalized = skillName.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const entries = await listPaperclipSkillEntries(moduleDir);
+  const match = entries.find((entry) => entry.name === normalized);
+  if (!match) return null;
+
+  try {
+    return await fs.readFile(path.join(match.source, "SKILL.md"), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+export async function ensurePaperclipSkillSymlink(
+  source: string,
+  target: string,
+  linkSkill: (source: string, target: string) => Promise<void> = (linkSource, linkTarget) =>
+    fs.symlink(linkSource, linkTarget),
+): Promise<"created" | "repaired" | "skipped"> {
+  const existing = await fs.lstat(target).catch(() => null);
+  if (!existing) {
+    await linkSkill(source, target);
+    return "created";
+  }
+
+  if (!existing.isSymbolicLink()) {
+    return "skipped";
+  }
+
+  const linkedPath = await fs.readlink(target).catch(() => null);
+  if (!linkedPath) return "skipped";
+
+  const resolvedLinkedPath = path.resolve(path.dirname(target), linkedPath);
+  if (resolvedLinkedPath === source) {
+    return "skipped";
+  }
+
+  const linkedPathExists = await fs.stat(resolvedLinkedPath).then(() => true).catch(() => false);
+  if (linkedPathExists) {
+    return "skipped";
+  }
+
+  await fs.unlink(target);
+  await linkSkill(source, target);
+  return "repaired";
 }
 
 export async function ensureCommandResolvable(command: string, cwd: string, env: NodeJS.ProcessEnv) {
