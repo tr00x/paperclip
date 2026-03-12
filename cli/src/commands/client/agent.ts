@@ -40,7 +40,9 @@ interface SkillsInstallSummary {
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const PAPERCLIP_SKILLS_CANDIDATES = [
+  path.resolve(__moduleDir, "../../../../../.agents/skills"), // dev: cli/src/commands/client -> repo root/.agents/skills
   path.resolve(__moduleDir, "../../../../../skills"), // dev: cli/src/commands/client -> repo root/skills
+  path.resolve(process.cwd(), ".agents/skills"),
   path.resolve(process.cwd(), "skills"),
 ];
 
@@ -85,8 +87,48 @@ async function installSkillsForTarget(
     const target = path.join(targetSkillsDir, entry.name);
     const existing = await fs.lstat(target).catch(() => null);
     if (existing) {
-      summary.skipped.push(entry.name);
-      continue;
+      if (existing.isSymbolicLink()) {
+        let linkedPath: string | null = null;
+        try {
+          linkedPath = await fs.readlink(target);
+        } catch (err) {
+          await fs.unlink(target);
+          try {
+            await fs.symlink(source, target);
+            summary.linked.push(entry.name);
+            continue;
+          } catch (linkErr) {
+            summary.failed.push({
+              name: entry.name,
+              error:
+                err instanceof Error && linkErr instanceof Error
+                  ? `${err.message}; then ${linkErr.message}`
+                  : err instanceof Error
+                    ? err.message
+                    : `Failed to recover broken symlink: ${String(err)}`,
+            });
+            continue;
+          }
+        }
+
+        const resolvedLinkedPath = path.isAbsolute(linkedPath)
+          ? linkedPath
+          : path.resolve(path.dirname(target), linkedPath);
+        const linkedTargetExists = await fs
+          .stat(resolvedLinkedPath)
+          .then(() => true)
+          .catch(() => false);
+
+        if (!linkedTargetExists) {
+          await fs.unlink(target);
+        } else {
+          summary.skipped.push(entry.name);
+          continue;
+        }
+      } else {
+        summary.skipped.push(entry.name);
+        continue;
+      }
     }
 
     try {
@@ -97,6 +139,7 @@ async function installSkillsForTarget(
         name: entry.name,
         error: err instanceof Error ? err.message : String(err),
       });
+    }
     }
   }
 
@@ -213,7 +256,7 @@ export function registerAgentCommands(program: Command): void {
             const skillsDir = await resolvePaperclipSkillsDir();
             if (!skillsDir) {
               throw new Error(
-                "Could not locate local Paperclip skills directory. Expected ./skills in the repo checkout.",
+                "Could not locate local Paperclip skills directory. Expected ./skills or ./.agents/skills in the repo checkout.",
               );
             }
 
