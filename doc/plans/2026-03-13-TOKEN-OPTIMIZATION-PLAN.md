@@ -121,7 +121,7 @@ Local adapters inject repo skills into runtime skill directories.
 Current repo skill sizes:
 
 - `skills/paperclip/SKILL.md`: 17,441 bytes
-- `skills/create-agent-adapter/SKILL.md`: 31,832 bytes
+- `.agents/skills/create-agent-adapter/SKILL.md`: 31,832 bytes
 - `skills/paperclip-create-agent/SKILL.md`: 4,718 bytes
 - `skills/para-memory-files/SKILL.md`: 3,978 bytes
 

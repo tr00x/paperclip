@@ -18,6 +18,7 @@ import {
   listPaperclipSkillEntries,
   removeMaintainerOnlySkillSymlinks,
   renderTemplate,
+  joinPromptSections,
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
 import { parseCodexJsonl, isCodexUnknownSessionError } from "./parse.js";
@@ -278,6 +279,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const instructionsFilePath = asString(config.instructionsFilePath, "").trim();
   const instructionsDir = instructionsFilePath ? `${path.dirname(instructionsFilePath)}/` : "";
   let instructionsPrefix = "";
+  let instructionsChars = 0;
   if (instructionsFilePath) {
     try {
       const instructionsContents = await fs.readFile(instructionsFilePath, "utf8");
@@ -285,6 +287,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         `${instructionsContents}\n\n` +
         `The above agent instructions were loaded from ${instructionsFilePath}. ` +
         `Resolve any relative file references from ${instructionsDir}.\n\n`;
+      instructionsChars = instructionsPrefix.length;
       await onLog(
         "stderr",
         `[paperclip] Loaded agent instructions file: ${instructionsFilePath}\n`,
@@ -309,7 +312,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       `Configured instructionsFilePath ${instructionsFilePath}, but file could not be read; continuing without injected instructions.`,
     ];
   })();
-  const renderedPrompt = renderTemplate(promptTemplate, {
+  const bootstrapPromptTemplate = asString(config.bootstrapPromptTemplate, "");
+  const templateData = {
     agentId: agent.id,
     companyId: agent.companyId,
     runId,
@@ -317,8 +321,26 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     agent,
     run: { id: runId, source: "on_demand" },
     context,
-  });
-  const prompt = `${instructionsPrefix}${renderedPrompt}`;
+  };
+  const renderedPrompt = renderTemplate(promptTemplate, templateData);
+  const renderedBootstrapPrompt =
+    !sessionId && bootstrapPromptTemplate.trim().length > 0
+      ? renderTemplate(bootstrapPromptTemplate, templateData).trim()
+      : "";
+  const sessionHandoffNote = asString(context.paperclipSessionHandoffMarkdown, "").trim();
+  const prompt = joinPromptSections([
+    instructionsPrefix,
+    renderedBootstrapPrompt,
+    sessionHandoffNote,
+    renderedPrompt,
+  ]);
+  const promptMetrics = {
+    promptChars: prompt.length,
+    instructionsChars,
+    bootstrapPromptChars: renderedBootstrapPrompt.length,
+    sessionHandoffChars: sessionHandoffNote.length,
+    heartbeatPromptChars: renderedPrompt.length,
+  };
 
   const buildArgs = (resumeSessionId: string | null) => {
     const args = ["exec", "--json"];
@@ -346,6 +368,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         }),
         env: redactEnvForLogs(env),
         prompt,
+        promptMetrics,
         context,
       });
     }

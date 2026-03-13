@@ -1060,13 +1060,70 @@ export function issueService(db: Db) {
         .returning()
         .then((rows) => rows[0] ?? null),
 
-    listComments: (issueId: string) =>
-      db
+    listComments: async (
+      issueId: string,
+      opts?: {
+        afterCommentId?: string | null;
+        order?: "asc" | "desc";
+        limit?: number | null;
+      },
+    ) => {
+      const order = opts?.order === "asc" ? "asc" : "desc";
+      const afterCommentId = opts?.afterCommentId?.trim() || null;
+      const limit = opts?.limit && opts.limit > 0 ? Math.floor(opts.limit) : null;
+
+      const conditions = [eq(issueComments.issueId, issueId)];
+      if (afterCommentId) {
+        const anchor = await db
+          .select({
+            id: issueComments.id,
+            createdAt: issueComments.createdAt,
+          })
+          .from(issueComments)
+          .where(and(eq(issueComments.issueId, issueId), eq(issueComments.id, afterCommentId)))
+          .then((rows) => rows[0] ?? null);
+
+        if (!anchor) return [];
+        conditions.push(
+          sql<boolean>`(${issueComments.createdAt} > ${anchor.createdAt} OR (${issueComments.createdAt} = ${anchor.createdAt} AND ${issueComments.id} <> ${anchor.id}))`,
+        );
+      }
+
+      const query = db
         .select()
         .from(issueComments)
+        .where(and(...conditions))
+        .orderBy(order === "asc" ? asc(issueComments.createdAt) : desc(issueComments.createdAt));
+
+      const comments = limit ? await query.limit(limit) : await query;
+      return comments.map(redactIssueComment);
+    },
+
+    getCommentCursor: async (issueId: string) => {
+      const latest = await db
+        .select({
+          latestCommentId: issueComments.id,
+          latestCommentAt: issueComments.createdAt,
+        })
+        .from(issueComments)
         .where(eq(issueComments.issueId, issueId))
-        .orderBy(desc(issueComments.createdAt))
-        .then((comments) => comments.map(redactIssueComment)),
+        .orderBy(desc(issueComments.createdAt), desc(issueComments.id))
+        .limit(1)
+        .then((rows) => rows[0] ?? null);
+
+      const [{ totalComments }] = await db
+        .select({
+          totalComments: sql<number>`count(*)::int`,
+        })
+        .from(issueComments)
+        .where(eq(issueComments.issueId, issueId));
+
+      return {
+        totalComments: Number(totalComments ?? 0),
+        latestCommentId: latest?.latestCommentId ?? null,
+        latestCommentAt: latest?.latestCommentAt ?? null,
+      };
+    },
 
     getComment: (commentId: string) =>
       db
