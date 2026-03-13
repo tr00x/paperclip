@@ -578,48 +578,6 @@ export const patchPluginConfigSchema = z.object({
 export type PatchPluginConfig = z.infer<typeof patchPluginConfigSchema>;
 
 // ---------------------------------------------------------------------------
-// Company plugin availability / settings schemas
-// ---------------------------------------------------------------------------
-
-/**
- * Schema for creating or replacing company-scoped plugin settings.
- *
- * Company-specific settings are stored separately from instance-level
- * `plugin_config`, allowing the host to expose a company availability toggle
- * without changing the global install state of the plugin.
- */
-export const upsertPluginCompanySettingsSchema = z.object({
-  settingsJson: z.record(z.unknown()).optional().default({}),
-  lastError: z.string().nullable().optional(),
-});
-
-export type UpsertPluginCompanySettings = z.infer<typeof upsertPluginCompanySettingsSchema>;
-
-/**
- * Schema for mutating a plugin's availability for a specific company.
- *
- * `available=false` lets callers disable access without uninstalling the
- * plugin globally. Optional `settingsJson` supports carrying company-specific
- * configuration alongside the availability update.
- */
-export const updateCompanyPluginAvailabilitySchema = z.object({
-  available: z.boolean(),
-  settingsJson: z.record(z.unknown()).optional(),
-  lastError: z.string().nullable().optional(),
-});
-
-export type UpdateCompanyPluginAvailability = z.infer<typeof updateCompanyPluginAvailabilitySchema>;
-
-/**
- * Query schema for company plugin availability list endpoints.
- */
-export const listCompanyPluginAvailabilitySchema = z.object({
-  available: z.boolean().optional(),
-});
-
-export type ListCompanyPluginAvailability = z.infer<typeof listCompanyPluginAvailabilitySchema>;
-
-// ---------------------------------------------------------------------------
 // Plugin status update
 // ---------------------------------------------------------------------------
 

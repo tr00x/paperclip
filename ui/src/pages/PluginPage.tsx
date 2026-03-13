@@ -37,8 +37,8 @@ export function PluginPage() {
   );
 
   const { data: contributions } = useQuery({
-    queryKey: queryKeys.plugins.uiContributions(resolvedCompanyId ?? undefined),
-    queryFn: () => pluginsApi.listUiContributions(resolvedCompanyId ?? undefined),
+    queryKey: queryKeys.plugins.uiContributions,
+    queryFn: () => pluginsApi.listUiContributions(),
     enabled: !!resolvedCompanyId && !!pluginId,
   });
 

@@ -22,7 +22,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { Router } from "express";
-import type { Request, Response } from "express";
+import type { Request } from "express";
 import { and, desc, eq, gte } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { companies, pluginLogs, pluginWebhookDeliveries } from "@paperclipai/db";
@@ -31,11 +31,9 @@ import type {
   PaperclipPluginManifestV1,
   PluginBridgeErrorCode,
   PluginLauncherRenderContextSnapshot,
-  UpdateCompanyPluginAvailability,
 } from "@paperclipai/shared";
 import {
   PLUGIN_STATUSES,
-  updateCompanyPluginAvailabilitySchema,
 } from "@paperclipai/shared";
 import { pluginRegistryService } from "../services/plugin-registry.js";
 import { pluginLifecycleManager } from "../services/plugin-lifecycle.js";
@@ -186,15 +184,6 @@ async function resolvePlugin(
   return registry.getByKey(pluginId);
 }
 
-async function isPluginAvailableForCompany(
-  registry: ReturnType<typeof pluginRegistryService>,
-  companyId: string,
-  pluginId: string,
-): Promise<boolean> {
-  const availability = await registry.getCompanyAvailability(companyId, pluginId);
-  return availability?.available === true;
-}
-
 /**
  * Optional dependencies for plugin job scheduling routes.
  *
@@ -284,9 +273,6 @@ interface PluginToolExecuteRequest {
  * | GET | /plugins/:pluginId/config | Get current plugin config |
  * | POST | /plugins/:pluginId/config | Save (upsert) plugin config |
  * | POST | /plugins/:pluginId/config/test | Test config via validateConfig RPC |
- * | GET | /companies/:companyId/plugins | List company-scoped plugin availability |
- * | GET | /companies/:companyId/plugins/:pluginId | Get company-scoped plugin availability |
- * | PUT | /companies/:companyId/plugins/:pluginId | Save company-scoped plugin availability/settings |
  * | POST | /plugins/:pluginId/bridge/data | Proxy getData to plugin worker |
  * | POST | /plugins/:pluginId/bridge/action | Proxy performAction to plugin worker |
  * | POST | /plugins/:pluginId/data/:key | Proxy getData to plugin worker (key in URL) |
@@ -420,10 +406,6 @@ export function pluginRoutes(
    * - Slots are extracted from manifest.ui.slots
    * - Launchers are aggregated from legacy manifest.launchers and manifest.ui.launchers
    *
-   * Query params:
-   * - `companyId` (optional): filters out plugins disabled for the target
-   *   company and applies `assertCompanyAccess`
-   *
    * Example response:
    * ```json
    * [
@@ -451,21 +433,9 @@ export function pluginRoutes(
    */
   router.get("/plugins/ui-contributions", async (req, res) => {
     assertBoard(req);
-    const companyId = typeof req.query.companyId === "string" ? req.query.companyId : undefined;
-    if (companyId) {
-      assertCompanyAccess(req, companyId);
-    }
-
     const plugins = await registry.listByStatus("ready");
-    const availablePluginIds = companyId
-      ? new Set(
-        (await registry.listCompanyAvailability(companyId, { available: true }))
-          .map((entry) => entry.pluginId),
-      )
-      : null;
 
     const contributions: PluginUiContribution[] = plugins
-      .filter((plugin) => availablePluginIds === null || availablePluginIds.has(plugin.id))
       .map((plugin) => {
         // Safety check: manifestJson should always exist for ready plugins, but guard against null
         const manifest = plugin.manifestJson;
@@ -487,121 +457,6 @@ export function pluginRoutes(
       })
       .filter((item): item is PluginUiContribution => item !== null);
     res.json(contributions);
-  });
-
-  // ===========================================================================
-  // Company-scoped plugin settings / availability routes
-  // ===========================================================================
-
-  /**
-   * GET /api/companies/:companyId/plugins
-   *
-   * List every installed plugin as it applies to a specific company. Plugins
-   * are enabled by default; rows in `plugin_company_settings` only store
-   * explicit overrides and any company-scoped settings payload.
-   *
-   * Query params:
-   * - `available` (optional): `true` or `false` filter
-   */
-  router.get("/companies/:companyId/plugins", async (req, res) => {
-    assertBoard(req);
-    const { companyId } = req.params;
-    assertCompanyAccess(req, companyId);
-
-    let available: boolean | undefined;
-    const rawAvailable = req.query.available;
-    if (rawAvailable !== undefined) {
-      if (rawAvailable === "true") available = true;
-      else if (rawAvailable === "false") available = false;
-      else {
-        res.status(400).json({ error: '"available" must be "true" or "false"' });
-        return;
-      }
-    }
-
-    const result = await registry.listCompanyAvailability(companyId, { available });
-    res.json(result);
-  });
-
-  /**
-   * GET /api/companies/:companyId/plugins/:pluginId
-   *
-   * Resolve one plugin's effective availability for a company, whether that
-   * result comes from the default-enabled baseline or a persisted override row.
-   */
-  router.get("/companies/:companyId/plugins/:pluginId", async (req, res) => {
-    assertBoard(req);
-    const { companyId, pluginId } = req.params;
-    assertCompanyAccess(req, companyId);
-
-    const plugin = await resolvePlugin(registry, pluginId);
-    if (!plugin || plugin.status === "uninstalled") {
-      res.status(404).json({ error: "Plugin not found" });
-      return;
-    }
-
-    const result = await registry.getCompanyAvailability(companyId, plugin.id);
-    if (!result) {
-      res.status(404).json({ error: "Plugin not found" });
-      return;
-    }
-
-    res.json(result);
-  });
-
-  /**
-   * PUT /api/companies/:companyId/plugins/:pluginId
-   *
-   * Persist a company-scoped availability override. This never changes the
-   * instance-wide install state of the plugin; it only controls whether the
-   * selected company can see UI contributions and invoke plugin-backed actions.
-   */
-  router.put("/companies/:companyId/plugins/:pluginId", async (req, res) => {
-    assertBoard(req);
-    const { companyId, pluginId } = req.params;
-    assertCompanyAccess(req, companyId);
-
-    const plugin = await resolvePlugin(registry, pluginId);
-    if (!plugin || plugin.status === "uninstalled") {
-      res.status(404).json({ error: "Plugin not found" });
-      return;
-    }
-
-    const parsed = updateCompanyPluginAvailabilitySchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" });
-      return;
-    }
-
-    try {
-      const result = await registry.updateCompanyAvailability(
-        companyId,
-        plugin.id,
-        parsed.data as UpdateCompanyPluginAvailability,
-      );
-      const actor = getActorInfo(req);
-      await logActivity(db, {
-        companyId,
-        actorType: actor.actorType,
-        actorId: actor.actorId,
-        agentId: actor.agentId,
-        runId: actor.runId,
-        action: "plugin.company_settings.updated",
-        entityType: "plugin_company_settings",
-        entityId: `${companyId}:${plugin.id}`,
-        details: {
-          pluginId: plugin.id,
-          pluginKey: plugin.pluginKey,
-          available: result.available,
-          settingsJson: result.settingsJson,
-          lastError: result.lastError,
-        },
-      });
-      res.json(result);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      res.status(400).json({ error: message });
-    }
   });
 
   // ===========================================================================
@@ -628,44 +483,10 @@ export function pluginRoutes(
     }
 
     const pluginId = req.query.pluginId as string | undefined;
-    const companyId = typeof req.query.companyId === "string" ? req.query.companyId : undefined;
-    if (companyId) {
-      assertCompanyAccess(req, companyId);
-    }
-
     const filter = pluginId ? { pluginId } : undefined;
     const tools = toolDeps.toolDispatcher.listToolsForAgent(filter);
-    if (!companyId) {
-      res.json(tools);
-      return;
-    }
-
-    const availablePluginIds = new Set(
-      (await registry.listCompanyAvailability(companyId, { available: true }))
-        .map((entry) => entry.pluginId),
-    );
-    res.json(tools.filter((tool) => availablePluginIds.has(tool.pluginId)));
+    res.json(tools);
   });
-
-  /**
-   * Reject company-scoped plugin access when the plugin is disabled for the
-   * target company. This guard is reused across UI bridge and tool execution
-   * endpoints so every runtime surface honors the same availability rule.
-   */
-  async function enforceCompanyPluginAvailability(
-    companyId: string,
-    pluginId: string,
-    res: Response,
-  ): Promise<boolean> {
-    if (!await isPluginAvailableForCompany(registry, companyId, pluginId)) {
-      res.status(403).json({
-        error: `Plugin "${pluginId}" is not enabled for company "${companyId}"`,
-      });
-      return false;
-    }
-
-    return true;
-  }
 
   /**
    * POST /api/plugins/tools/execute
@@ -727,10 +548,6 @@ export function pluginRoutes(
     const registeredTool = toolDeps.toolDispatcher.getTool(tool);
     if (!registeredTool) {
       res.status(404).json({ error: `Tool "${tool}" not found` });
-      return;
-    }
-
-    if (!await enforceCompanyPluginAvailability(runContext.companyId, registeredTool.pluginDbId, res)) {
       return;
     }
 
@@ -824,13 +641,6 @@ export function pluginRoutes(
       const existingPlugin = await registry.getByKey(discovered.manifest.id);
       if (existingPlugin) {
         await lifecycle.load(existingPlugin.id);
-        // Plugins should be enabled by default for all companies after install.
-        // Best-effort: default behavior is still enabled when no row exists.
-        try {
-          await registry.seedEnabledForAllCompanies(existingPlugin.id);
-        } catch {
-          // no-op
-        }
         const updated = await registry.getById(existingPlugin.id);
         await logPluginMutationActivity(req, "plugin.installed", existingPlugin.id, {
           pluginId: existingPlugin.id,
@@ -859,7 +669,7 @@ export function pluginRoutes(
   interface PluginBridgeDataRequest {
     /** Plugin-defined data key (e.g. `"sync-health"`). */
     key: string;
-    /** Optional company scope for enforcing company plugin availability. */
+    /** Optional company scope for authorizing company-context bridge calls. */
     companyId?: string;
     /** Optional context and query parameters from the UI. */
     params?: Record<string, unknown>;
@@ -871,7 +681,7 @@ export function pluginRoutes(
   interface PluginBridgeActionRequest {
     /** Plugin-defined action key (e.g. `"resync"`). */
     key: string;
-    /** Optional company scope for enforcing company plugin availability. */
+    /** Optional company scope for authorizing company-context bridge calls. */
     companyId?: string;
     /** Optional parameters from the UI. */
     params?: Record<string, unknown>;
@@ -1010,9 +820,6 @@ export function pluginRoutes(
 
     if (body.companyId) {
       assertCompanyAccess(req, body.companyId);
-      if (!await enforceCompanyPluginAvailability(body.companyId, plugin.id, res)) {
-        return;
-      }
     }
 
     try {
@@ -1096,9 +903,6 @@ export function pluginRoutes(
 
     if (body.companyId) {
       assertCompanyAccess(req, body.companyId);
-      if (!await enforceCompanyPluginAvailability(body.companyId, plugin.id, res)) {
-        return;
-      }
     }
 
     try {
@@ -1182,9 +986,6 @@ export function pluginRoutes(
 
     if (body?.companyId) {
       assertCompanyAccess(req, body.companyId);
-      if (!await enforceCompanyPluginAvailability(body.companyId, plugin.id, res)) {
-        return;
-      }
     }
 
     try {
@@ -1264,9 +1065,6 @@ export function pluginRoutes(
 
     if (body?.companyId) {
       assertCompanyAccess(req, body.companyId);
-      if (!await enforceCompanyPluginAvailability(body.companyId, plugin.id, res)) {
-        return;
-      }
     }
 
     try {
@@ -1336,10 +1134,6 @@ export function pluginRoutes(
     }
 
     assertCompanyAccess(req, companyId);
-
-    if (!await enforceCompanyPluginAvailability(companyId, plugin.id, res)) {
-      return;
-    }
 
     // Set SSE headers
     res.writeHead(200, {

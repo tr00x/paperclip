@@ -95,8 +95,6 @@ export type {
   PluginRecord,
   PluginStateRecord,
   PluginConfig,
-  PluginCompanySettings,
-  CompanyPluginAvailability,
   PluginEntityRecord,
   PluginEntityQuery,
   PluginJobRecord,

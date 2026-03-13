@@ -322,19 +322,6 @@ export function createPluginSecretsHandler(
       }
 
       // ---------------------------------------------------------------
-      // 2b. Verify the plugin is available for the secret's company.
-      //     This prevents cross-company secret access via UUID guessing.
-      // ---------------------------------------------------------------
-      const companyId = (secret as { companyId?: string }).companyId;
-      if (companyId) {
-        const availability = await registry.getCompanyAvailability(companyId, pluginId);
-        if (!availability || !availability.available) {
-          // Return the same error as "not found" to avoid leaking existence
-          throw secretNotFound(trimmedRef);
-        }
-      }
-
-      // ---------------------------------------------------------------
       // 3. Fetch the latest version's material
       // ---------------------------------------------------------------
       const versionRow = await db

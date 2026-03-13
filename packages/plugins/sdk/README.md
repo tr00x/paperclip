@@ -220,7 +220,7 @@ The same set of values is used as **slot types** (where a component mounts) and 
 
 #### `page`
 
-A full-page extension mounted at `/plugins/:pluginId` (global) or `/:company/plugins/:pluginId` (company-scoped). Use this for rich, standalone plugin experiences such as dashboards, configuration wizards, or multi-step workflows. Receives `PluginPageProps` with `context.companyId` set to the active company. Requires the `ui.page.register` capability.
+A full-page extension mounted at `/plugins/:pluginId` (global) or `/:company/plugins/:pluginId` (company-context route). Use this for rich, standalone plugin experiences such as dashboards, configuration wizards, or multi-step workflows. Receives `PluginPageProps` with `context.companyId` set to the active company. Requires the `ui.page.register` capability.
 
 #### `sidebar`
 

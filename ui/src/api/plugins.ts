@@ -17,7 +17,6 @@ import type {
   PluginRecord,
   PluginConfig,
   PluginStatus,
-  CompanyPluginAvailability,
 } from "@paperclipai/shared";
 import { api } from "./client";
 
@@ -280,9 +279,6 @@ export const pluginsApi = {
    * Returns normalized UI contribution declarations for ready plugins.
    * Used by the slot host runtime and launcher discovery surfaces.
    *
-   * When `companyId` is provided, the server filters out plugins that are
-   * disabled for that company before returning contributions.
-   *
    * Response shape:
    * - `slots`: concrete React mount declarations from `manifest.ui.slots`
    * - `launchers`: host-owned entry points from `manifest.ui.launchers` plus
@@ -290,54 +286,14 @@ export const pluginsApi = {
    *
    * @example
    * ```ts
-   * const rows = await pluginsApi.listUiContributions(companyId);
+   * const rows = await pluginsApi.listUiContributions();
    * const toolbarLaunchers = rows.flatMap((row) =>
    *   row.launchers.filter((launcher) => launcher.placementZone === "toolbarButton"),
    * );
    * ```
    */
-  listUiContributions: (companyId?: string) =>
-    api.get<PluginUiContribution[]>(
-      `/plugins/ui-contributions${companyId ? `?companyId=${encodeURIComponent(companyId)}` : ""}`,
-    ),
-
-  /**
-   * List plugin availability/settings for a specific company.
-   *
-   * @param companyId - UUID of the company.
-   * @param available - Optional availability filter.
-   */
-  listForCompany: (companyId: string, available?: boolean) =>
-    api.get<CompanyPluginAvailability[]>(
-      `/companies/${companyId}/plugins${available === undefined ? "" : `?available=${available}`}`,
-    ),
-
-  /**
-   * Fetch a single company-scoped plugin availability/settings record.
-   *
-   * @param companyId - UUID of the company.
-   * @param pluginId - Plugin UUID or plugin key.
-   */
-  getForCompany: (companyId: string, pluginId: string) =>
-    api.get<CompanyPluginAvailability>(`/companies/${companyId}/plugins/${pluginId}`),
-
-  /**
-   * Create, update, or clear company-scoped plugin settings.
-   *
-   * Company availability is enabled by default. This endpoint stores explicit
-   * overrides in `plugin_company_settings` so the selected company can be
-   * disabled without affecting the global plugin installation.
-   */
-  saveForCompany: (
-    companyId: string,
-    pluginId: string,
-    params: {
-      available: boolean;
-      settingsJson?: Record<string, unknown>;
-      lastError?: string | null;
-    },
-  ) =>
-    api.put<CompanyPluginAvailability>(`/companies/${companyId}/plugins/${pluginId}`, params),
+  listUiContributions: () =>
+    api.get<PluginUiContribution[]>("/plugins/ui-contributions"),
 
   // ===========================================================================
   // Plugin configuration endpoints
@@ -398,8 +354,7 @@ export const pluginsApi = {
    * @param pluginId - UUID of the plugin whose worker should handle the request
    * @param key - Plugin-defined data key (e.g. `"sync-health"`)
    * @param params - Optional query parameters forwarded to the worker handler
-   * @param companyId - Optional company scope. When present, the server rejects
-   *   the call with HTTP 403 if the plugin is disabled for that company.
+   * @param companyId - Optional company scope used for board/company access checks.
    * @param renderEnvironment - Optional launcher/page snapshot forwarded for
    *   launcher-backed UI so workers can distinguish modal, drawer, popover, and
    *   page execution.
@@ -439,8 +394,7 @@ export const pluginsApi = {
    * @param pluginId - UUID of the plugin whose worker should handle the request
    * @param key - Plugin-defined action key (e.g. `"resync"`)
    * @param params - Optional parameters forwarded to the worker handler
-   * @param companyId - Optional company scope. When present, the server rejects
-   *   the call with HTTP 403 if the plugin is disabled for that company.
+   * @param companyId - Optional company scope used for board/company access checks.
    * @param renderEnvironment - Optional launcher/page snapshot forwarded for
    *   launcher-backed UI so workers can distinguish modal, drawer, popover, and
    *   page execution.

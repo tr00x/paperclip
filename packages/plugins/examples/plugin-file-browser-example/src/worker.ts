@@ -65,10 +65,10 @@ const plugin = definePlugin({
   async setup(ctx) {
     ctx.logger.info(`${PLUGIN_NAME} plugin setup`);
 
-    // Expose the current plugin config so UI components can read the
-    // commentAnnotationMode setting and hide themselves when disabled.
+    // Expose the current plugin config so UI components can read operator
+    // settings from the canonical instance config store.
     ctx.data.register("plugin-config", async () => {
-      const config = await ctx.state.get({ scopeKind: "instance", stateKey: "config" }) as Record<string, unknown> | null;
+      const config = await ctx.config.get();
       return {
         showFilesInSidebar: config?.showFilesInSidebar === true,
         commentAnnotationMode: config?.commentAnnotationMode ?? "both",

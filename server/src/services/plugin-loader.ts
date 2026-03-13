@@ -25,7 +25,7 @@
  * @see PLUGIN_SPEC.md §12 — Process Model
  */
 import { existsSync } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile, rm, stat } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -393,6 +393,14 @@ export interface PluginLoader {
    * Check whether a plugin API version is supported by this host.
    */
   isSupportedApiVersion(apiVersion: number): boolean;
+
+  /**
+   * Remove runtime-managed on-disk install artifacts for a plugin.
+   *
+   * This only cleans files under the managed local plugin directory. Local-path
+   * source checkouts outside that directory are intentionally left alone.
+   */
+  cleanupInstallArtifacts(plugin: PluginRecord): Promise<void>;
 
   /**
    * Get the local plugin directory this loader is configured to use.
@@ -1335,6 +1343,50 @@ export function pluginLoader(
     },
 
     // -----------------------------------------------------------------------
+    // cleanupInstallArtifacts
+    // -----------------------------------------------------------------------
+
+    async cleanupInstallArtifacts(plugin: PluginRecord): Promise<void> {
+      const managedTargets = new Set<string>();
+      const managedNodeModulesDir = resolveManagedInstallPackageDir(localPluginDir, plugin.packageName);
+      const directManagedDir = path.join(localPluginDir, plugin.packageName);
+
+      managedTargets.add(managedNodeModulesDir);
+      if (isPathInsideDir(directManagedDir, localPluginDir)) {
+        managedTargets.add(directManagedDir);
+      }
+      if (plugin.packagePath && isPathInsideDir(plugin.packagePath, localPluginDir)) {
+        managedTargets.add(path.resolve(plugin.packagePath));
+      }
+
+      const packageJsonPath = path.join(localPluginDir, "package.json");
+      if (existsSync(packageJsonPath)) {
+        try {
+          await execFileAsync(
+            "npm",
+            ["uninstall", plugin.packageName, "--prefix", localPluginDir, "--ignore-scripts"],
+            { timeout: 120_000 },
+          );
+        } catch (err) {
+          log.warn(
+            {
+              pluginId: plugin.id,
+              pluginKey: plugin.pluginKey,
+              packageName: plugin.packageName,
+              err: err instanceof Error ? err.message : String(err),
+            },
+            "plugin-loader: npm uninstall failed during cleanup, falling back to direct removal",
+          );
+        }
+      }
+
+      for (const target of managedTargets) {
+        if (!existsSync(target)) continue;
+        await rm(target, { recursive: true, force: true });
+      }
+    },
+
+    // -----------------------------------------------------------------------
     // getLocalPluginDir
     // -----------------------------------------------------------------------
 
@@ -1849,4 +1901,18 @@ function resolveWorkerEntrypoint(
       `Checked: ${path.resolve(packageDir, workerRelPath)}, ` +
       `${path.resolve(directDir, workerRelPath)}`,
   );
+}
+
+function resolveManagedInstallPackageDir(localPluginDir: string, packageName: string): string {
+  if (packageName.startsWith("@")) {
+    return path.join(localPluginDir, "node_modules", ...packageName.split("/"));
+  }
+  return path.join(localPluginDir, "node_modules", packageName);
+}
+
+function isPathInsideDir(candidatePath: string, parentDir: string): boolean {
+  const resolvedCandidate = path.resolve(candidatePath);
+  const resolvedParent = path.resolve(parentDir);
+  const relative = path.relative(resolvedParent, resolvedCandidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }

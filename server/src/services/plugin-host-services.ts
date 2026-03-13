@@ -466,18 +466,11 @@ export function buildHostServices(
   };
 
   /**
-   * Verify that this plugin is enabled for the given company.
-   * Throws if the plugin is disabled or unavailable, preventing
-   * worker-driven access to companies that have not opted in.
+   * Plugins are instance-wide in the current runtime. Company IDs are still
+   * required for company-scoped data access, but there is no per-company
+   * availability gate to enforce here.
    */
-  const ensurePluginAvailableForCompany = async (companyId: string) => {
-    const availability = await registry.getCompanyAvailability(companyId, pluginId);
-    if (!availability || !availability.available) {
-      throw new Error(
-        `Plugin "${pluginKey}" is not enabled for company "${companyId}"`,
-      );
-    }
-  };
+  const ensurePluginAvailableForCompany = async (_companyId: string) => {};
 
   const inCompany = <T extends { companyId: string | null | undefined }>(
     record: T | null | undefined,
@@ -656,14 +649,7 @@ export function buildHostServices(
 
     companies: {
       async list(_params) {
-        const allCompanies = (await companies.list()) as Company[];
-        if (allCompanies.length === 0) return [];
-
-        // Batch query: fetch all company settings for this plugin in one query
-        // instead of N+1 individual getCompanyAvailability() calls.
-        const companyIds = allCompanies.map((c) => c.id);
-        const disabledCompanyIds = await registry.getDisabledCompanyIds(companyIds, pluginId);
-        return allCompanies.filter((c) => !disabledCompanyIds.has(c.id));
+        return (await companies.list()) as Company[];
       },
       async get(params) {
         await ensurePluginAvailableForCompany(params.companyId);

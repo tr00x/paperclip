@@ -343,67 +343,6 @@ export interface PluginConfig {
   updatedAt: Date;
 }
 
-// ---------------------------------------------------------------------------
-// Company Plugin Availability / Settings
-// ---------------------------------------------------------------------------
-
-/**
- * Domain type for a plugin's company-scoped settings row as persisted in the
- * `plugin_company_settings` table.
- *
- * This is separate from instance-wide `PluginConfig`: the plugin remains
- * installed globally, while each company can store its own plugin settings and
- * availability state independently.
- */
-export interface PluginCompanySettings {
-  /** UUID primary key. */
-  id: string;
-  /** FK to `companies.id`. */
-  companyId: string;
-  /** FK to `plugins.id`. */
-  pluginId: string;
-  /** Explicit availability override for this company/plugin pair. */
-  enabled: boolean;
-  /** Company-scoped plugin settings payload. */
-  settingsJson: Record<string, unknown>;
-  /** Most recent company-scoped validation or availability error, if any. */
-  lastError: string | null;
-  /** Timestamp when the settings row was created. */
-  createdAt: Date;
-  /** Timestamp of the most recent settings update. */
-  updatedAt: Date;
-}
-
-/**
- * API response shape describing whether a plugin is available to a specific
- * company and, when present, the company-scoped settings row backing that
- * availability.
- */
-export interface CompanyPluginAvailability {
-  companyId: string;
-  pluginId: string;
-  /** Stable manifest/plugin key for display and route generation. */
-  pluginKey: string;
-  /** Human-readable plugin name. */
-  pluginDisplayName: string;
-  /** Current instance-wide plugin lifecycle status. */
-  pluginStatus: PluginStatus;
-  /**
-   * Whether the plugin is currently available to the company.
-   * When no `plugin_company_settings` row exists yet, the plugin is enabled
-   * by default for the company.
-   */
-  available: boolean;
-  /** Company-scoped settings, defaulting to an empty object when unavailable. */
-  settingsJson: Record<string, unknown>;
-  /** Most recent company-scoped error, if any. */
-  lastError: string | null;
-  /** Present when availability is backed by a persisted settings row. */
-  createdAt: Date | null;
-  /** Present when availability is backed by a persisted settings row. */
-  updatedAt: Date | null;
-}
-
 /**
  * Query filter for `ctx.entities.list`.
  */

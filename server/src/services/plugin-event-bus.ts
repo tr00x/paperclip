@@ -113,60 +113,6 @@ function passesFilter(event: PluginEvent, filter: EventFilter | null): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Company availability checker
-// ---------------------------------------------------------------------------
-
-/**
- * Callback that checks whether a plugin is enabled for a given company.
- *
- * The event bus calls this during `emit()` to enforce company-scoped delivery:
- * events are only delivered to a plugin if the plugin is enabled for the
- * company that owns the event.
- *
- * Implementations should be fast — the bus caches results internally with a
- * short TTL so the checker is not invoked on every single event.
- *
- * @param pluginKey  The plugin registry key — the string passed to `forPlugin()`
- *   (e.g. `"acme.linear"`). This is the same key used throughout the bus
- *   internally and should not be confused with a numeric or UUID plugin ID.
- * @param companyId  UUID of the company to check availability for.
- *
- * Return `true` if the plugin is enabled (or if no settings row exists, i.e.
- * default-enabled), `false` if the company has explicitly disabled the plugin.
- */
-export type CompanyAvailabilityChecker = (
-  pluginKey: string,
-  companyId: string,
-) => Promise<boolean>;
-
-/**
- * Options for {@link createPluginEventBus}.
- */
-export interface PluginEventBusOptions {
-  /**
-   * Optional checker that gates event delivery per company.
-   *
-   * When provided, the bus will skip delivery to a plugin if the checker
-   * returns `false` for the `(pluginKey, event.companyId)` pair, where
-   * `pluginKey` is the registry key supplied to `forPlugin()`. Results are
-   * cached with a short TTL (30 s) to avoid excessive lookups.
-   *
-   * When omitted, no company-scoping is applied (useful in tests).
-   */
-  isPluginEnabledForCompany?: CompanyAvailabilityChecker;
-}
-
-// Default cache TTL in milliseconds (30 seconds).
-const AVAILABILITY_CACHE_TTL_MS = 30_000;
-
-// Maximum number of entries in the availability cache before it is cleared.
-// Prevents unbounded memory growth in long-running processes with many unique
-// (pluginKey, companyId) pairs. A full clear is intentionally simple — the
-// cache is advisory (performance only) and a miss merely triggers one extra
-// async lookup.
-const MAX_AVAILABILITY_CACHE_SIZE = 10_000;
-
-// ---------------------------------------------------------------------------
 // Event bus factory
 // ---------------------------------------------------------------------------
 
@@ -200,39 +146,9 @@ const MAX_AVAILABILITY_CACHE_SIZE = 10_000;
  * });
  * ```
  */
-export function createPluginEventBus(options?: PluginEventBusOptions): PluginEventBus {
-  const checker = options?.isPluginEnabledForCompany ?? null;
-
+export function createPluginEventBus(): PluginEventBus {
   // Subscription registry: pluginKey → list of subscriptions
   const registry = new Map<string, Subscription[]>();
-
-  // Short-TTL cache for company availability lookups: "pluginKey\0companyId" → { enabled, expiresAt }
-  const availabilityCache = new Map<string, { enabled: boolean; expiresAt: number }>();
-
-  function cacheKey(pluginKey: string, companyId: string): string {
-    return `${pluginKey}\0${companyId}`;
-  }
-
-  /**
-   * Check whether a plugin is enabled for a company, using the cached result
-   * when available and falling back to the injected checker.
-   */
-  async function isEnabledForCompany(pluginKey: string, companyId: string): Promise<boolean> {
-    if (!checker) return true;
-
-    const key = cacheKey(pluginKey, companyId);
-    const cached = availabilityCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.enabled;
-    }
-
-    const enabled = await checker(pluginKey, companyId);
-    if (availabilityCache.size >= MAX_AVAILABILITY_CACHE_SIZE) {
-      availabilityCache.clear();
-    }
-    availabilityCache.set(key, { enabled, expiresAt: Date.now() + AVAILABILITY_CACHE_TTL_MS });
-    return enabled;
-  }
 
   /**
    * Retrieve or create the subscription list for a plugin.
@@ -257,26 +173,7 @@ export function createPluginEventBus(options?: PluginEventBusOptions): PluginEve
     const errors: Array<{ pluginId: string; error: unknown }> = [];
     const promises: Promise<void>[] = [];
 
-    // Pre-compute company availability for all registered plugins when the
-    // event carries a companyId and a checker is configured. This batches
-    // the (potentially async) lookups so we don't interleave them with
-    // handler dispatch.
-    let disabledPlugins: Set<string> | null = null;
-    if (checker && event.companyId) {
-      const pluginKeys = Array.from(registry.keys());
-      const checks = await Promise.all(
-        pluginKeys.map(async (pluginKey) => ({
-          pluginKey,
-          enabled: await isEnabledForCompany(pluginKey, event.companyId!),
-        })),
-      );
-      disabledPlugins = new Set(checks.filter((c) => !c.enabled).map((c) => c.pluginKey));
-    }
-
     for (const [pluginId, subs] of registry) {
-      // Skip delivery to plugins that are disabled for this company.
-      if (disabledPlugins?.has(pluginId)) continue;
-
       for (const sub of subs) {
         if (!matchesPattern(event.eventType, sub.eventPattern)) continue;
         if (!passesFilter(event, sub.filter)) continue;

@@ -140,14 +140,7 @@ export async function createApp(
   const hostServicesDisposers = new Map<string, () => void>();
   const workerManager = createPluginWorkerManager();
   const pluginRegistry = pluginRegistryService(db);
-  const eventBus = createPluginEventBus({
-    async isPluginEnabledForCompany(pluginKey, companyId) {
-      const plugin = await pluginRegistry.getByKey(pluginKey);
-      if (!plugin) return false;
-      const availability = await pluginRegistry.getCompanyAvailability(companyId, plugin.id);
-      return availability?.available ?? true;
-    },
-  });
+  const eventBus = createPluginEventBus();
   const jobStore = pluginJobStore(db);
   const lifecycle = pluginLifecycleManager(db, { workerManager });
   const scheduler = createPluginJobScheduler({

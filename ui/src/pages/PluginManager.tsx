@@ -61,7 +61,7 @@ function getPluginErrorSummary(plugin: PluginRecord): string {
  * @see doc/plugins/PLUGIN_SPEC.md §3 — Plugin Lifecycle for status semantics.
  */
 export function PluginManager() {
-  const { selectedCompany, selectedCompanyId } = useCompany();
+  const { selectedCompany } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
@@ -93,10 +93,7 @@ export function PluginManager() {
   const invalidatePluginQueries = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.plugins.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.plugins.examples });
-    queryClient.invalidateQueries({ queryKey: ["plugins", "ui-contributions"] });
-    if (selectedCompanyId) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.plugins.companyList(selectedCompanyId) });
-    }
+    queryClient.invalidateQueries({ queryKey: queryKeys.plugins.uiContributions });
   };
 
   const installMutation = useMutation({

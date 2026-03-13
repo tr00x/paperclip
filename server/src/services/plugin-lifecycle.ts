@@ -431,6 +431,22 @@ export function pluginLifecycleManager(
     }
   }
 
+  async function deactivatePluginRuntime(
+    pluginId: string,
+    pluginKey: string,
+  ): Promise<void> {
+    const supportsRuntimeDeactivation =
+      typeof pluginLoaderInstance.hasRuntimeServices === "function"
+      && typeof pluginLoaderInstance.unloadSingle === "function";
+
+    if (supportsRuntimeDeactivation && pluginLoaderInstance.hasRuntimeServices()) {
+      await pluginLoaderInstance.unloadSingle(pluginId, pluginKey);
+      return;
+    }
+
+    await stopWorkerIfRunning(pluginId, pluginKey);
+  }
+
   // -----------------------------------------------------------------------
   // Public API
   // -----------------------------------------------------------------------
@@ -504,8 +520,7 @@ export function pluginLifecycleManager(
         );
       }
 
-      // Stop the worker before transitioning state
-      await stopWorkerIfRunning(pluginId, plugin.pluginKey);
+      await deactivatePluginRuntime(pluginId, plugin.pluginKey);
 
       const result = await transition(pluginId, "disabled", reason ?? null, plugin);
       emitDomain("plugin.disabled", {
@@ -526,6 +541,7 @@ export function pluginLifecycleManager(
       // If already uninstalled and removeData, hard-delete
       if (plugin.status === "uninstalled") {
         if (removeData) {
+          await pluginLoaderInstance.cleanupInstallArtifacts(plugin);
           const deleted = await registry.uninstall(pluginId, true);
           log.info(
             { pluginId, pluginKey: plugin.pluginKey },
@@ -544,8 +560,8 @@ export function pluginLifecycleManager(
         );
       }
 
-      // Stop the worker before uninstalling
-      await stopWorkerIfRunning(pluginId, plugin.pluginKey);
+      await deactivatePluginRuntime(pluginId, plugin.pluginKey);
+      await pluginLoaderInstance.cleanupInstallArtifacts(plugin);
 
       // Perform the uninstall via registry (handles soft/hard delete)
       const result = await registry.uninstall(pluginId, removeData);
@@ -577,7 +593,7 @@ export function pluginLifecycleManager(
       // continue running. The worker manager's auto-restart is disabled
       // because we are intentionally taking the plugin offline.
       const plugin = await requirePlugin(pluginId);
-      await stopWorkerIfRunning(pluginId, plugin.pluginKey);
+      await deactivatePluginRuntime(pluginId, plugin.pluginKey);
 
       const result = await transition(pluginId, "error", error, plugin);
       emitDomain("plugin.error", {
@@ -590,9 +606,8 @@ export function pluginLifecycleManager(
 
     // -- markUpgradePending -----------------------------------------------
     async markUpgradePending(pluginId: string): Promise<PluginRecord> {
-      // Stop the worker while waiting for operator approval of new capabilities
       const plugin = await requirePlugin(pluginId);
-      await stopWorkerIfRunning(pluginId, plugin.pluginKey);
+      await deactivatePluginRuntime(pluginId, plugin.pluginKey);
 
       const result = await transition(pluginId, "upgrade_pending", null, plugin);
       emitDomain("plugin.upgrade_pending", {
@@ -637,8 +652,7 @@ export function pluginLifecycleManager(
         "plugin lifecycle: upgrade requested",
       );
 
-      // Stop the current worker before upgrading on disk
-      await stopWorkerIfRunning(pluginId, plugin.pluginKey);
+      await deactivatePluginRuntime(pluginId, plugin.pluginKey);
 
       // 1. Download and validate new package via loader
       const { oldManifest, newManifest, discovered } =
