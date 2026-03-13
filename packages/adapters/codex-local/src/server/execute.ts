@@ -13,17 +13,16 @@ import {
   redactEnvForLogs,
   ensureAbsoluteDirectory,
   ensureCommandResolvable,
+  ensurePaperclipSkillSymlink,
   ensurePathInEnv,
+  listPaperclipSkillEntries,
+  removeMaintainerOnlySkillSymlinks,
   renderTemplate,
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
 import { parseCodexJsonl, isCodexUnknownSessionError } from "./parse.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
-const PAPERCLIP_SKILLS_CANDIDATES = [
-  path.resolve(__moduleDir, "../../skills"),         // published: <pkg>/dist/server/ -> <pkg>/skills/
-  path.resolve(__moduleDir, "../../../../../skills"), // dev: src/server/ -> repo root/skills/
-];
 const CODEX_ROLLOUT_NOISE_RE =
   /^\d{4}-\d{2}-\d{2}T[^\s]+\s+ERROR\s+codex_core::rollout::list:\s+state db missing rollout path for thread\s+[a-z0-9-]+$/i;
 
@@ -67,33 +66,42 @@ function codexHomeDir(): string {
   return path.join(os.homedir(), ".codex");
 }
 
-async function resolvePaperclipSkillsDir(): Promise<string | null> {
-  for (const candidate of PAPERCLIP_SKILLS_CANDIDATES) {
-    const isDir = await fs.stat(candidate).then((s) => s.isDirectory()).catch(() => false);
-    if (isDir) return candidate;
-  }
-  return null;
-}
+type EnsureCodexSkillsInjectedOptions = {
+  skillsHome?: string;
+  skillsEntries?: Awaited<ReturnType<typeof listPaperclipSkillEntries>>;
+  linkSkill?: (source: string, target: string) => Promise<void>;
+};
 
-async function ensureCodexSkillsInjected(onLog: AdapterExecutionContext["onLog"]) {
-  const skillsDir = await resolvePaperclipSkillsDir();
-  if (!skillsDir) return;
+export async function ensureCodexSkillsInjected(
+  onLog: AdapterExecutionContext["onLog"],
+  options: EnsureCodexSkillsInjectedOptions = {},
+) {
+  const skillsEntries = options.skillsEntries ?? await listPaperclipSkillEntries(__moduleDir);
+  if (skillsEntries.length === 0) return;
 
-  const skillsHome = path.join(codexHomeDir(), "skills");
+  const skillsHome = options.skillsHome ?? path.join(codexHomeDir(), "skills");
   await fs.mkdir(skillsHome, { recursive: true });
-  const entries = await fs.readdir(skillsDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const source = path.join(skillsDir, entry.name);
+  const removedSkills = await removeMaintainerOnlySkillSymlinks(
+    skillsHome,
+    skillsEntries.map((entry) => entry.name),
+  );
+  for (const skillName of removedSkills) {
+    await onLog(
+      "stderr",
+      `[paperclip] Removed maintainer-only Codex skill "${skillName}" from ${skillsHome}\n`,
+    );
+  }
+  const linkSkill = options.linkSkill;
+  for (const entry of skillsEntries) {
     const target = path.join(skillsHome, entry.name);
-    const existing = await fs.lstat(target).catch(() => null);
-    if (existing) continue;
 
     try {
-      await fs.symlink(source, target);
+      const result = await ensurePaperclipSkillSymlink(entry.source, target, linkSkill);
+      if (result === "skipped") continue;
+
       await onLog(
         "stderr",
-        `[paperclip] Injected Codex skill "${entry.name}" into ${skillsHome}\n`,
+        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Codex skill "${entry.name}" into ${skillsHome}\n`,
       );
     } catch (err) {
       await onLog(

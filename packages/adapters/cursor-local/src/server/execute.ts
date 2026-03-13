@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import type { Dirent } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +12,10 @@ import {
   redactEnvForLogs,
   ensureAbsoluteDirectory,
   ensureCommandResolvable,
+  ensurePaperclipSkillSymlink,
   ensurePathInEnv,
+  listPaperclipSkillEntries,
+  removeMaintainerOnlySkillSymlinks,
   renderTemplate,
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
@@ -23,10 +25,6 @@ import { normalizeCursorStreamLine } from "../shared/stream.js";
 import { hasCursorTrustBypassArg } from "../shared/trust.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
-const PAPERCLIP_SKILLS_CANDIDATES = [
-  path.resolve(__moduleDir, "../../skills"),
-  path.resolve(__moduleDir, "../../../../../skills"),
-];
 
 function firstNonEmptyLine(text: string): string {
   return (
@@ -82,16 +80,9 @@ function cursorSkillsHome(): string {
   return path.join(os.homedir(), ".cursor", "skills");
 }
 
-async function resolvePaperclipSkillsDir(): Promise<string | null> {
-  for (const candidate of PAPERCLIP_SKILLS_CANDIDATES) {
-    const isDir = await fs.stat(candidate).then((s) => s.isDirectory()).catch(() => false);
-    if (isDir) return candidate;
-  }
-  return null;
-}
-
 type EnsureCursorSkillsInjectedOptions = {
   skillsDir?: string | null;
+  skillsEntries?: Array<{ name: string; source: string }>;
   skillsHome?: string;
   linkSkill?: (source: string, target: string) => Promise<void>;
 };
@@ -100,8 +91,13 @@ export async function ensureCursorSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
   options: EnsureCursorSkillsInjectedOptions = {},
 ) {
-  const skillsDir = options.skillsDir ?? await resolvePaperclipSkillsDir();
-  if (!skillsDir) return;
+  const skillsEntries = options.skillsEntries
+    ?? (options.skillsDir
+      ? (await fs.readdir(options.skillsDir, { withFileTypes: true }))
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => ({ name: entry.name, source: path.join(options.skillsDir!, entry.name) }))
+      : await listPaperclipSkillEntries(__moduleDir));
+  if (skillsEntries.length === 0) return;
 
   const skillsHome = options.skillsHome ?? cursorSkillsHome();
   try {
@@ -113,31 +109,26 @@ export async function ensureCursorSkillsInjected(
     );
     return;
   }
-
-  let entries: Dirent[];
-  try {
-    entries = await fs.readdir(skillsDir, { withFileTypes: true });
-  } catch (err) {
+  const removedSkills = await removeMaintainerOnlySkillSymlinks(
+    skillsHome,
+    skillsEntries.map((entry) => entry.name),
+  );
+  for (const skillName of removedSkills) {
     await onLog(
       "stderr",
-      `[paperclip] Failed to read Paperclip skills from ${skillsDir}: ${err instanceof Error ? err.message : String(err)}\n`,
+      `[paperclip] Removed maintainer-only Cursor skill "${skillName}" from ${skillsHome}\n`,
     );
-    return;
   }
-
   const linkSkill = options.linkSkill ?? ((source: string, target: string) => fs.symlink(source, target));
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const source = path.join(skillsDir, entry.name);
+  for (const entry of skillsEntries) {
     const target = path.join(skillsHome, entry.name);
-    const existing = await fs.lstat(target).catch(() => null);
-    if (existing) continue;
-
     try {
-      await linkSkill(source, target);
+      const result = await ensurePaperclipSkillSymlink(entry.source, target, linkSkill);
+      if (result === "skipped") continue;
+
       await onLog(
         "stderr",
-        `[paperclip] Injected Cursor skill "${entry.name}" into ${skillsHome}\n`,
+        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Cursor skill "${entry.name}" into ${skillsHome}\n`,
       );
     } catch (err) {
       await onLog(
