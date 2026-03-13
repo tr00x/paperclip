@@ -38,6 +38,8 @@ The main product risk is overloading one concept to do too much:
    - commits
    - documents and artifacts
 5. Keep the main navigation and task board simple.
+6. Seamlessly upgrade existing Paperclip users to the new model without forcing disruptive reconfiguration.
+7. Support cloud-hosted Paperclip deployments where execution happens in remote or adapter-managed environments rather than local workers.
 
 ## Non-Goals
 
@@ -45,6 +47,7 @@ The main product risk is overloading one concept to do too much:
 - Requiring every issue to have its own branch or PR
 - Requiring every project to configure code/workspace automation
 - Making workspaces a top-level global navigation primitive in V1
+- Requiring a local filesystem path or local git checkout to use workspace-aware execution
 
 ## Core Product Decisions
 
@@ -86,6 +89,7 @@ Examples:
 - an isolated git worktree
 - a long-lived operator branch checkout
 - an adapter-managed remote sandbox
+- a cloud agent provider's isolated branch/session environment
 
 This object must be recorded explicitly so that Paperclip can:
 
@@ -107,7 +111,38 @@ Paperclip should treat PRs as a type of work product linked back to:
 
 Git-specific automation should live under workspace policy, not under the core issue abstraction.
 
-### 5. Subissues remain planning and ownership structure
+### 5. Existing users must upgrade automatically
+
+Paperclip already has users and existing project/task data. Any new model must preserve continuity.
+
+The product should default existing installs into a sensible compatibility mode:
+
+- existing projects without workspace configuration continue to work unchanged
+- existing `project_workspaces` become the durable `project workspace` objects
+- existing project execution workspace policy is mapped forward rather than discarded
+- issues without explicit workspace fields continue to inherit current behavior
+
+This migration should feel additive, not like a mandatory re-onboarding flow.
+
+### 6. Cloud-hosted Paperclip must be a first-class deployment mode
+
+Paperclip cannot assume that it is running on the same machine as the code.
+
+In cloud deployments, Paperclip may:
+
+- run on Vercel or another serverless host
+- have no long-lived local worker process
+- delegate execution to a remote coding agent or provider-managed sandbox
+- receive back a branch, PR, preview URL, or artifact from that remote environment
+
+The model therefore must be portable:
+
+- `project workspace` may be remote-managed, not local
+- `execution workspace` may have no local `cwd`
+- `runtime services` may be tracked by provider reference and URL rather than a host process
+- work product harvesting must handle externally owned previews and PRs
+
+### 7. Subissues remain planning and ownership structure
 
 Subissues are for decomposition and parallel ownership.
 
@@ -130,6 +165,11 @@ Use these terms consistently in product copy:
 - `Isolated issue workspace`: user-facing term for an issue-specific derived workspace
 - `Work product`: previews, PRs, branches, commits, artifacts, docs
 - `Runtime service`: a process or service Paperclip owns or tracks for a workspace
+
+Use these terms consistently in migration and deployment messaging:
+
+- `Compatible mode`: existing behavior preserved without new workspace automation
+- `Adapter-managed workspace`: workspace realized by a remote or cloud execution provider
 
 Avoid teaching users that "workspace" always means "git worktree on my machine".
 
@@ -176,6 +216,7 @@ from:
 - "what temporary execution environment did this issue run in?"
 
 That keeps the model simple for solo users while still supporting advanced automation.
+It also lets cloud-hosted Paperclip deployments point at codebases and remotes without pretending the Paperclip host has direct filesystem access.
 
 ### Proposed fields
 
@@ -206,6 +247,7 @@ That keeps the model simple for solo users while still supporting advanced autom
 - `sourceType=non_git_path` is important so non-git projects are first-class.
 - `setupCommand` and `cleanupCommand` should be allowed here for workspace-root bootstrap, even when isolated execution is not used.
 - For a monorepo, multiple project workspaces may point at different roots or packages under one repo.
+- `sourceType=remote_managed` is important for cloud deployments where the durable codebase is defined by provider/repo metadata rather than a local checkout path.
 
 ## 3. Project Execution Workspace Policy
 
@@ -220,6 +262,7 @@ This lets Paperclip support:
 - direct editing in a shared workspace
 - isolated workspaces for issue parallelism
 - long-lived integration branch workflows
+- remote cloud-agent execution that returns a branch or PR
 
 without forcing every issue or agent to expose low-level runtime configuration.
 
@@ -305,6 +348,7 @@ Examples:
 - if the project has no workspace automation, these fields may all be null
 - if the project has one primary workspace, issue creation should default to it silently
 - `reuse_existing` is advanced-only and should target active execution workspaces, not the whole workspace universe
+- existing issues without these fields should behave as `inherit` during migration
 
 ## 5. Execution Workspace
 
@@ -321,6 +365,7 @@ Without an explicit `execution workspace` record, Paperclip has nowhere stable t
 - PR linkage
 - cleanup state
 - "reuse this existing integration branch" behavior
+- remote provider session identity
 
 ### Proposed new object
 
@@ -354,6 +399,11 @@ Without an explicit `execution workspace` record, Paperclip has nowhere stable t
 - `baseRef`
 - `branchName`
 - `providerRef`
+- `providerType`
+  - `local_fs`
+  - `git_worktree`
+  - `adapter_managed`
+  - `cloud_sandbox`
 - `derivedFromExecutionWorkspaceId`
 - `lastUsedAt`
 - `openedAt`
@@ -368,6 +418,7 @@ Without an explicit `execution workspace` record, Paperclip has nowhere stable t
 
 - `sourceIssueId` is the issue that originally caused the workspace to be created, not necessarily the only issue linked to it later.
 - multiple issues may link to the same execution workspace in a long-lived branch workflow.
+- `cwd` may be null for remote execution workspaces; provider identity and work product links still make the object useful.
 
 ## 6. Issue-to-Execution Workspace Link
 
@@ -473,6 +524,7 @@ without turning issues into a raw dump of adapter details.
 - previews are stored here as `type=preview_url` or `runtime_service`
 - Paperclip-owned processes should update health/status automatically
 - external providers should at least store link, provider, external id, and latest known state
+- cloud agents should be able to create work product records without Paperclip owning the execution host
 
 ## Page and UI Model
 
@@ -550,6 +602,7 @@ Card/list columns:
 - active execution workspaces count
 - active issue count
 - active preview count
+- hosting type / provider when remote-managed
 
 Actions:
 
@@ -586,6 +639,7 @@ Fields:
 - `Derived workspace parent directory`
 
 Hide git-specific fields when the selected workspace is not git-backed.
+Hide local-path-specific fields when the selected workspace is remote-managed.
 
 #### Section: `Pull Requests`
 
@@ -637,6 +691,8 @@ Entry point: `Project > Code > Add workspace`
   - `Remote managed`
 - `Local path`
 - `Repository URL`
+- `Remote provider`
+- `Remote workspace reference`
 - `Default ref`
 - `Set as default workspace`
 - `Setup command`
@@ -646,6 +702,7 @@ Entry point: `Project > Code > Add workspace`
 
 - if source type is non-git, hide branch/PR-specific setup
 - if source type is git, show ref and optional advanced branch fields
+- if source type is remote-managed, show provider/reference fields and hide local-path-only configuration
 - for simple solo users, this can be one path field and one save button
 
 ## 4. Issue Create Flow
@@ -694,6 +751,10 @@ The normal flow should feel like:
 not:
 
 - choose from a long mixed list of roots, derived worktrees, previews, and branch names
+
+### Migration rule
+
+For existing users, issue creation should continue to look the same until a project explicitly enables richer workspace behavior.
 
 ## 5. Issue Detail
 
@@ -790,6 +851,7 @@ It does not need to be in the main sidebar.
 - source issue
 - linked issues
 - branch/ref
+- provider/session identity
 - active runtime services
 - previews
 - PRs
@@ -812,6 +874,7 @@ Inbox should surface actionable work product events, not every implementation de
 - preview unhealthy
 - workspace cleanup failed
 - runtime service failed
+- remote cloud-agent run returned PR or preview that needs review
 
 ### Do not show by default
 
@@ -852,6 +915,101 @@ For issues with linked work product, show compact badges:
 - `Has preview`
 - `Workspace mode`
 - `Codebase`
+
+## Upgrade and Migration Plan
+
+## 1. Product-level migration stance
+
+Migration must be silent-by-default and compatibility-preserving.
+
+Existing users should not be forced to:
+
+- create new workspace objects by hand before they can keep working
+- re-tag old issues
+- learn new workspace concepts before basic issue flows continue to function
+
+## 2. Existing project migration
+
+On upgrade:
+
+- existing `project_workspaces` records are retained and shown as `Project Workspaces`
+- the current primary workspace remains the default codebase
+- existing project execution workspace policy is mapped into the new `Project Execution Workspace Policy` surface
+- projects with no execution workspace policy stay in compatible/shared mode
+
+## 3. Existing issue migration
+
+On upgrade:
+
+- existing issues default to `executionWorkspacePreference=inherit`
+- if an issue already has execution workspace settings, map them forward directly
+- if an issue has no explicit workspace data, preserve existing behavior and do not force a user-visible choice
+
+## 4. Existing run/runtime migration
+
+On upgrade:
+
+- active or recent runtime services can be backfilled into execution workspace history where feasible
+- missing history should not block rollout; forward correctness matters more than perfect historical reconstruction
+
+## 5. Rollout UX
+
+Use additive language in the UI:
+
+- `Code`
+- `Workspace automation`
+- `Optional`
+- `Advanced`
+
+Avoid migration copy that implies users were previously using the product "wrong".
+
+## Cloud Deployment Requirements
+
+## 1. Paperclip host and execution host must be decoupled
+
+Paperclip may run:
+
+- locally with direct filesystem access
+- in a cloud app host such as Vercel
+- in a hybrid setup with external job runners
+
+The workspace model must work in all three.
+
+## 2. Remote execution must support first-class work product reporting
+
+A cloud agent should be able to:
+
+- resolve a project workspace
+- realize an adapter-managed execution workspace remotely
+- produce a branch
+- open or update a PR
+- emit preview URLs
+- register artifacts
+
+without the Paperclip host itself running local git or local preview processes.
+
+## 3. Local-only assumptions must be optional
+
+The following must be optional, not required:
+
+- local `cwd`
+- local git CLI
+- host-managed worktree directories
+- host-owned long-lived preview processes
+
+## 4. Same product surface, different provider behavior
+
+The UI should not split into "local mode" and "cloud mode" products.
+
+Instead:
+
+- local projects show path/git implementation details
+- cloud projects show provider/reference details
+- both surface the same high-level objects:
+  - project workspace
+  - execution workspace
+  - work product
+  - runtime service or preview
 
 ## Behavior Rules
 
@@ -921,6 +1079,7 @@ That keeps Paperclip focused on coordination and visibility instead of splitting
 1. Add `execution_workspaces`
 2. Link runs, issues, previews, and PRs to it
 3. Add simple execution workspace detail page
+4. Make `cwd` optional and ensure provider-managed remote workspaces are supported from day one
 
 ## Phase 3: Add work product model
 
@@ -928,6 +1087,7 @@ That keeps Paperclip focused on coordination and visibility instead of splitting
 2. Ingest PRs, previews, branches, commits
 3. Add issue `Work Product` tab
 4. Add inbox items for actionable work product state changes
+5. Support remote agent-created PR/preview reporting without local ownership
 
 ## Phase 4: Add advanced reuse and cleanup workflows
 
@@ -935,6 +1095,7 @@ That keeps Paperclip focused on coordination and visibility instead of splitting
 2. Add cleanup lifecycle UI
 3. Add operator branch workflow shortcuts
 4. Add richer external preview harvesting
+5. Add migration tooling/backfill where it improves continuity for existing users
 
 ## Why This Model Is Right
 
@@ -952,6 +1113,12 @@ Most importantly, it keeps the abstractions clean:
 - execution workspaces define where work ran
 - work product defines what came out of the work
 - PRs remain outputs, not the core task model
+
+It also keeps the rollout practical:
+
+- existing users can upgrade without workflow breakage
+- local-first installs stay simple
+- cloud-hosted Paperclip deployments remain first-class
 
 That is a better fit for Paperclip than either extreme:
 
