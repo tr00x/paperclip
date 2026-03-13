@@ -1011,6 +1011,143 @@ Instead:
   - work product
   - runtime service or preview
 
+## Patterns Learned from Worktrunk
+
+Worktrunk is a useful reference point because it is unapologetically focused on git-worktree-based developer workflows.
+
+Paperclip should not copy its product framing wholesale, but there are several good patterns worth applying.
+
+References:
+
+- `https://worktrunk.dev/tips-patterns/`
+- `https://github.com/max-sixty/worktrunk`
+
+## 1. Deterministic per-workspace resources
+
+Worktrunk treats a derived workspace as something that can deterministically own:
+
+- ports
+- local URLs
+- databases
+- runtime process identity
+
+This is a strong pattern for Paperclip.
+
+### Recommendation
+
+Execution workspaces should be able to deterministically derive and expose:
+
+- preview URLs
+- port allocations
+- database/schema names
+- runtime service reuse keys
+
+This makes previews and local runtime services more predictable and easier to manage across many parallel workspaces.
+
+## 2. Lifecycle hooks should stay simple and explicit
+
+Worktrunk uses practical lifecycle hooks such as create/start/remove/merge-oriented commands.
+
+The main lesson is not to build a huge workflow engine. The lesson is to give users a few well-defined lifecycle moments to attach automation to.
+
+### Recommendation
+
+Paperclip should keep workspace automation centered on a small set of hooks:
+
+- `setup`
+- `cleanup`
+- optionally `before_review`
+- optionally `after_merge` or `after_close`
+
+These should remain project/workspace policy concerns, not agent-prompt conventions.
+
+## 3. Workspace status visibility is a real product feature
+
+Worktrunk's listing/status experience is doing important product work:
+
+- which workspaces exist
+- what branch they are on
+- what services or URLs they own
+- whether they are active or stale
+
+### Recommendation
+
+Paperclip should provide the equivalent visibility in the project `Code` surface:
+
+- active execution workspaces
+- linked issues
+- linked PRs
+- linked previews/runtime services
+- cleanup eligibility
+
+This reinforces why `execution workspace` needs to be a first-class recorded object.
+
+## 4. Execution workspaces are runtime islands, not just checkouts
+
+One of Worktrunk's strongest implicit ideas is that a worktree is not only code. It often owns an entire local runtime environment.
+
+### Recommendation
+
+Paperclip should treat execution workspaces as the natural home for:
+
+- dev servers
+- preview processes
+- sandbox credentials or provider references
+- branch/ref identity
+- local or remote environment bootstrap
+
+This supports the `work product` model and the preview/runtime service model proposed above.
+
+## 5. Machine-readable workspace state matters
+
+Worktrunk exposes structured state that can be consumed by tools and automation.
+
+### Recommendation
+
+Paperclip should ensure that execution workspaces and work product have clean structured API surfaces, not just UI-only representation.
+
+That is important for:
+
+- agents
+- CLIs
+- dashboards
+- future automation and cleanup tooling
+
+## 6. Cleanup should be first-class, not an afterthought
+
+Worktrunk makes create/remove/merge cleanup part of the workflow.
+
+### Recommendation
+
+Paperclip should continue treating cleanup policy as part of the core workspace model:
+
+- when is cleanup allowed
+- what blocks cleanup
+- what gets archived versus destroyed
+- what happens when cleanup fails
+
+This validates the explicit cleanup policy proposed earlier in this plan.
+
+## 7. What not to copy
+
+There are also important limits to the analogy.
+
+Paperclip should not adopt these Worktrunk assumptions as universal product rules:
+
+- every execution workspace is a local git worktree
+- the Paperclip host has direct shell and filesystem access
+- every workflow is merge-centric
+- every user wants developer-tool-level workspace detail in the main navigation
+
+### Product implication
+
+Paperclip should borrow Worktrunk's good execution patterns while keeping the broader Paperclip model:
+
+- project plans the work
+- workspace defines where work happens
+- work product defines what came out
+- git worktree remains one implementation strategy, not the product itself
+
 ## Behavior Rules
 
 ## 1. Cleanup must not depend on agents remembering `in_review`
