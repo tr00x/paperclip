@@ -39,6 +39,7 @@ import {
   buildWorktreeEnvEntries,
   DEFAULT_WORKTREE_HOME,
   formatShellExports,
+  generateWorktreeColor,
   isWorktreeSeedMode,
   resolveSuggestedWorktreeName,
   resolveWorktreeSeedPlan,
@@ -623,7 +624,7 @@ async function seedWorktreeDatabase(input: {
 
 async function runWorktreeInit(opts: WorktreeInitOptions): Promise<void> {
   const cwd = process.cwd();
-  const name = resolveSuggestedWorktreeName(
+  const worktreeName = resolveSuggestedWorktreeName(
     cwd,
     opts.name ?? detectGitBranchName(cwd) ?? undefined,
   );
@@ -631,12 +632,16 @@ async function runWorktreeInit(opts: WorktreeInitOptions): Promise<void> {
   if (!isWorktreeSeedMode(seedMode)) {
     throw new Error(`Unsupported seed mode "${seedMode}". Expected one of: minimal, full.`);
   }
-  const instanceId = sanitizeWorktreeInstanceId(opts.instance ?? name);
+  const instanceId = sanitizeWorktreeInstanceId(opts.instance ?? worktreeName);
   const paths = resolveWorktreeLocalPaths({
     cwd,
     homeDir: resolveWorktreeHome(opts.home),
     instanceId,
   });
+  const branding = {
+    name: worktreeName,
+    color: generateWorktreeColor(),
+  };
   const sourceConfigPath = resolveSourceConfigPath(opts);
   const sourceConfig = existsSync(sourceConfigPath) ? readConfig(sourceConfigPath) : null;
 
@@ -669,7 +674,7 @@ async function runWorktreeInit(opts: WorktreeInitOptions): Promise<void> {
     nonEmpty(process.env.PAPERCLIP_AGENT_JWT_SECRET);
   mergePaperclipEnvEntries(
     {
-      ...buildWorktreeEnvEntries(paths),
+      ...buildWorktreeEnvEntries(paths, branding),
       ...(existingAgentJwtSecret ? { PAPERCLIP_AGENT_JWT_SECRET: existingAgentJwtSecret } : {}),
     },
     paths.envPath,
@@ -710,6 +715,7 @@ async function runWorktreeInit(opts: WorktreeInitOptions): Promise<void> {
   p.log.message(pc.dim(`Repo env: ${paths.envPath}`));
   p.log.message(pc.dim(`Isolated home: ${paths.homeDir}`));
   p.log.message(pc.dim(`Instance: ${paths.instanceId}`));
+  p.log.message(pc.dim(`Worktree badge: ${branding.name} (${branding.color})`));
   p.log.message(pc.dim(`Server port: ${serverPort} | DB port: ${databasePort}`));
   if (copiedGitHooks?.copied) {
     p.log.message(
