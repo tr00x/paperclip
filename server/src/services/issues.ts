@@ -1115,26 +1115,28 @@ export function issueService(db: Db) {
     },
 
     getCommentCursor: async (issueId: string) => {
-      const latest = await db
-        .select({
-          latestCommentId: issueComments.id,
-          latestCommentAt: issueComments.createdAt,
-        })
-        .from(issueComments)
-        .where(eq(issueComments.issueId, issueId))
-        .orderBy(desc(issueComments.createdAt), desc(issueComments.id))
-        .limit(1)
-        .then((rows) => rows[0] ?? null);
-
-      const [{ totalComments }] = await db
-        .select({
-          totalComments: sql<number>`count(*)::int`,
-        })
-        .from(issueComments)
-        .where(eq(issueComments.issueId, issueId));
+      const [latest, countRow] = await Promise.all([
+        db
+          .select({
+            latestCommentId: issueComments.id,
+            latestCommentAt: issueComments.createdAt,
+          })
+          .from(issueComments)
+          .where(eq(issueComments.issueId, issueId))
+          .orderBy(desc(issueComments.createdAt), desc(issueComments.id))
+          .limit(1)
+          .then((rows) => rows[0] ?? null),
+        db
+          .select({
+            totalComments: sql<number>`count(*)::int`,
+          })
+          .from(issueComments)
+          .where(eq(issueComments.issueId, issueId))
+          .then((rows) => rows[0] ?? null),
+      ]);
 
       return {
-        totalComments: Number(totalComments ?? 0),
+        totalComments: Number(countRow?.totalComments ?? 0),
         latestCommentId: latest?.latestCommentId ?? null,
         latestCommentAt: latest?.latestCommentAt ?? null,
       };

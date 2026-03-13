@@ -21,7 +21,7 @@ import {
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
 import { parseCodexJsonl, isCodexUnknownSessionError } from "./parse.js";
-import { prepareWorktreeCodexHome, resolveCodexHomeDir } from "./codex-home.js";
+import { pathExists, prepareWorktreeCodexHome, resolveCodexHomeDir } from "./codex-home.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const CODEX_ROLLOUT_NOISE_RE =
@@ -59,10 +59,6 @@ function hasNonEmptyEnvValue(env: Record<string, string>, key: string): boolean 
 function resolveCodexBillingType(env: Record<string, string>): "api" | "subscription" {
   // Codex uses API-key auth when OPENAI_API_KEY is present; otherwise rely on local login/session auth.
   return hasNonEmptyEnvValue(env, "OPENAI_API_KEY") ? "api" : "subscription";
-}
-
-async function pathExists(candidate: string): Promise<boolean> {
-  return fs.access(candidate).then(() => true).catch(() => false);
 }
 
 async function isLikelyPaperclipRepoRoot(candidate: string): Promise<boolean> {
