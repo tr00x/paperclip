@@ -623,6 +623,19 @@ export function heartbeatService(db: Db) {
       .then((rows) => rows[0] ?? null);
   }
 
+  async function getOldestRunForSession(agentId: string, sessionId: string) {
+    return db
+      .select({
+        id: heartbeatRuns.id,
+        createdAt: heartbeatRuns.createdAt,
+      })
+      .from(heartbeatRuns)
+      .where(and(eq(heartbeatRuns.agentId, agentId), eq(heartbeatRuns.sessionIdAfter, sessionId)))
+      .orderBy(asc(heartbeatRuns.createdAt), asc(heartbeatRuns.id))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+  }
+
   async function resolveNormalizedUsageForSession(input: {
     agentId: string;
     runId: string;
@@ -672,6 +685,7 @@ export function heartbeatService(db: Db) {
       };
     }
 
+    const fetchLimit = Math.max(policy.maxSessionRuns > 0 ? policy.maxSessionRuns + 1 : 0, 4);
     const runs = await db
       .select({
         id: heartbeatRuns.id,
@@ -683,7 +697,7 @@ export function heartbeatService(db: Db) {
       .from(heartbeatRuns)
       .where(and(eq(heartbeatRuns.agentId, agent.id), eq(heartbeatRuns.sessionIdAfter, sessionId)))
       .orderBy(desc(heartbeatRuns.createdAt))
-      .limit(Math.max(policy.maxSessionRuns + 1, 4));
+      .limit(fetchLimit);
 
     if (runs.length === 0) {
       return {
@@ -695,7 +709,10 @@ export function heartbeatService(db: Db) {
     }
 
     const latestRun = runs[0] ?? null;
-    const oldestRun = runs[runs.length - 1] ?? latestRun;
+    const oldestRun =
+      policy.maxSessionAgeHours > 0
+        ? await getOldestRunForSession(agent.id, sessionId)
+        : runs[runs.length - 1] ?? latestRun;
     const latestRawUsage = readRawUsageTotals(latestRun?.usageJson);
     const sessionAgeHours =
       latestRun && oldestRun

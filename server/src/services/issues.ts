@@ -27,6 +27,7 @@ import { resolveIssueGoalId, resolveNextIssueGoalId } from "./issue-goal-fallbac
 import { getDefaultCompanyGoal } from "./goals.js";
 
 const ALL_ISSUE_STATUSES = ["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancelled"];
+const MAX_ISSUE_COMMENT_PAGE_LIMIT = 500;
 
 function assertTransition(from: string, to: string) {
   if (from === to) return;
@@ -1070,7 +1071,10 @@ export function issueService(db: Db) {
     ) => {
       const order = opts?.order === "asc" ? "asc" : "desc";
       const afterCommentId = opts?.afterCommentId?.trim() || null;
-      const limit = opts?.limit && opts.limit > 0 ? Math.floor(opts.limit) : null;
+      const limit =
+        opts?.limit && opts.limit > 0
+          ? Math.min(Math.floor(opts.limit), MAX_ISSUE_COMMENT_PAGE_LIMIT)
+          : null;
 
       const conditions = [eq(issueComments.issueId, issueId)];
       if (afterCommentId) {
@@ -1085,7 +1089,15 @@ export function issueService(db: Db) {
 
         if (!anchor) return [];
         conditions.push(
-          sql<boolean>`(${issueComments.createdAt} > ${anchor.createdAt} OR (${issueComments.createdAt} = ${anchor.createdAt} AND ${issueComments.id} <> ${anchor.id}))`,
+          order === "asc"
+            ? sql<boolean>`(
+                ${issueComments.createdAt} > ${anchor.createdAt}
+                OR (${issueComments.createdAt} = ${anchor.createdAt} AND ${issueComments.id} > ${anchor.id})
+              )`
+            : sql<boolean>`(
+                ${issueComments.createdAt} < ${anchor.createdAt}
+                OR (${issueComments.createdAt} = ${anchor.createdAt} AND ${issueComments.id} < ${anchor.id})
+              )`,
         );
       }
 
@@ -1093,7 +1105,10 @@ export function issueService(db: Db) {
         .select()
         .from(issueComments)
         .where(and(...conditions))
-        .orderBy(order === "asc" ? asc(issueComments.createdAt) : desc(issueComments.createdAt));
+        .orderBy(
+          order === "asc" ? asc(issueComments.createdAt) : desc(issueComments.createdAt),
+          order === "asc" ? asc(issueComments.id) : desc(issueComments.id),
+        );
 
       const comments = limit ? await query.limit(limit) : await query;
       return comments.map(redactIssueComment);

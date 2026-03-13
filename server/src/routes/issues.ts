@@ -28,6 +28,8 @@ import { assertCompanyAccess, getActorInfo } from "./authz.js";
 import { shouldWakeAssigneeOnCheckout } from "./issues-checkout-wakeup.js";
 import { isAllowedContentType, MAX_ATTACHMENT_BYTES } from "../attachment-types.js";
 
+const MAX_ISSUE_COMMENT_LIMIT = 500;
+
 export function issueRoutes(db: Db, storage: StorageService) {
   const router = Router();
   const svc = issueService(db);
@@ -878,7 +880,10 @@ export function issueRoutes(db: Db, storage: StorageService) {
       typeof req.query.limit === "string" && req.query.limit.trim().length > 0
         ? Number(req.query.limit)
         : null;
-    const limit = limitRaw && Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : null;
+    const limit =
+      limitRaw && Number.isFinite(limitRaw) && limitRaw > 0
+        ? Math.min(Math.floor(limitRaw), MAX_ISSUE_COMMENT_LIMIT)
+        : null;
     const comments = await svc.listComments(id, {
       afterCommentId,
       order,
