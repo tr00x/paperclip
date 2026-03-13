@@ -7,6 +7,7 @@ import {
   copyGitHooksToWorktreeGitDir,
   copySeededSecretsKey,
   rebindWorkspaceCwd,
+  resolveSourceConfigPath,
   resolveGitWorktreeAddArgs,
   resolveWorktreeMakeTargetPath,
   worktreeInitCommand,
@@ -300,6 +301,59 @@ describe("worktree helpers", () => {
         delete process.env.PAPERCLIP_AGENT_JWT_SECRET;
       } else {
         process.env.PAPERCLIP_AGENT_JWT_SECRET = originalJwtSecret;
+      }
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("defaults the seed source config to the current repo-local Paperclip config", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-worktree-source-config-"));
+    const repoRoot = path.join(tempRoot, "repo");
+    const localConfigPath = path.join(repoRoot, ".paperclip", "config.json");
+    const originalCwd = process.cwd();
+    const originalPaperclipConfig = process.env.PAPERCLIP_CONFIG;
+
+    try {
+      fs.mkdirSync(path.dirname(localConfigPath), { recursive: true });
+      fs.writeFileSync(localConfigPath, JSON.stringify(buildSourceConfig()), "utf8");
+      delete process.env.PAPERCLIP_CONFIG;
+      process.chdir(repoRoot);
+
+      expect(fs.realpathSync(resolveSourceConfigPath({}))).toBe(fs.realpathSync(localConfigPath));
+    } finally {
+      process.chdir(originalCwd);
+      if (originalPaperclipConfig === undefined) {
+        delete process.env.PAPERCLIP_CONFIG;
+      } else {
+        process.env.PAPERCLIP_CONFIG = originalPaperclipConfig;
+      }
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves the source config path across worktree:make cwd changes", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-worktree-source-override-"));
+    const sourceConfigPath = path.join(tempRoot, "source", "config.json");
+    const targetRoot = path.join(tempRoot, "target");
+    const originalCwd = process.cwd();
+    const originalPaperclipConfig = process.env.PAPERCLIP_CONFIG;
+
+    try {
+      fs.mkdirSync(path.dirname(sourceConfigPath), { recursive: true });
+      fs.mkdirSync(targetRoot, { recursive: true });
+      fs.writeFileSync(sourceConfigPath, JSON.stringify(buildSourceConfig()), "utf8");
+      delete process.env.PAPERCLIP_CONFIG;
+      process.chdir(targetRoot);
+
+      expect(resolveSourceConfigPath({ sourceConfigPathOverride: sourceConfigPath })).toBe(
+        path.resolve(sourceConfigPath),
+      );
+    } finally {
+      process.chdir(originalCwd);
+      if (originalPaperclipConfig === undefined) {
+        delete process.env.PAPERCLIP_CONFIG;
+      } else {
+        process.env.PAPERCLIP_CONFIG = originalPaperclipConfig;
       }
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }

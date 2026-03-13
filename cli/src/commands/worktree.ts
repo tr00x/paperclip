@@ -56,6 +56,7 @@ type WorktreeInitOptions = {
   fromConfig?: string;
   fromDataDir?: string;
   fromInstance?: string;
+  sourceConfigPathOverride?: string;
   serverPort?: number;
   dbPort?: number;
   seed?: boolean;
@@ -426,8 +427,12 @@ async function rebindSeededProjectWorkspaces(input: {
   }
 }
 
-function resolveSourceConfigPath(opts: WorktreeInitOptions): string {
+export function resolveSourceConfigPath(opts: WorktreeInitOptions): string {
+  if (opts.sourceConfigPathOverride) return path.resolve(opts.sourceConfigPathOverride);
   if (opts.fromConfig) return path.resolve(opts.fromConfig);
+  if (!opts.fromDataDir && !opts.fromInstance) {
+    return resolveConfigPath();
+  }
   const sourceHome = path.resolve(expandHomePrefix(opts.fromDataDir ?? "~/.paperclip"));
   const sourceInstanceId = sanitizeWorktreeInstanceId(opts.fromInstance ?? "default");
   return path.resolve(sourceHome, "instances", sourceInstanceId, "config.json");
@@ -751,6 +756,7 @@ export async function worktreeMakeCommand(nameArg: string, opts: WorktreeMakeOpt
   const name = resolveWorktreeMakeName(nameArg);
   const startPoint = resolveWorktreeStartPoint(opts.startPoint);
   const sourceCwd = process.cwd();
+  const sourceConfigPath = resolveSourceConfigPath(opts);
   const targetPath = resolveWorktreeMakeTargetPath(name);
   if (existsSync(targetPath)) {
     throw new Error(`Target path already exists: ${targetPath}`);
@@ -810,6 +816,7 @@ export async function worktreeMakeCommand(nameArg: string, opts: WorktreeMakeOpt
     await runWorktreeInit({
       ...opts,
       name,
+      sourceConfigPathOverride: sourceConfigPath,
     });
   } catch (error) {
     throw error;
