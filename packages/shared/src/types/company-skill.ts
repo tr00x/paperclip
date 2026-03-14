@@ -4,6 +4,8 @@ export type CompanySkillTrustLevel = "markdown_only" | "assets" | "scripts_execu
 
 export type CompanySkillCompatibility = "compatible" | "unknown" | "invalid";
 
+export type CompanySkillSourceBadge = "paperclip" | "github" | "local" | "url" | "catalog";
+
 export interface CompanySkillFileInventoryEntry {
   path: string;
   kind: "skill" | "markdown" | "reference" | "script" | "asset" | "other";
@@ -29,6 +31,10 @@ export interface CompanySkill {
 
 export interface CompanySkillListItem extends CompanySkill {
   attachedAgentCount: number;
+  editable: boolean;
+  editableReason: string | null;
+  sourceLabel: string | null;
+  sourceBadge: CompanySkillSourceBadge;
 }
 
 export interface CompanySkillUsageAgent {
@@ -43,6 +49,19 @@ export interface CompanySkillUsageAgent {
 export interface CompanySkillDetail extends CompanySkill {
   attachedAgentCount: number;
   usedByAgents: CompanySkillUsageAgent[];
+  editable: boolean;
+  editableReason: string | null;
+  sourceLabel: string | null;
+  sourceBadge: CompanySkillSourceBadge;
+}
+
+export interface CompanySkillUpdateStatus {
+  supported: boolean;
+  reason: string | null;
+  trackingRef: string | null;
+  currentRef: string | null;
+  latestRef: string | null;
+  hasUpdate: boolean;
 }
 
 export interface CompanySkillImportRequest {
@@ -52,4 +71,26 @@ export interface CompanySkillImportRequest {
 export interface CompanySkillImportResult {
   imported: CompanySkill[];
   warnings: string[];
+}
+
+export interface CompanySkillCreateRequest {
+  name: string;
+  slug?: string | null;
+  description?: string | null;
+  markdown?: string | null;
+}
+
+export interface CompanySkillFileDetail {
+  skillId: string;
+  path: string;
+  kind: CompanySkillFileInventoryEntry["kind"];
+  content: string;
+  language: string | null;
+  markdown: boolean;
+  editable: boolean;
+}
+
+export interface CompanySkillFileUpdateRequest {
+  path: string;
+  content: string;
 }

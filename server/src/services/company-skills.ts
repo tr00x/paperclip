@@ -6,18 +6,23 @@ import type { Db } from "@paperclipai/db";
 import { companySkills } from "@paperclipai/db";
 import type {
   CompanySkill,
+  CompanySkillCreateRequest,
   CompanySkillCompatibility,
   CompanySkillDetail,
+  CompanySkillFileDetail,
   CompanySkillFileInventoryEntry,
   CompanySkillImportResult,
   CompanySkillListItem,
+  CompanySkillSourceBadge,
   CompanySkillSourceType,
   CompanySkillTrustLevel,
+  CompanySkillUpdateStatus,
   CompanySkillUsageAgent,
 } from "@paperclipai/shared";
 import { normalizeAgentUrlKey } from "@paperclipai/shared";
 import { readPaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
 import { findServerAdapter } from "../adapters/index.js";
+import { resolvePaperclipInstanceRoot } from "../home-paths.js";
 import { notFound, unprocessable } from "../errors.js";
 import { agentService } from "./agents.js";
 import { secretService } from "./secrets.js";
@@ -42,6 +47,15 @@ type ParsedSkillImportSource = {
   resolvedSource: string;
   requestedSkillSlug: string | null;
   warnings: string[];
+};
+
+type SkillSourceMeta = {
+  sourceKind?: string;
+  owner?: string;
+  repo?: string;
+  ref?: string;
+  trackingRef?: string;
+  repoSkillDir?: string;
 };
 
 function asString(value: unknown): string | null {
@@ -233,6 +247,24 @@ async function fetchJson<T>(url: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function resolveGitHubDefaultBranch(owner: string, repo: string) {
+  const response = await fetchJson<{ default_branch?: string }>(
+    `https://api.github.com/repos/${owner}/${repo}`,
+  );
+  return asString(response.default_branch) ?? "main";
+}
+
+async function resolveGitHubCommitSha(owner: string, repo: string, ref: string) {
+  const response = await fetchJson<{ sha?: string }>(
+    `https://api.github.com/repos/${owner}/${repo}/commits/${encodeURIComponent(ref)}`,
+  );
+  const sha = asString(response.sha);
+  if (!sha) {
+    throw unprocessable(`Failed to resolve GitHub ref ${ref}`);
+  }
+  return sha;
+}
+
 function parseGitHubSourceUrl(rawUrl: string) {
   const url = new URL(rawUrl);
   if (url.hostname !== "github.com") {
@@ -247,15 +279,33 @@ function parseGitHubSourceUrl(rawUrl: string) {
   let ref = "main";
   let basePath = "";
   let filePath: string | null = null;
+  let explicitRef = false;
   if (parts[2] === "tree") {
     ref = parts[3] ?? "main";
     basePath = parts.slice(4).join("/");
+    explicitRef = true;
   } else if (parts[2] === "blob") {
     ref = parts[3] ?? "main";
     filePath = parts.slice(4).join("/");
     basePath = filePath ? path.posix.dirname(filePath) : "";
+    explicitRef = true;
   }
-  return { owner, repo, ref, basePath, filePath };
+  return { owner, repo, ref, basePath, filePath, explicitRef };
+}
+
+async function resolveGitHubPinnedRef(parsed: ReturnType<typeof parseGitHubSourceUrl>) {
+  if (/^[0-9a-f]{40}$/i.test(parsed.ref.trim())) {
+    return {
+      pinnedRef: parsed.ref,
+      trackingRef: parsed.explicitRef ? parsed.ref : null,
+    };
+  }
+
+  const trackingRef = parsed.explicitRef
+    ? parsed.ref
+    : await resolveGitHubDefaultBranch(parsed.owner, parsed.repo);
+  const pinnedRef = await resolveGitHubCommitSha(parsed.owner, parsed.repo, trackingRef);
+  return { pinnedRef, trackingRef };
 }
 
 function resolveRawGitHubUrl(owner: string, repo: string, ref: string, filePath: string) {
@@ -298,7 +348,6 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
           requestedSkillSlug = normalizeSkillSlug(token.slice("--skill=".length));
         }
       }
-      warnings.push("Parsed a skills.sh command. Paperclip imports the referenced skill package without executing shell input.");
     }
   }
 
@@ -346,6 +395,10 @@ function matchesRequestedSkill(relativeSkillPath: string, requestedSkillSlug: st
   return normalizeSkillSlug(path.posix.basename(skillDir)) === requestedSkillSlug;
 }
 
+function deriveImportedSkillSlug(frontmatter: Record<string, unknown>, fallback: string) {
+  return normalizeSkillSlug(asString(frontmatter.name)) ?? normalizeAgentUrlKey(fallback) ?? "skill";
+}
+
 async function walkLocalFiles(root: string, current: string, out: string[]) {
   const entries = await fs.readdir(current, { withFileTypes: true });
   for (const entry of entries) {
@@ -370,7 +423,7 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
   if (stat.isFile()) {
     const markdown = await fs.readFile(resolvedPath, "utf8");
     const parsed = parseFrontmatterMarkdown(markdown);
-    const slug = normalizeAgentUrlKey(path.basename(path.dirname(resolvedPath))) ?? "skill";
+    const slug = deriveImportedSkillSlug(parsed.frontmatter, path.basename(path.dirname(resolvedPath)));
     const inventory: CompanySkillFileInventoryEntry[] = [
       { path: "SKILL.md", kind: "skill" },
     ];
@@ -380,12 +433,12 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
       description: asString(parsed.frontmatter.description),
       markdown,
       sourceType: "local_path",
-      sourceLocator: resolvedPath,
+      sourceLocator: path.dirname(resolvedPath),
       sourceRef: null,
       trustLevel: deriveTrustLevel(inventory),
       compatibility: "compatible",
       fileInventory: inventory,
-      metadata: null,
+      metadata: { sourceKind: "local_path" },
     }];
   }
 
@@ -402,7 +455,7 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
     const skillDir = path.posix.dirname(skillPath);
     const markdown = await fs.readFile(path.join(root, skillPath), "utf8");
     const parsed = parseFrontmatterMarkdown(markdown);
-    const slug = normalizeAgentUrlKey(path.posix.basename(skillDir)) ?? "skill";
+    const slug = deriveImportedSkillSlug(parsed.frontmatter, path.posix.basename(skillDir));
     const inventory = allFiles
       .filter((entry) => entry === skillPath || entry.startsWith(`${skillDir}/`))
       .map((entry) => {
@@ -419,12 +472,12 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
       description: asString(parsed.frontmatter.description),
       markdown,
       sourceType: "local_path",
-      sourceLocator: resolvedPath,
+      sourceLocator: path.join(root, skillDir),
       sourceRef: null,
       trustLevel: deriveTrustLevel(inventory),
       compatibility: "compatible",
       fileInventory: inventory,
-      metadata: null,
+      metadata: { sourceKind: "local_path" },
     });
   }
 
@@ -439,20 +492,11 @@ async function readUrlSkillImports(
   const warnings: string[] = [];
   if (url.includes("github.com/")) {
     const parsed = parseGitHubSourceUrl(url);
-    let ref = parsed.ref;
-    if (!/^[0-9a-f]{40}$/i.test(ref.trim())) {
-      warnings.push("GitHub skill source is not pinned to a commit SHA; imports may drift if the ref changes.");
-    }
+    const { pinnedRef, trackingRef } = await resolveGitHubPinnedRef(parsed);
+    let ref = pinnedRef;
     const tree = await fetchJson<{ tree?: Array<{ path: string; type: string }> }>(
       `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${ref}?recursive=1`,
-    ).catch(async () => {
-      if (ref === "main") {
-        ref = "master";
-        warnings.push("GitHub ref main not found; falling back to master.");
-        return fetchJson<{ tree?: Array<{ path: string; type: string }> }>(
-          `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${ref}?recursive=1`,
-        );
-      }
+    ).catch(() => {
       throw unprocessable(`Failed to read GitHub tree for ${url}`);
     });
     const allPaths = (tree.tree ?? [])
@@ -468,13 +512,11 @@ async function readUrlSkillImports(
       ? relativePaths.filter((entry) => entry === path.posix.relative(parsed.basePath || ".", parsed.filePath!))
       : relativePaths;
     const skillPaths = filteredPaths.filter(
-      (entry) => path.posix.basename(entry).toLowerCase() === "skill.md" && matchesRequestedSkill(entry, requestedSkillSlug),
+      (entry) => path.posix.basename(entry).toLowerCase() === "skill.md",
     );
     if (skillPaths.length === 0) {
       throw unprocessable(
-        requestedSkillSlug
-          ? `Skill ${requestedSkillSlug} was not found in the provided GitHub source.`
-          : "No SKILL.md files were found in the provided GitHub source.",
+        "No SKILL.md files were found in the provided GitHub source.",
       );
     }
     const skills: ImportedSkill[] = [];
@@ -483,7 +525,10 @@ async function readUrlSkillImports(
       const markdown = await fetchText(resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, repoSkillPath));
       const parsedMarkdown = parseFrontmatterMarkdown(markdown);
       const skillDir = path.posix.dirname(relativeSkillPath);
-      const slug = normalizeAgentUrlKey(path.posix.basename(skillDir)) ?? "skill";
+      const slug = deriveImportedSkillSlug(parsedMarkdown.frontmatter, path.posix.basename(skillDir));
+      if (requestedSkillSlug && !matchesRequestedSkill(relativeSkillPath, requestedSkillSlug) && slug !== requestedSkillSlug) {
+        continue;
+      }
       const inventory = filteredPaths
         .filter((entry) => entry === relativeSkillPath || entry.startsWith(`${skillDir}/`))
         .map((entry) => ({
@@ -502,8 +547,22 @@ async function readUrlSkillImports(
         trustLevel: deriveTrustLevel(inventory),
         compatibility: "compatible",
         fileInventory: inventory,
-        metadata: null,
+        metadata: {
+          sourceKind: "github",
+          owner: parsed.owner,
+          repo: parsed.repo,
+          ref: ref,
+          trackingRef,
+          repoSkillDir: basePrefix ? `${basePrefix}${skillDir}` : skillDir,
+        },
       });
+    }
+    if (skills.length === 0) {
+      throw unprocessable(
+        requestedSkillSlug
+          ? `Skill ${requestedSkillSlug} was not found in the provided GitHub source.`
+          : "No SKILL.md files were found in the provided GitHub source.",
+      );
     }
     return { skills, warnings };
   }
@@ -513,7 +572,7 @@ async function readUrlSkillImports(
     const parsedMarkdown = parseFrontmatterMarkdown(markdown);
     const urlObj = new URL(url);
     const fileName = path.posix.basename(urlObj.pathname);
-    const slug = normalizeAgentUrlKey(fileName.replace(/\.md$/i, "")) ?? "skill";
+    const slug = deriveImportedSkillSlug(parsedMarkdown.frontmatter, fileName.replace(/\.md$/i, ""));
     const inventory: CompanySkillFileInventoryEntry[] = [{ path: "SKILL.md", kind: "skill" }];
     return {
       skills: [{
@@ -527,7 +586,9 @@ async function readUrlSkillImports(
         trustLevel: deriveTrustLevel(inventory),
         compatibility: "compatible",
         fileInventory: inventory,
-        metadata: null,
+        metadata: {
+          sourceKind: "url",
+        },
       }],
       warnings,
     };
@@ -567,6 +628,131 @@ function serializeFileInventory(
   }));
 }
 
+function getSkillMeta(skill: CompanySkill): SkillSourceMeta {
+  return isPlainRecord(skill.metadata) ? skill.metadata as SkillSourceMeta : {};
+}
+
+function normalizeSkillDirectory(skill: CompanySkill) {
+  if (skill.sourceType !== "local_path" || !skill.sourceLocator) return null;
+  const resolved = path.resolve(skill.sourceLocator);
+  if (path.basename(resolved).toLowerCase() === "skill.md") {
+    return path.dirname(resolved);
+  }
+  return resolved;
+}
+
+function resolveManagedSkillsRoot(companyId: string) {
+  return path.resolve(resolvePaperclipInstanceRoot(), "skills", companyId);
+}
+
+function resolveLocalSkillFilePath(skill: CompanySkill, relativePath: string) {
+  const normalized = normalizePortablePath(relativePath);
+  const skillDir = normalizeSkillDirectory(skill);
+  if (skillDir) {
+    return path.resolve(skillDir, normalized);
+  }
+
+  if (!skill.sourceLocator) return null;
+  const fallbackRoot = path.resolve(skill.sourceLocator);
+  const directPath = path.resolve(fallbackRoot, normalized);
+  return directPath;
+}
+
+function inferLanguageFromPath(filePath: string) {
+  const fileName = path.posix.basename(filePath).toLowerCase();
+  if (fileName === "skill.md" || fileName.endsWith(".md")) return "markdown";
+  if (fileName.endsWith(".ts")) return "typescript";
+  if (fileName.endsWith(".tsx")) return "tsx";
+  if (fileName.endsWith(".js")) return "javascript";
+  if (fileName.endsWith(".jsx")) return "jsx";
+  if (fileName.endsWith(".json")) return "json";
+  if (fileName.endsWith(".yml") || fileName.endsWith(".yaml")) return "yaml";
+  if (fileName.endsWith(".sh")) return "bash";
+  if (fileName.endsWith(".py")) return "python";
+  if (fileName.endsWith(".html")) return "html";
+  if (fileName.endsWith(".css")) return "css";
+  return null;
+}
+
+function isMarkdownPath(filePath: string) {
+  const fileName = path.posix.basename(filePath).toLowerCase();
+  return fileName === "skill.md" || fileName.endsWith(".md");
+}
+
+function deriveSkillSourceInfo(skill: CompanySkill): {
+  editable: boolean;
+  editableReason: string | null;
+  sourceLabel: string | null;
+  sourceBadge: CompanySkillSourceBadge;
+} {
+  const metadata = getSkillMeta(skill);
+  const localSkillDir = normalizeSkillDirectory(skill);
+  if (metadata.sourceKind === "paperclip_bundled") {
+    return {
+      editable: false,
+      editableReason: "Bundled Paperclip skills are read-only.",
+      sourceLabel: "Paperclip bundled",
+      sourceBadge: "paperclip",
+    };
+  }
+
+  if (skill.sourceType === "github") {
+    const owner = asString(metadata.owner) ?? null;
+    const repo = asString(metadata.repo) ?? null;
+    return {
+      editable: false,
+      editableReason: "Remote GitHub skills are read-only. Fork or import locally to edit them.",
+      sourceLabel: owner && repo ? `${owner}/${repo}` : skill.sourceLocator,
+      sourceBadge: "github",
+    };
+  }
+
+  if (skill.sourceType === "url") {
+    return {
+      editable: false,
+      editableReason: "URL-based skills are read-only. Save them locally to edit them.",
+      sourceLabel: skill.sourceLocator,
+      sourceBadge: "url",
+    };
+  }
+
+  if (skill.sourceType === "local_path") {
+    const managedRoot = resolveManagedSkillsRoot(skill.companyId);
+    if (localSkillDir && localSkillDir.startsWith(managedRoot)) {
+      return {
+        editable: true,
+        editableReason: null,
+        sourceLabel: "Paperclip workspace",
+        sourceBadge: "paperclip",
+      };
+    }
+
+    return {
+      editable: true,
+      editableReason: null,
+      sourceLabel: skill.sourceLocator,
+      sourceBadge: "local",
+    };
+  }
+
+  return {
+    editable: false,
+    editableReason: "This skill source is read-only.",
+    sourceLabel: skill.sourceLocator,
+    sourceBadge: "catalog",
+  };
+}
+
+function enrichSkill(skill: CompanySkill, attachedAgentCount: number, usedByAgents: CompanySkillUsageAgent[] = []) {
+  const source = deriveSkillSourceInfo(skill);
+  return {
+    ...skill,
+    attachedAgentCount,
+    usedByAgents,
+    ...source,
+  };
+}
+
 export function companySkillService(db: Db) {
   const agents = agentService(db);
   const secretsSvc = secretService(db);
@@ -575,7 +761,15 @@ export function companySkillService(db: Db) {
     for (const skillsRoot of resolveBundledSkillsRoot()) {
       const stats = await fs.stat(skillsRoot).catch(() => null);
       if (!stats?.isDirectory()) continue;
-      const bundledSkills = await readLocalSkillImports(skillsRoot).catch(() => [] as ImportedSkill[]);
+      const bundledSkills = await readLocalSkillImports(skillsRoot)
+        .then((skills) => skills.map((skill) => ({
+          ...skill,
+          metadata: {
+            ...(skill.metadata ?? {}),
+            sourceKind: "paperclip_bundled",
+          },
+        })))
+        .catch(() => [] as ImportedSkill[]);
       if (bundledSkills.length === 0) continue;
       return upsertImportedSkills(companyId, bundledSkills);
     }
@@ -596,10 +790,7 @@ export function companySkillService(db: Db) {
         const preference = readPaperclipSkillSyncPreference(agent.adapterConfig as Record<string, unknown>);
         return preference.desiredSkills.includes(skill.slug);
       }).length;
-      return {
-        ...skill,
-        attachedAgentCount,
-      };
+      return enrichSkill(skill, attachedAgentCount);
     });
   }
 
@@ -671,11 +862,203 @@ export function companySkillService(db: Db) {
     const skill = await getById(id);
     if (!skill || skill.companyId !== companyId) return null;
     const usedByAgents = await usage(companyId, skill.slug);
+    return enrichSkill(skill, usedByAgents.length, usedByAgents);
+  }
+
+  async function updateStatus(companyId: string, skillId: string): Promise<CompanySkillUpdateStatus | null> {
+    await ensureBundledSkills(companyId);
+    const skill = await getById(skillId);
+    if (!skill || skill.companyId !== companyId) return null;
+
+    if (skill.sourceType !== "github") {
+      return {
+        supported: false,
+        reason: "Only GitHub-managed skills support update checks.",
+        trackingRef: null,
+        currentRef: skill.sourceRef ?? null,
+        latestRef: null,
+        hasUpdate: false,
+      };
+    }
+
+    const metadata = getSkillMeta(skill);
+    const owner = asString(metadata.owner);
+    const repo = asString(metadata.repo);
+    const trackingRef = asString(metadata.trackingRef) ?? asString(metadata.ref);
+    if (!owner || !repo || !trackingRef) {
+      return {
+        supported: false,
+        reason: "This GitHub skill does not have enough metadata to track updates.",
+        trackingRef: trackingRef ?? null,
+        currentRef: skill.sourceRef ?? null,
+        latestRef: null,
+        hasUpdate: false,
+      };
+    }
+
+    const latestRef = await resolveGitHubCommitSha(owner, repo, trackingRef);
     return {
-      ...skill,
-      attachedAgentCount: usedByAgents.length,
-      usedByAgents,
+      supported: true,
+      reason: null,
+      trackingRef,
+      currentRef: skill.sourceRef ?? null,
+      latestRef,
+      hasUpdate: latestRef !== (skill.sourceRef ?? null),
     };
+  }
+
+  async function readFile(companyId: string, skillId: string, relativePath: string): Promise<CompanySkillFileDetail | null> {
+    await ensureBundledSkills(companyId);
+    const skill = await getById(skillId);
+    if (!skill || skill.companyId !== companyId) return null;
+
+    const normalizedPath = normalizePortablePath(relativePath || "SKILL.md");
+    const fileEntry = skill.fileInventory.find((entry) => entry.path === normalizedPath);
+    if (!fileEntry) {
+      throw notFound("Skill file not found");
+    }
+
+    const source = deriveSkillSourceInfo(skill);
+    let content = "";
+
+    if (skill.sourceType === "local_path") {
+      const absolutePath = resolveLocalSkillFilePath(skill, normalizedPath);
+      if (!absolutePath) throw notFound("Skill file not found");
+      content = await fs.readFile(absolutePath, "utf8");
+    } else if (skill.sourceType === "github") {
+      const metadata = getSkillMeta(skill);
+      const owner = asString(metadata.owner);
+      const repo = asString(metadata.repo);
+      const ref = skill.sourceRef ?? asString(metadata.ref) ?? "main";
+      const repoSkillDir = normalizePortablePath(asString(metadata.repoSkillDir) ?? skill.slug);
+      if (!owner || !repo) {
+        throw unprocessable("Skill source metadata is incomplete.");
+      }
+      const repoPath = normalizePortablePath(path.posix.join(repoSkillDir, normalizedPath));
+      content = await fetchText(resolveRawGitHubUrl(owner, repo, ref, repoPath));
+    } else if (skill.sourceType === "url") {
+      if (normalizedPath !== "SKILL.md") {
+        throw notFound("This skill source only exposes SKILL.md");
+      }
+      content = skill.markdown;
+    } else {
+      throw unprocessable("Unsupported skill source.");
+    }
+
+    return {
+      skillId: skill.id,
+      path: normalizedPath,
+      kind: fileEntry.kind,
+      content,
+      language: inferLanguageFromPath(normalizedPath),
+      markdown: isMarkdownPath(normalizedPath),
+      editable: source.editable,
+    };
+  }
+
+  async function createLocalSkill(companyId: string, input: CompanySkillCreateRequest): Promise<CompanySkill> {
+    const slug = normalizeSkillSlug(input.slug ?? input.name) ?? "skill";
+    const managedRoot = resolveManagedSkillsRoot(companyId);
+    const skillDir = path.resolve(managedRoot, slug);
+    const skillFilePath = path.resolve(skillDir, "SKILL.md");
+
+    await fs.mkdir(skillDir, { recursive: true });
+
+    const markdown = (input.markdown?.trim().length
+      ? input.markdown
+      : [
+        "---",
+        `name: ${input.name}`,
+        ...(input.description?.trim() ? [`description: ${input.description.trim()}`] : []),
+        "---",
+        "",
+        `# ${input.name}`,
+        "",
+        input.description?.trim() ? input.description.trim() : "Describe what this skill does.",
+        "",
+      ].join("\n"));
+
+    await fs.writeFile(skillFilePath, markdown, "utf8");
+
+    const parsed = parseFrontmatterMarkdown(markdown);
+    const imported = await upsertImportedSkills(companyId, [{
+      slug,
+      name: asString(parsed.frontmatter.name) ?? input.name,
+      description: asString(parsed.frontmatter.description) ?? input.description?.trim() ?? null,
+      markdown,
+      sourceType: "local_path",
+      sourceLocator: skillDir,
+      sourceRef: null,
+      trustLevel: "markdown_only",
+      compatibility: "compatible",
+      fileInventory: [{ path: "SKILL.md", kind: "skill" }],
+      metadata: { sourceKind: "managed_local" },
+    }]);
+
+    return imported[0]!;
+  }
+
+  async function updateFile(companyId: string, skillId: string, relativePath: string, content: string): Promise<CompanySkillFileDetail> {
+    await ensureBundledSkills(companyId);
+    const skill = await getById(skillId);
+    if (!skill || skill.companyId !== companyId) throw notFound("Skill not found");
+
+    const source = deriveSkillSourceInfo(skill);
+    if (!source.editable || skill.sourceType !== "local_path") {
+      throw unprocessable(source.editableReason ?? "This skill cannot be edited.");
+    }
+
+    const normalizedPath = normalizePortablePath(relativePath);
+    const absolutePath = resolveLocalSkillFilePath(skill, normalizedPath);
+    if (!absolutePath) throw notFound("Skill file not found");
+
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+    await fs.writeFile(absolutePath, content, "utf8");
+
+    if (normalizedPath === "SKILL.md") {
+      const parsed = parseFrontmatterMarkdown(content);
+      await db
+        .update(companySkills)
+        .set({
+          name: asString(parsed.frontmatter.name) ?? skill.name,
+          description: asString(parsed.frontmatter.description) ?? skill.description,
+          markdown: content,
+          updatedAt: new Date(),
+        })
+        .where(eq(companySkills.id, skill.id));
+    } else {
+      await db
+        .update(companySkills)
+        .set({ updatedAt: new Date() })
+        .where(eq(companySkills.id, skill.id));
+    }
+
+    const detail = await readFile(companyId, skillId, normalizedPath);
+    if (!detail) throw notFound("Skill file not found");
+    return detail;
+  }
+
+  async function installUpdate(companyId: string, skillId: string): Promise<CompanySkill | null> {
+    await ensureBundledSkills(companyId);
+    const skill = await getById(skillId);
+    if (!skill || skill.companyId !== companyId) return null;
+
+    const status = await updateStatus(companyId, skillId);
+    if (!status?.supported) {
+      throw unprocessable(status?.reason ?? "This skill does not support updates.");
+    }
+    if (!skill.sourceLocator) {
+      throw unprocessable("Skill source locator is missing.");
+    }
+
+    const result = await readUrlSkillImports(skill.sourceLocator, skill.slug);
+    const matching = result.skills.find((entry) => entry.slug === skill.slug) ?? result.skills[0] ?? null;
+    if (!matching) {
+      throw unprocessable(`Skill ${skill.slug} could not be re-imported from its source.`);
+    }
+
+    const imported = await upsertImportedSkills(companyId, [matching]);
+    return imported[0] ?? null;
   }
 
   async function upsertImportedSkills(companyId: string, imported: ImportedSkill[]): Promise<CompanySkill[]> {
@@ -749,6 +1132,11 @@ export function companySkillService(db: Db) {
     getById,
     getBySlug,
     detail,
+    updateStatus,
+    readFile,
+    updateFile,
+    createLocalSkill,
     importFromSource,
+    installUpdate,
   };
 }

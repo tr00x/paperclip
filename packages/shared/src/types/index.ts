@@ -3,13 +3,18 @@ export type {
   CompanySkillSourceType,
   CompanySkillTrustLevel,
   CompanySkillCompatibility,
+  CompanySkillSourceBadge,
   CompanySkillFileInventoryEntry,
   CompanySkill,
   CompanySkillListItem,
   CompanySkillUsageAgent,
   CompanySkillDetail,
+  CompanySkillUpdateStatus,
   CompanySkillImportRequest,
   CompanySkillImportResult,
+  CompanySkillCreateRequest,
+  CompanySkillFileDetail,
+  CompanySkillFileUpdateRequest,
 } from "./company-skill.js";
 export type {
   AgentSkillSyncMode,

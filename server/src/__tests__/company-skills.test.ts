@@ -9,7 +9,7 @@ describe("company skill import source parsing", () => {
 
     expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
     expect(parsed.requestedSkillSlug).toBe("find-skills");
-    expect(parsed.warnings[0]).toContain("skills.sh command");
+    expect(parsed.warnings).toEqual([]);
   });
 
   it("parses owner/repo/skill shorthand as a GitHub repo plus requested skill", () => {
@@ -17,5 +17,14 @@ describe("company skill import source parsing", () => {
 
     expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
     expect(parsed.requestedSkillSlug).toBe("find-skills");
+  });
+
+  it("parses skills.sh commands whose requested skill differs from the folder name", () => {
+    const parsed = parseSkillImportSourceInput(
+      "npx skills add https://github.com/remotion-dev/skills --skill remotion-best-practices",
+    );
+
+    expect(parsed.resolvedSource).toBe("https://github.com/remotion-dev/skills");
+    expect(parsed.requestedSkillSlug).toBe("remotion-best-practices");
   });
 });
