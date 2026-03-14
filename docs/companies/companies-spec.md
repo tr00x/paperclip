@@ -191,16 +191,37 @@ name: CEO
 title: Chief Executive Officer
 reportsTo: null
 skills:
-  - ../../skills/plan-ceo-review/SKILL.md
+  - plan-ceo-review
+  - review
 ```
 
 ### Semantics
 
 - body content is the canonical default instruction content for the agent
 - `docs` points to sibling markdown docs when present
-- `skills` references reusable `SKILL.md` packages
+- `skills` references reusable `SKILL.md` packages by skill shortname or slug
+- a bare skill entry like `review` should resolve to `skills/review/SKILL.md` by convention
+- if a package references external skills, the agent should still refer to the skill by shortname; the skill package itself owns any source refs, pinning, or attribution details
+- tools may allow path or URL entries as an escape hatch, but exporters should prefer shortname-based skill references in `AGENTS.md`
 - vendor-specific adapter/runtime config should not live in the base package
 - local absolute paths, machine-specific cwd values, and secret values must not be exported as canonical package data
+
+### Skill Resolution
+
+The preferred association standard between agents and skills is by skill shortname.
+
+Suggested resolution order for an agent skill entry:
+
+1. a local package skill at `skills/<shortname>/SKILL.md`
+2. a referenced or included skill package whose declared slug or shortname matches
+3. a tool-managed company skill library entry with the same shortname
+
+Rules:
+
+- exporters should emit shortnames in `AGENTS.md` whenever possible
+- importers should not require full file paths for ordinary skill references
+- the skill package itself should carry any complexity around external refs, vendoring, mirrors, or pinned upstream content
+- this keeps `AGENTS.md` readable and consistent with `skills.sh`-style sharing
 
 ## 9. PROJECT.md
 
@@ -313,6 +334,7 @@ Rules:
 - Paperclip must not require extra top-level fields for skill validity
 - Paperclip-specific extensions must live under `metadata.paperclip` or `metadata.sources`
 - a skill directory may include `scripts/`, `references/`, and `assets/` exactly as the Agent Skills ecosystem expects
+- tools implementing this spec should treat `skills.sh` compatibility as a first-class goal rather than inventing a parallel skill format
 
 In other words, this spec extends Agent Skills upward into company/team/agent composition. It does not redefine skill package semantics.
 

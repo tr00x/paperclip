@@ -45,7 +45,8 @@ The new direction is:
 7. an always-emitted `.paperclip.yaml` sidecar for high-fidelity Paperclip-specific details
 8. package graph resolution at import time
 9. entity-level import UI with dependency-aware tree selection
-10. adapter-aware skill sync surfaces so Paperclip can read, diff, enable, disable, and reconcile skills where the adapter supports it
+10. `skills.sh` compatibility is a V1 requirement for skill packages and skill installation flows
+11. adapter-aware skill sync surfaces so Paperclip can read, diff, enable, disable, and reconcile skills where the adapter supports it
 
 ## 3. Product Goals
 
@@ -59,6 +60,7 @@ The new direction is:
   - agent definitions
   - optional starter projects and tasks
   - reusable skills
+- V1 skill support is compatible with the existing `skills.sh` / Agent Skills ecosystem.
 - A user can import into:
   - a new company
   - an existing company
@@ -130,8 +132,23 @@ Rules:
 - the base package is vendor-neutral and intended for any agent-company runtime
 - Paperclip-specific fidelity lives in `.paperclip.yaml`
 - Paperclip may resolve and install `SKILL.md` packages, but it must not require a Paperclip-only skill format
+- `skills.sh` compatibility is a V1 requirement, not a future nice-to-have
 
-### 5.3 Base Package Vs Paperclip Extension
+### 5.3 Agent-To-Skill Association
+
+`AGENTS.md` should associate skills by skill shortname or slug, not by verbose path in the common case.
+
+Preferred example:
+
+- `skills: [review, react-best-practices]`
+
+Resolution model:
+
+- `review` resolves to `skills/review/SKILL.md` by package convention
+- if the skill is external or referenced, the skill package owns that complexity
+- exporters should prefer shortname-based associations in `AGENTS.md`
+- importers should resolve the shortname against local package skills first, then referenced or installed company skills
+### 5.4 Base Package Vs Paperclip Extension
 
 The repo format should have two layers:
 
@@ -144,7 +161,7 @@ The repo format should have two layers:
   - adapter/runtime/permissions/budget/workspace fidelity
   - emitted by Paperclip tools as a sidecar while the base package stays readable
 
-### 5.4 Relationship To Current V1 Manifest
+### 5.5 Relationship To Current V1 Manifest
 
 `paperclip.manifest.json` is not part of the future package direction.
 
@@ -513,11 +530,17 @@ If importing a team into an existing company:
 
 ### 13.3 Skills UX
 
+See also:
+
+- `doc/plans/2026-03-14-skills-ui-product-plan.md`
+
 If importing skills:
 
 - show whether each skill is local, vendored, or referenced
 - show whether it contains scripts/assets
 - preserve Agent Skills compatibility in presentation and export
+- preserve `skills.sh` compatibility in both import and install flows
+- show agent skill attachments by shortname/slug rather than noisy file paths
 - show current adapter-reported skills when supported
 - show desired package skills separately from actual adapter state
 - offer reconcile actions when the adapter supports sync
@@ -536,6 +559,9 @@ If importing skills:
 - support `COMPANY.md` / `TEAM.md` / `AGENTS.md` root detection
 - build internal graph from markdown-first packages
 - support local folder and GitHub repo inputs natively
+- support agent skill references by shortname/slug
+- resolve local `skills/<slug>/SKILL.md` packages by convention
+- support `skills.sh`-compatible skill repos as V1 package sources
 
 ### Phase 3: Graph-Based Import UX And Skill Surfaces
 
@@ -543,6 +569,7 @@ If importing skills:
 - checkbox selection
 - team subtree attach flow
 - licensing/trust/reference warnings
+- company skill library groundwork
 - adapter skill read/sync UI groundwork
 
 ### Phase 4: New Export Model
