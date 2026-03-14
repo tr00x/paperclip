@@ -37,6 +37,10 @@ function isPlanKey(key: string) {
   return key.trim().toLowerCase() === "plan";
 }
 
+function titlesMatchKey(title: string | null | undefined, key: string) {
+  return (title ?? "").trim().toLowerCase() === key.trim().toLowerCase();
+}
+
 export function IssueDocumentsSection({
   issue,
   canDeleteDocuments,
@@ -292,8 +296,8 @@ export function IssueDocumentsSection({
     };
   }, [autosaveState, commitDraft, draft, markDocumentDirty, resetAutosaveState, sortedDocuments]);
 
-  const documentBodyShellClassName = "mt-3 overflow-hidden rounded-md border border-border bg-background";
-  const documentBodyPaddingClassName = "px-3 py-3";
+  const documentBodyShellClassName = "mt-3 overflow-hidden rounded-md";
+  const documentBodyPaddingClassName = "";
   const documentBodyContentClassName = "paperclip-edit-in-place-content min-h-[220px] text-[15px] leading-7";
 
   return (
@@ -342,7 +346,7 @@ export function IssueDocumentsSection({
             placeholder="Markdown body"
             bordered={false}
             className="bg-transparent"
-            contentClassName="min-h-[220px] px-3 py-3 text-[15px] leading-7"
+            contentClassName="min-h-[220px] text-[15px] leading-7"
             mentions={mentions}
             imageUploadHandler={imageUploadHandler}
             onSubmit={() => void commitDraft(draft, { clearAfterSave: false, trackAutosave: false })}
@@ -384,7 +388,7 @@ export function IssueDocumentsSection({
       <div className="space-y-3">
         {sortedDocuments.map((doc) => {
           const activeDraft = draft?.key === doc.key && !draft.isNew ? draft : null;
-          const showTitle = !isPlanKey(doc.key) && !!doc.title?.trim();
+          const showTitle = !isPlanKey(doc.key) && !!doc.title?.trim() && !titlesMatchKey(doc.title, doc.key);
 
           return (
             <div key={doc.id} className="rounded-lg border border-border p-3">
