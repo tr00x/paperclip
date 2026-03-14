@@ -1,4 +1,5 @@
 # Company Packages Specification
+
 Version: `0.1-draft`
 
 ## 1. Purpose
@@ -6,6 +7,7 @@ Version: `0.1-draft`
 A Company Package is a filesystem- and GitHub-native format for describing a company, team, agent, and associated skills using markdown files with YAML frontmatter.
 
 The format is designed to:
+
 - be readable and writable by humans
 - work directly from a local folder or GitHub repository
 - require no central registry
@@ -58,6 +60,7 @@ references/
 ```
 
 Rules:
+
 - only markdown files are canonical content docs
 - non-markdown directories like `assets/`, `scripts/`, and `references/` are allowed
 - package tools may generate optional lock files, but lock files are not required for authoring
@@ -85,6 +88,7 @@ sources: []
 ```
 
 Notes:
+
 - `schema` is required for `COMPANY.md`, `TEAM.md`, and `AGENTS.md`
 - `kind` is required
 - `slug` should be URL-safe and stable
@@ -216,6 +220,7 @@ metadata: {}
 A skill package must remain a valid Agent Skills package.
 
 Rules:
+
 - `SKILL.md` should follow the Agent Skills spec
 - Paperclip must not require extra top-level fields for skill validity
 - Paperclip-specific extensions must live under `metadata.paperclip` or `metadata.sources`
@@ -298,6 +303,7 @@ Given a package root, an importer resolves in this order:
 4. generic URLs
 
 For pinned GitHub refs:
+
 1. resolve `repo + commit + path`
 2. fetch content
 3. verify `sha256` if present
@@ -305,6 +311,7 @@ For pinned GitHub refs:
 5. fail closed on mismatch
 
 An importer must surface:
+
 - missing files
 - hash mismatches
 - missing licenses
@@ -314,6 +321,7 @@ An importer must surface:
 ## 12. Import Graph
 
 A package importer should build a graph from:
+
 - `COMPANY.md`
 - `TEAM.md`
 - `AGENTS.md`
@@ -321,6 +329,7 @@ A package importer should build a graph from:
 - local and external refs
 
 Suggested import UI behavior:
+
 - render graph as a tree
 - checkbox at entity level, not raw file level
 - selecting an agent auto-selects required docs and referenced skills
@@ -330,6 +339,7 @@ Suggested import UI behavior:
 ## 13. Export Rules
 
 A compliant exporter should:
+
 - emit markdown roots and relative folder layout
 - omit machine-local ids and timestamps
 - omit secret values
@@ -341,6 +351,7 @@ A compliant exporter should:
 ## 14. Licensing And Attribution
 
 A compliant tool must:
+
 - preserve `license` and `attribution` metadata when importing and exporting
 - distinguish vendored vs referenced content
 - not silently inline referenced third-party content during export
@@ -358,11 +369,13 @@ company-package.lock.json
 ```
 
 Purpose:
+
 - cache resolved refs
 - record final hashes
 - support reproducible installs
 
 Rules:
+
 - lock files are optional
 - lock files are generated artifacts, not canonical authoring input
 - the markdown package remains the source of truth
@@ -378,6 +391,7 @@ Paperclip can map this spec to its runtime model like this:
 - `sources[]` -> provenance and pinned upstream refs
 
 Paperclip-specific data should live under:
+
 - `metadata.paperclip`
 
 That keeps the base format broader than Paperclip.
@@ -385,6 +399,7 @@ That keeps the base format broader than Paperclip.
 ## 17. Backward Compatibility
 
 Paperclip may continue to support:
+
 - existing `paperclip.manifest.json` packages
 - current company portability import/export
 
@@ -406,6 +421,7 @@ lean-dev-shop/
 
 **Recommendation**
 This is the direction I would take:
+
 - make this the human-facing spec
 - keep JSON manifests only as optional generated lock/cache artifacts
 - define `SKILL.md` compatibility as non-negotiable
