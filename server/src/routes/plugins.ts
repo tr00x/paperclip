@@ -131,6 +131,14 @@ const BUNDLED_PLUGIN_EXAMPLES: AvailablePluginExample[] = [
     localPath: "packages/plugins/examples/plugin-file-browser-example",
     tag: "example",
   },
+  {
+    packageName: "@paperclipai/plugin-kitchen-sink-example",
+    pluginKey: "paperclip-kitchen-sink-example",
+    displayName: "Kitchen Sink (Example)",
+    description: "Reference plugin that demonstrates the current Paperclip plugin API surface, bridge flows, UI extension surfaces, jobs, webhooks, tools, streams, and trusted local workspace/process demos.",
+    localPath: "packages/plugins/examples/plugin-kitchen-sink-example",
+    tag: "example",
+  },
 ];
 
 function listBundledPluginExamples(): AvailablePluginExample[] {
