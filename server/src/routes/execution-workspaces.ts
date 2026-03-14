@@ -1,9 +1,18 @@
+import { and, eq } from "drizzle-orm";
 import { Router } from "express";
 import type { Db } from "@paperclipai/db";
+import { issues, projects, projectWorkspaces } from "@paperclipai/db";
 import { updateExecutionWorkspaceSchema } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
 import { executionWorkspaceService, logActivity } from "../services/index.js";
+import { parseProjectExecutionWorkspacePolicy } from "../services/execution-workspace-policy.js";
+import {
+  cleanupExecutionWorkspaceArtifacts,
+  stopRuntimeServicesForExecutionWorkspace,
+} from "../services/workspace-runtime.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
+
+const TERMINAL_ISSUE_STATUSES = new Set(["done", "cancelled"]);
 
 export function executionWorkspaceRoutes(db: Db) {
   const router = Router();
@@ -41,10 +50,72 @@ export function executionWorkspaceRoutes(db: Db) {
       return;
     }
     assertCompanyAccess(req, existing.companyId);
-    const workspace = await svc.update(id, {
+    const patch: Record<string, unknown> = {
       ...req.body,
       ...(req.body.cleanupEligibleAt ? { cleanupEligibleAt: new Date(req.body.cleanupEligibleAt) } : {}),
-    });
+    };
+    let cleanupWarnings: string[] = [];
+
+    if (req.body.status === "archived" && existing.status !== "archived") {
+      const linkedIssues = await db
+        .select({
+          id: issues.id,
+          status: issues.status,
+        })
+        .from(issues)
+        .where(and(eq(issues.companyId, existing.companyId), eq(issues.executionWorkspaceId, existing.id)));
+      const activeLinkedIssues = linkedIssues.filter((issue) => !TERMINAL_ISSUE_STATUSES.has(issue.status));
+
+      if (activeLinkedIssues.length > 0) {
+        res.status(409).json({
+          error: `Cannot archive execution workspace while ${activeLinkedIssues.length} linked issue(s) are still open`,
+        });
+        return;
+      }
+
+      await stopRuntimeServicesForExecutionWorkspace({
+        db,
+        executionWorkspaceId: existing.id,
+        workspaceCwd: existing.cwd,
+      });
+      const projectWorkspace = existing.projectWorkspaceId
+        ? await db
+            .select({
+              cwd: projectWorkspaces.cwd,
+              cleanupCommand: projectWorkspaces.cleanupCommand,
+            })
+            .from(projectWorkspaces)
+            .where(
+              and(
+                eq(projectWorkspaces.id, existing.projectWorkspaceId),
+                eq(projectWorkspaces.companyId, existing.companyId),
+              ),
+            )
+            .then((rows) => rows[0] ?? null)
+        : null;
+      const projectPolicy = existing.projectId
+        ? await db
+            .select({
+              executionWorkspacePolicy: projects.executionWorkspacePolicy,
+            })
+            .from(projects)
+            .where(and(eq(projects.id, existing.projectId), eq(projects.companyId, existing.companyId)))
+            .then((rows) => parseProjectExecutionWorkspacePolicy(rows[0]?.executionWorkspacePolicy))
+        : null;
+      const cleanupResult = await cleanupExecutionWorkspaceArtifacts({
+        workspace: existing,
+        projectWorkspace,
+        teardownCommand: projectPolicy?.workspaceStrategy?.teardownCommand ?? null,
+      });
+      cleanupWarnings = cleanupResult.warnings;
+      patch.closedAt = new Date();
+      patch.cleanupReason = cleanupWarnings.length > 0 ? cleanupWarnings.join(" | ") : null;
+      if (!cleanupResult.cleaned) {
+        patch.status = "cleanup_failed";
+      }
+    }
+
+    const workspace = await svc.update(id, patch);
     if (!workspace) {
       res.status(404).json({ error: "Execution workspace not found" });
       return;
@@ -59,7 +130,10 @@ export function executionWorkspaceRoutes(db: Db) {
       action: "execution_workspace.updated",
       entityType: "execution_workspace",
       entityId: workspace.id,
-      details: { changedKeys: Object.keys(req.body).sort() },
+      details: {
+        changedKeys: Object.keys(req.body).sort(),
+        ...(cleanupWarnings.length > 0 ? { cleanupWarnings } : {}),
+      },
     });
     res.json(workspace);
   });
