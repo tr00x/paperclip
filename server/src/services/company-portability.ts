@@ -14,7 +14,7 @@ import type {
   CompanyPortabilityPreviewAgentPlan,
   CompanyPortabilityPreviewResult,
 } from "@paperclipai/shared";
-import { normalizeAgentUrlKey, portabilityManifestSchema } from "@paperclipai/shared";
+import { normalizeAgentUrlKey } from "@paperclipai/shared";
 import { notFound, unprocessable } from "../errors.js";
 import { accessService } from "./access.js";
 import { agentService } from "./agents.js";
@@ -39,6 +39,10 @@ type ResolvedSource = {
 type MarkdownDoc = {
   frontmatter: Record<string, unknown>;
   body: string;
+};
+
+type CompanyPackageIncludeEntry = {
+  path: string;
 };
 
 type ImportPlanInternal = {
@@ -144,6 +148,45 @@ function normalizeInclude(input?: Partial<CompanyPortabilityInclude>): CompanyPo
     company: input?.company ?? DEFAULT_INCLUDE.company,
     agents: input?.agents ?? DEFAULT_INCLUDE.agents,
   };
+}
+
+function normalizePortablePath(input: string) {
+  const normalized = input.replace(/\\/g, "/").replace(/^\.\/+/, "");
+  const parts: string[] = [];
+  for (const segment of normalized.split("/")) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") {
+      if (parts.length > 0) parts.pop();
+      continue;
+    }
+    parts.push(segment);
+  }
+  return parts.join("/");
+}
+
+function resolvePortablePath(fromPath: string, targetPath: string) {
+  const baseDir = path.posix.dirname(fromPath.replace(/\\/g, "/"));
+  return normalizePortablePath(path.posix.join(baseDir, targetPath.replace(/\\/g, "/")));
+}
+
+function normalizeFileMap(
+  files: Record<string, string>,
+  rootPath?: string | null,
+): Record<string, string> {
+  const normalizedRoot = rootPath ? normalizePortablePath(rootPath) : null;
+  const out: Record<string, string> = {};
+  for (const [rawPath, content] of Object.entries(files)) {
+    let nextPath = normalizePortablePath(rawPath);
+    if (normalizedRoot && nextPath === normalizedRoot) {
+      continue;
+    }
+    if (normalizedRoot && nextPath.startsWith(`${normalizedRoot}/`)) {
+      nextPath = nextPath.slice(normalizedRoot.length + 1);
+    }
+    if (!nextPath) continue;
+    out[nextPath] = content;
+  }
+  return out;
 }
 
 function ensureMarkdownPath(pathValue: string) {
@@ -340,6 +383,129 @@ function renderCompanyAgentsSection(agentSummaries: Array<{ slug: string; name: 
   return lines.join("\n");
 }
 
+function parseYamlScalar(rawValue: string): unknown {
+  const trimmed = rawValue.trim();
+  if (trimmed === "") return "";
+  if (trimmed === "null" || trimmed === "~") return null;
+  if (trimmed === "true") return true;
+  if (trimmed === "false") return false;
+  if (trimmed === "[]") return [];
+  if (trimmed === "{}") return {};
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+  if (
+    trimmed.startsWith("\"") ||
+    trimmed.startsWith("[") ||
+    trimmed.startsWith("{")
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
+}
+
+function prepareYamlLines(raw: string) {
+  return raw
+    .split("\n")
+    .map((line) => ({
+      indent: line.match(/^ */)?.[0].length ?? 0,
+      content: line.trim(),
+    }))
+    .filter((line) => line.content.length > 0 && !line.content.startsWith("#"));
+}
+
+function parseYamlBlock(
+  lines: Array<{ indent: number; content: string }>,
+  startIndex: number,
+  indentLevel: number,
+): { value: unknown; nextIndex: number } {
+  let index = startIndex;
+  while (index < lines.length && lines[index]!.content.length === 0) {
+    index += 1;
+  }
+  if (index >= lines.length || lines[index]!.indent < indentLevel) {
+    return { value: {}, nextIndex: index };
+  }
+
+  const isArray = lines[index]!.indent === indentLevel && lines[index]!.content.startsWith("-");
+  if (isArray) {
+    const values: unknown[] = [];
+    while (index < lines.length) {
+      const line = lines[index]!;
+      if (line.indent < indentLevel) break;
+      if (line.indent !== indentLevel || !line.content.startsWith("-")) break;
+      const remainder = line.content.slice(1).trim();
+      index += 1;
+      if (!remainder) {
+        const nested = parseYamlBlock(lines, index, indentLevel + 2);
+        values.push(nested.value);
+        index = nested.nextIndex;
+        continue;
+      }
+      const inlineObjectSeparator = remainder.indexOf(":");
+      if (
+        inlineObjectSeparator > 0 &&
+        !remainder.startsWith("\"") &&
+        !remainder.startsWith("{") &&
+        !remainder.startsWith("[")
+      ) {
+        const key = remainder.slice(0, inlineObjectSeparator).trim();
+        const rawValue = remainder.slice(inlineObjectSeparator + 1).trim();
+        const nextObject: Record<string, unknown> = {
+          [key]: parseYamlScalar(rawValue),
+        };
+        if (index < lines.length && lines[index]!.indent > indentLevel) {
+          const nested = parseYamlBlock(lines, index, indentLevel + 2);
+          if (isPlainRecord(nested.value)) {
+            Object.assign(nextObject, nested.value);
+          }
+          index = nested.nextIndex;
+        }
+        values.push(nextObject);
+        continue;
+      }
+      values.push(parseYamlScalar(remainder));
+    }
+    return { value: values, nextIndex: index };
+  }
+
+  const record: Record<string, unknown> = {};
+  while (index < lines.length) {
+    const line = lines[index]!;
+    if (line.indent < indentLevel) break;
+    if (line.indent !== indentLevel) {
+      index += 1;
+      continue;
+    }
+    const separatorIndex = line.content.indexOf(":");
+    if (separatorIndex <= 0) {
+      index += 1;
+      continue;
+    }
+    const key = line.content.slice(0, separatorIndex).trim();
+    const remainder = line.content.slice(separatorIndex + 1).trim();
+    index += 1;
+    if (!remainder) {
+      const nested = parseYamlBlock(lines, index, indentLevel + 2);
+      record[key] = nested.value;
+      index = nested.nextIndex;
+      continue;
+    }
+    record[key] = parseYamlScalar(remainder);
+  }
+
+  return { value: record, nextIndex: index };
+}
+
+function parseYamlFrontmatter(raw: string): Record<string, unknown> {
+  const prepared = prepareYamlLines(raw);
+  if (prepared.length === 0) return {};
+  const parsed = parseYamlBlock(prepared, 0, prepared[0]!.indent);
+  return isPlainRecord(parsed.value) ? parsed.value : {};
+}
+
 function parseFrontmatterMarkdown(raw: string): MarkdownDoc {
   const normalized = raw.replace(/\r\n/g, "\n");
   if (!normalized.startsWith("---\n")) {
@@ -351,45 +517,23 @@ function parseFrontmatterMarkdown(raw: string): MarkdownDoc {
   }
   const frontmatterRaw = normalized.slice(4, closing).trim();
   const body = normalized.slice(closing + 5).trim();
-  const frontmatter: Record<string, unknown> = {};
-  for (const line of frontmatterRaw.split("\n")) {
-    const idx = line.indexOf(":");
-    if (idx <= 0) continue;
-    const key = line.slice(0, idx).trim();
-    const rawValue = line.slice(idx + 1).trim();
-    if (!key) continue;
-    if (rawValue === "null") {
-      frontmatter[key] = null;
-      continue;
-    }
-    if (rawValue === "true" || rawValue === "false") {
-      frontmatter[key] = rawValue === "true";
-      continue;
-    }
-    if (/^-?\d+(\.\d+)?$/.test(rawValue)) {
-      frontmatter[key] = Number(rawValue);
-      continue;
-    }
-    try {
-      frontmatter[key] = JSON.parse(rawValue);
-      continue;
-    } catch {
-      frontmatter[key] = rawValue;
-    }
-  }
-  return { frontmatter, body };
-}
-
-async function fetchJson(url: string) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw unprocessable(`Failed to fetch ${url}: ${response.status}`);
-  }
-  return response.json();
+  return {
+    frontmatter: parseYamlFrontmatter(frontmatterRaw),
+    body,
+  };
 }
 
 async function fetchText(url: string) {
   const response = await fetch(url);
+  if (!response.ok) {
+    throw unprocessable(`Failed to fetch ${url}: ${response.status}`);
+  }
+  return response.text();
+}
+
+async function fetchOptionalText(url: string) {
+  const response = await fetch(url);
+  if (response.status === 404) return null;
   if (!response.ok) {
     throw unprocessable(`Failed to fetch ${url}: ${response.status}`);
   }
@@ -408,7 +552,190 @@ function dedupeRequiredSecrets(values: CompanyPortabilityManifest["requiredSecre
   return out;
 }
 
-function parseGitHubTreeUrl(rawUrl: string) {
+function buildIncludes(paths: string[]): CompanyPackageIncludeEntry[] {
+  return paths.map((value) => ({ path: value }));
+}
+
+function readCompanyApprovalDefault(frontmatter: Record<string, unknown>) {
+  const topLevel = frontmatter.requireBoardApprovalForNewAgents;
+  if (typeof topLevel === "boolean") return topLevel;
+  const defaults = frontmatter.defaults;
+  if (isPlainRecord(defaults) && typeof defaults.requireBoardApprovalForNewAgents === "boolean") {
+    return defaults.requireBoardApprovalForNewAgents;
+  }
+  return true;
+}
+
+function readIncludeEntries(frontmatter: Record<string, unknown>): CompanyPackageIncludeEntry[] {
+  const includes = frontmatter.includes;
+  if (!Array.isArray(includes)) return [];
+  return includes.flatMap((entry) => {
+    if (typeof entry === "string") {
+      return [{ path: entry }];
+    }
+    if (isPlainRecord(entry)) {
+      const pathValue = asString(entry.path);
+      return pathValue ? [{ path: pathValue }] : [];
+    }
+    return [];
+  });
+}
+
+function readAgentSecretRequirements(
+  frontmatter: Record<string, unknown>,
+  agentSlug: string,
+): CompanyPortabilityManifest["requiredSecrets"] {
+  const requirements = frontmatter.requirements;
+  const secretsFromRequirements =
+    isPlainRecord(requirements) && Array.isArray(requirements.secrets)
+      ? requirements.secrets
+      : [];
+  const legacyRequiredSecrets = Array.isArray(frontmatter.requiredSecrets)
+    ? frontmatter.requiredSecrets
+    : [];
+  const combined = [...secretsFromRequirements, ...legacyRequiredSecrets];
+
+  return combined.flatMap((entry) => {
+    if (typeof entry === "string" && entry.trim()) {
+      return [{
+        key: entry.trim(),
+        description: `Set ${entry.trim()} for agent ${agentSlug}`,
+        agentSlug,
+        providerHint: null,
+      }];
+    }
+    if (isPlainRecord(entry)) {
+      const key = asString(entry.key);
+      if (!key) return [];
+      return [{
+        key,
+        description: asString(entry.description) ?? `Set ${key} for agent ${agentSlug}`,
+        agentSlug,
+        providerHint: asString(entry.providerHint),
+      }];
+    }
+    return [];
+  });
+}
+
+function buildManifestFromPackageFiles(
+  files: Record<string, string>,
+  opts?: { sourceLabel?: { companyId: string; companyName: string } | null },
+): ResolvedSource {
+  const normalizedFiles = normalizeFileMap(files);
+  const companyPath =
+    normalizedFiles["COMPANY.md"]
+    ?? undefined;
+  const resolvedCompanyPath = companyPath !== undefined
+    ? "COMPANY.md"
+    : Object.keys(normalizedFiles).find((entry) => entry.endsWith("/COMPANY.md") || entry === "COMPANY.md");
+  if (!resolvedCompanyPath) {
+    throw unprocessable("Company package is missing COMPANY.md");
+  }
+
+  const companyDoc = parseFrontmatterMarkdown(normalizedFiles[resolvedCompanyPath]!);
+  const companyFrontmatter = companyDoc.frontmatter;
+  const companyName =
+    asString(companyFrontmatter.name)
+    ?? opts?.sourceLabel?.companyName
+    ?? "Imported Company";
+  const companySlug =
+    asString(companyFrontmatter.slug)
+    ?? normalizeAgentUrlKey(companyName)
+    ?? "company";
+
+  const includeEntries = readIncludeEntries(companyFrontmatter);
+  const referencedAgentPaths = includeEntries
+    .map((entry) => resolvePortablePath(resolvedCompanyPath, entry.path))
+    .filter((entry) => entry.endsWith("/AGENTS.md") || entry === "AGENTS.md");
+  const discoveredAgentPaths = Object.keys(normalizedFiles).filter(
+    (entry) => entry.endsWith("/AGENTS.md") || entry === "AGENTS.md",
+  );
+  const agentPaths = Array.from(new Set([...referencedAgentPaths, ...discoveredAgentPaths])).sort();
+
+  const manifest: CompanyPortabilityManifest = {
+    schemaVersion: 2,
+    generatedAt: new Date().toISOString(),
+    source: opts?.sourceLabel ?? null,
+    includes: {
+      company: true,
+      agents: true,
+    },
+    company: {
+      path: resolvedCompanyPath,
+      name: companyName,
+      description: asString(companyFrontmatter.description),
+      brandColor: asString(companyFrontmatter.brandColor),
+      requireBoardApprovalForNewAgents: readCompanyApprovalDefault(companyFrontmatter),
+    },
+    agents: [],
+    requiredSecrets: [],
+  };
+
+  const warnings: string[] = [];
+  for (const agentPath of agentPaths) {
+    const markdownRaw = normalizedFiles[agentPath];
+    if (typeof markdownRaw !== "string") {
+      warnings.push(`Referenced agent file is missing from package: ${agentPath}`);
+      continue;
+    }
+    const agentDoc = parseFrontmatterMarkdown(markdownRaw);
+    const frontmatter = agentDoc.frontmatter;
+    const fallbackSlug = normalizeAgentUrlKey(path.posix.basename(path.posix.dirname(agentPath))) ?? "agent";
+    const slug = asString(frontmatter.slug) ?? fallbackSlug;
+    const adapter = isPlainRecord(frontmatter.adapter) ? frontmatter.adapter : null;
+    const runtime = isPlainRecord(frontmatter.runtime) ? frontmatter.runtime : null;
+    const permissions = isPlainRecord(frontmatter.permissions) ? frontmatter.permissions : {};
+    const metadata = isPlainRecord(frontmatter.metadata) ? frontmatter.metadata : null;
+    const adapterConfig = isPlainRecord(adapter?.config)
+      ? adapter.config
+      : isPlainRecord(frontmatter.adapterConfig)
+        ? frontmatter.adapterConfig
+        : {};
+    const runtimeConfig = runtime ?? (isPlainRecord(frontmatter.runtimeConfig) ? frontmatter.runtimeConfig : {});
+    const title = asString(frontmatter.title);
+    const capabilities = asString(frontmatter.capabilities);
+
+    manifest.agents.push({
+      slug,
+      name: asString(frontmatter.name) ?? title ?? slug,
+      path: agentPath,
+      role: asString(frontmatter.role) ?? "agent",
+      title,
+      icon: asString(frontmatter.icon),
+      capabilities,
+      reportsToSlug: asString(frontmatter.reportsTo),
+      adapterType: asString(adapter?.type) ?? asString(frontmatter.adapterType) ?? "process",
+      adapterConfig,
+      runtimeConfig,
+      permissions,
+      budgetMonthlyCents:
+        typeof frontmatter.budgetMonthlyCents === "number" && Number.isFinite(frontmatter.budgetMonthlyCents)
+          ? Math.max(0, Math.floor(frontmatter.budgetMonthlyCents))
+          : 0,
+      metadata,
+    });
+
+    manifest.requiredSecrets.push(...readAgentSecretRequirements(frontmatter, slug));
+
+    if (frontmatter.kind !== "agent") {
+      warnings.push(`Agent markdown ${agentPath} does not declare kind: agent in frontmatter.`);
+    }
+  }
+
+  manifest.requiredSecrets = dedupeRequiredSecrets(manifest.requiredSecrets);
+  return {
+    manifest,
+    files: normalizedFiles,
+    warnings,
+  };
+}
+
+function isGitCommitRef(value: string) {
+  return /^[0-9a-f]{40}$/i.test(value.trim());
+}
+
+function parseGitHubSourceUrl(rawUrl: string) {
   const url = new URL(rawUrl);
   if (url.hostname !== "github.com") {
     throw unprocessable("GitHub source must use github.com URL");
@@ -421,11 +748,21 @@ function parseGitHubTreeUrl(rawUrl: string) {
   const repo = parts[1]!.replace(/\.git$/i, "");
   let ref = "main";
   let basePath = "";
+  let companyPath = "COMPANY.md";
   if (parts[2] === "tree") {
     ref = parts[3] ?? "main";
     basePath = parts.slice(4).join("/");
+  } else if (parts[2] === "blob") {
+    ref = parts[3] ?? "main";
+    const blobPath = parts.slice(4).join("/");
+    if (!blobPath) {
+      throw unprocessable("Invalid GitHub blob URL");
+    }
+    companyPath = blobPath;
+    basePath = path.posix.dirname(blobPath);
+    if (basePath === ".") basePath = "";
   }
-  return { owner, repo, ref, basePath };
+  return { owner, repo, ref, basePath, companyPath };
 }
 
 function resolveRawGitHubUrl(owner: string, repo: string, ref: string, filePath: string) {
@@ -485,65 +822,80 @@ export function companyPortabilityService(db: Db) {
 
   async function resolveSource(source: CompanyPortabilityPreview["source"]): Promise<ResolvedSource> {
     if (source.type === "inline") {
-      return {
-        manifest: portabilityManifestSchema.parse(source.manifest),
-        files: source.files,
-        warnings: [],
-      };
+      return buildManifestFromPackageFiles(
+        normalizeFileMap(source.files, source.rootPath),
+      );
     }
 
     if (source.type === "url") {
-      const manifestJson = await fetchJson(source.url);
-      const manifest = portabilityManifestSchema.parse(manifestJson);
-      const base = new URL(".", source.url);
-      const files: Record<string, string> = {};
-      const warnings: string[] = [];
+      const normalizedUrl = source.url.trim();
+      const companyUrl = normalizedUrl.endsWith(".md")
+        ? normalizedUrl
+        : new URL("COMPANY.md", normalizedUrl.endsWith("/") ? normalizedUrl : `${normalizedUrl}/`).toString();
+      const companyMarkdown = await fetchText(companyUrl);
+      const files: Record<string, string> = {
+        "COMPANY.md": companyMarkdown,
+      };
+      const companyDoc = parseFrontmatterMarkdown(companyMarkdown);
+      const includeEntries = readIncludeEntries(companyDoc.frontmatter);
 
-      if (manifest.company?.path) {
-        const companyPath = ensureMarkdownPath(manifest.company.path);
-        files[companyPath] = await fetchText(new URL(companyPath, base).toString());
+      for (const includeEntry of includeEntries) {
+        const includePath = normalizePortablePath(includeEntry.path);
+        if (!includePath.endsWith(".md")) continue;
+        const includeUrl = new URL(includeEntry.path, companyUrl).toString();
+        files[includePath] = await fetchText(includeUrl);
       }
-      for (const agent of manifest.agents) {
-        const filePath = ensureMarkdownPath(agent.path);
-        files[filePath] = await fetchText(new URL(filePath, base).toString());
-      }
-
-      return { manifest, files, warnings };
+      return buildManifestFromPackageFiles(files);
     }
 
-    const parsed = parseGitHubTreeUrl(source.url);
+    const parsed = parseGitHubSourceUrl(source.url);
     let ref = parsed.ref;
-    const manifestRelativePath = [parsed.basePath, "paperclip.manifest.json"].filter(Boolean).join("/");
-    let manifest: CompanyPortabilityManifest | null = null;
     const warnings: string[] = [];
+    if (!isGitCommitRef(ref)) {
+      warnings.push("GitHub source is not pinned to a commit SHA; imports may drift if the ref changes.");
+    }
+    const companyRelativePath = parsed.companyPath === "COMPANY.md"
+      ? [parsed.basePath, "COMPANY.md"].filter(Boolean).join("/")
+      : parsed.companyPath;
+    let companyMarkdown: string | null = null;
     try {
-      manifest = portabilityManifestSchema.parse(
-        await fetchJson(resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, manifestRelativePath)),
+      companyMarkdown = await fetchOptionalText(
+        resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, companyRelativePath),
       );
     } catch (err) {
       if (ref === "main") {
         ref = "master";
         warnings.push("GitHub ref main not found; falling back to master.");
-        manifest = portabilityManifestSchema.parse(
-          await fetchJson(resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, manifestRelativePath)),
+        companyMarkdown = await fetchOptionalText(
+          resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, companyRelativePath),
         );
       } else {
         throw err;
       }
     }
+    if (!companyMarkdown) {
+      throw unprocessable("GitHub company package is missing COMPANY.md");
+    }
 
-    const files: Record<string, string> = {};
-    if (manifest.company?.path) {
-      files[manifest.company.path] = await fetchText(
-        resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, [parsed.basePath, manifest.company.path].filter(Boolean).join("/")),
+    const companyPath = parsed.companyPath === "COMPANY.md"
+      ? "COMPANY.md"
+      : normalizePortablePath(path.posix.relative(parsed.basePath || ".", parsed.companyPath));
+    const files: Record<string, string> = {
+      [companyPath]: companyMarkdown,
+    };
+    const companyDoc = parseFrontmatterMarkdown(companyMarkdown);
+    const includeEntries = readIncludeEntries(companyDoc.frontmatter);
+    for (const includeEntry of includeEntries) {
+      const repoPath = [parsed.basePath, includeEntry.path].filter(Boolean).join("/");
+      if (!repoPath.endsWith(".md")) continue;
+      files[normalizePortablePath(includeEntry.path)] = await fetchText(
+        resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, repoPath),
       );
     }
-    for (const agent of manifest.agents) {
-      files[agent.path] = await fetchText(
-        resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, [parsed.basePath, agent.path].filter(Boolean).join("/")),
-      );
-    }
-    return { manifest, files, warnings };
+
+    const resolved = buildManifestFromPackageFiles(files);
+    resolved.warnings.unshift(...warnings);
+    return resolved;
   }
 
   async function exportBundle(
@@ -557,20 +909,7 @@ export function companyPortabilityService(db: Db) {
     const files: Record<string, string> = {};
     const warnings: string[] = [];
     const requiredSecrets: CompanyPortabilityManifest["requiredSecrets"] = [];
-    const generatedAt = new Date().toISOString();
-
-    const manifest: CompanyPortabilityManifest = {
-      schemaVersion: 1,
-      generatedAt,
-      source: {
-        companyId: company.id,
-        companyName: company.name,
-      },
-      includes: include,
-      company: null,
-      agents: [],
-      requiredSecrets: [],
-    };
+    const rootPath = normalizeAgentUrlKey(company.name) ?? "company-package";
 
     const allAgentRows = include.agents ? await agents.list(companyId, { includeTerminated: true }) : [];
     const agentRows = allAgentRows.filter((agent) => agent.status !== "terminated");
@@ -589,29 +928,32 @@ export function companyPortabilityService(db: Db) {
       idToSlug.set(agent.id, slug);
     }
 
-    if (include.company) {
+    {
       const companyPath = "COMPANY.md";
       const companyAgentSummaries = agentRows.map((agent) => ({
         slug: idToSlug.get(agent.id) ?? "agent",
         name: agent.name,
       }));
+      const includes = include.agents
+        ? buildIncludes(
+            companyAgentSummaries.map((agent) => `agents/${agent.slug}/AGENTS.md`),
+          )
+        : [];
       files[companyPath] = buildMarkdown(
         {
+          schema: "company-packages/v0.1",
           kind: "company",
+          slug: rootPath,
           name: company.name,
           description: company.description ?? null,
           brandColor: company.brandColor ?? null,
-          requireBoardApprovalForNewAgents: company.requireBoardApprovalForNewAgents,
+          defaults: {
+            requireBoardApprovalForNewAgents: company.requireBoardApprovalForNewAgents,
+          },
+          includes,
         },
         renderCompanyAgentsSection(companyAgentSummaries),
       );
-      manifest.company = {
-        path: companyPath,
-        name: company.name,
-        description: company.description ?? null,
-        brandColor: company.brandColor ?? null,
-        requireBoardApprovalForNewAgents: company.requireBoardApprovalForNewAgents,
-      };
     }
 
     if (include.agents) {
@@ -647,46 +989,52 @@ export function companyPortabilityService(db: Db) {
 
         files[agentPath] = buildMarkdown(
           {
+            schema: "company-packages/v0.1",
             name: agent.name,
             slug,
-            role: agent.role,
-            adapterType: agent.adapterType,
             kind: "agent",
+            role: agent.role,
+            title: agent.title ?? null,
             icon: agent.icon ?? null,
             capabilities: agent.capabilities ?? null,
             reportsTo: reportsToSlug,
-            runtimeConfig: portableRuntimeConfig,
+            adapter: {
+              type: agent.adapterType,
+              config: portableAdapterConfig,
+            },
+            runtime: portableRuntimeConfig,
             permissions: portablePermissions,
-            adapterConfig: portableAdapterConfig,
-            requiredSecrets: agentRequiredSecrets,
+            budgetMonthlyCents: agent.budgetMonthlyCents ?? 0,
+            metadata: (agent.metadata as Record<string, unknown> | null) ?? null,
+            requirements: agentRequiredSecrets.length > 0
+              ? {
+                  secrets: agentRequiredSecrets.map((secret) => ({
+                    key: secret.key,
+                    description: secret.description,
+                    providerHint: secret.providerHint,
+                  })),
+                }
+              : {},
           },
           instructions.body,
         );
-
-        manifest.agents.push({
-          slug,
-          name: agent.name,
-          path: agentPath,
-          role: agent.role,
-          title: agent.title ?? null,
-          icon: agent.icon ?? null,
-          capabilities: agent.capabilities ?? null,
-          reportsToSlug,
-          adapterType: agent.adapterType,
-          adapterConfig: portableAdapterConfig,
-          runtimeConfig: portableRuntimeConfig,
-          permissions: portablePermissions,
-          budgetMonthlyCents: agent.budgetMonthlyCents ?? 0,
-          metadata: (agent.metadata as Record<string, unknown> | null) ?? null,
-        });
       }
     }
 
-    manifest.requiredSecrets = dedupeRequiredSecrets(requiredSecrets);
+    const resolved = buildManifestFromPackageFiles(files, {
+      sourceLabel: {
+        companyId: company.id,
+        companyName: company.name,
+      },
+    });
+    resolved.manifest.includes = include;
+    resolved.manifest.requiredSecrets = dedupeRequiredSecrets(requiredSecrets);
+    resolved.warnings.unshift(...warnings);
     return {
-      manifest,
+      rootPath,
+      manifest: resolved.manifest,
       files,
-      warnings,
+      warnings: resolved.warnings,
     };
   }
 
@@ -702,11 +1050,17 @@ export function companyPortabilityService(db: Db) {
       errors.push("Manifest does not include company metadata.");
     }
 
-    const selectedSlugs = input.agents && input.agents !== "all"
-      ? Array.from(new Set(input.agents))
-      : manifest.agents.map((agent) => agent.slug);
+    const selectedSlugs = include.agents
+      ? (
+          input.agents && input.agents !== "all"
+            ? Array.from(new Set(input.agents))
+            : manifest.agents.map((agent) => agent.slug)
+        )
+      : [];
 
-    const selectedAgents = manifest.agents.filter((agent) => selectedSlugs.includes(agent.slug));
+    const selectedAgents = include.agents
+      ? manifest.agents.filter((agent) => selectedSlugs.includes(agent.slug))
+      : [];
     const selectedMissing = selectedSlugs.filter((slug) => !manifest.agents.some((agent) => agent.slug === slug));
     for (const missing of selectedMissing) {
       errors.push(`Selected agent slug not found in manifest: ${missing}`);

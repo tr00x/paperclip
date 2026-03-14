@@ -1,11 +1,10 @@
 import { Command } from "commander";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {
   Company,
   CompanyPortabilityExportResult,
   CompanyPortabilityInclude,
-  CompanyPortabilityManifest,
   CompanyPortabilityPreviewResult,
   CompanyPortabilityImportResult,
 } from "@paperclipai/shared";
@@ -84,37 +83,39 @@ function isGithubUrl(input: string): boolean {
   return /^https?:\/\/github\.com\//i.test(input.trim());
 }
 
+async function collectPackageFiles(root: string, current: string, files: Record<string, string>): Promise<void> {
+  const entries = await readdir(current, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name.startsWith(".git")) continue;
+    const absolutePath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      await collectPackageFiles(root, absolutePath, files);
+      continue;
+    }
+    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+    const relativePath = path.relative(root, absolutePath).replace(/\\/g, "/");
+    files[relativePath] = await readFile(absolutePath, "utf8");
+  }
+}
+
 async function resolveInlineSourceFromPath(inputPath: string): Promise<{
-  manifest: CompanyPortabilityManifest;
+  rootPath: string;
   files: Record<string, string>;
 }> {
   const resolved = path.resolve(inputPath);
   const resolvedStat = await stat(resolved);
-  const manifestPath = resolvedStat.isDirectory()
-    ? path.join(resolved, "paperclip.manifest.json")
-    : resolved;
-  const manifestBaseDir = path.dirname(manifestPath);
-  const manifestRaw = await readFile(manifestPath, "utf8");
-  const manifest = JSON.parse(manifestRaw) as CompanyPortabilityManifest;
+  const rootDir = resolvedStat.isDirectory() ? resolved : path.dirname(resolved);
   const files: Record<string, string> = {};
-
-  if (manifest.company?.path) {
-    const companyPath = manifest.company.path.replace(/\\/g, "/");
-    files[companyPath] = await readFile(path.join(manifestBaseDir, companyPath), "utf8");
-  }
-  for (const agent of manifest.agents ?? []) {
-    const agentPath = agent.path.replace(/\\/g, "/");
-    files[agentPath] = await readFile(path.join(manifestBaseDir, agentPath), "utf8");
-  }
-
-  return { manifest, files };
+  await collectPackageFiles(rootDir, rootDir, files);
+  return {
+    rootPath: path.basename(rootDir),
+    files,
+  };
 }
 
 async function writeExportToFolder(outDir: string, exported: CompanyPortabilityExportResult): Promise<void> {
   const root = path.resolve(outDir);
   await mkdir(root, { recursive: true });
-  const manifestPath = path.join(root, "paperclip.manifest.json");
-  await writeFile(manifestPath, JSON.stringify(exported.manifest, null, 2), "utf8");
   for (const [relativePath, content] of Object.entries(exported.files)) {
     const normalized = relativePath.replace(/\\/g, "/");
     const filePath = path.join(root, normalized);
@@ -257,7 +258,7 @@ export function registerCompanyCommands(program: Command): void {
   addCommonClientOptions(
     company
       .command("export")
-      .description("Export a company into portable manifest + markdown files")
+      .description("Export a company into a portable markdown package")
       .argument("<companyId>", "Company ID")
       .requiredOption("--out <path>", "Output directory")
       .option("--include <values>", "Comma-separated include set: company,agents", "company,agents")
@@ -277,7 +278,8 @@ export function registerCompanyCommands(program: Command): void {
             {
               ok: true,
               out: path.resolve(opts.out!),
-              filesWritten: Object.keys(exported.files).length + 1,
+              rootPath: exported.rootPath,
+              filesWritten: Object.keys(exported.files).length,
               warningCount: exported.warnings.length,
             },
             { json: ctx.json },
@@ -296,7 +298,7 @@ export function registerCompanyCommands(program: Command): void {
   addCommonClientOptions(
     company
       .command("import")
-      .description("Import a portable company package from local path, URL, or GitHub")
+      .description("Import a portable markdown company package from local path, URL, or GitHub")
       .requiredOption("--from <pathOrUrl>", "Source path or URL")
       .option("--include <values>", "Comma-separated include set: company,agents", "company,agents")
       .option("--target <mode>", "Target mode: new | existing")
@@ -343,7 +345,7 @@ export function registerCompanyCommands(program: Command): void {
           }
 
           let sourcePayload:
-            | { type: "inline"; manifest: CompanyPortabilityManifest; files: Record<string, string> }
+            | { type: "inline"; rootPath?: string | null; files: Record<string, string> }
             | { type: "url"; url: string }
             | { type: "github"; url: string };
 
@@ -355,7 +357,7 @@ export function registerCompanyCommands(program: Command): void {
             const inline = await resolveInlineSourceFromPath(from);
             sourcePayload = {
               type: "inline",
-              manifest: inline.manifest,
+              rootPath: inline.rootPath,
               files: inline.files,
             };
           }

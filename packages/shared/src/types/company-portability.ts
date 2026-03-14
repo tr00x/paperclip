@@ -49,6 +49,7 @@ export interface CompanyPortabilityManifest {
 }
 
 export interface CompanyPortabilityExportResult {
+  rootPath: string;
   manifest: CompanyPortabilityManifest;
   files: Record<string, string>;
   warnings: string[];
@@ -57,7 +58,7 @@ export interface CompanyPortabilityExportResult {
 export type CompanyPortabilitySource =
   | {
       type: "inline";
-      manifest: CompanyPortabilityManifest;
+      rootPath?: string | null;
       files: Record<string, string>;
     }
   | {

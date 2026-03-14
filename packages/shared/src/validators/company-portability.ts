@@ -60,7 +60,7 @@ export const portabilityManifestSchema = z.object({
 export const portabilitySourceSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("inline"),
-    manifest: portabilityManifestSchema,
+    rootPath: z.string().min(1).optional().nullable(),
     files: z.record(z.string()),
   }),
   z.object({
