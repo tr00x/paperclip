@@ -59,6 +59,7 @@ export interface CompanyPortabilityAgentManifestEntry {
   slug: string;
   name: string;
   path: string;
+  skills: string[];
   role: string;
   title: string | null;
   icon: string | null;
@@ -72,6 +73,23 @@ export interface CompanyPortabilityAgentManifestEntry {
   metadata: Record<string, unknown> | null;
 }
 
+export interface CompanyPortabilitySkillManifestEntry {
+  slug: string;
+  name: string;
+  path: string;
+  description: string | null;
+  sourceType: string;
+  sourceLocator: string | null;
+  sourceRef: string | null;
+  trustLevel: string | null;
+  compatibility: string | null;
+  metadata: Record<string, unknown> | null;
+  fileInventory: Array<{
+    path: string;
+    kind: string;
+  }>;
+}
+
 export interface CompanyPortabilityManifest {
   schemaVersion: number;
   generatedAt: string;
@@ -82,6 +100,7 @@ export interface CompanyPortabilityManifest {
   includes: CompanyPortabilityInclude;
   company: CompanyPortabilityCompanyManifestEntry | null;
   agents: CompanyPortabilityAgentManifestEntry[];
+  skills: CompanyPortabilitySkillManifestEntry[];
   projects: CompanyPortabilityProjectManifestEntry[];
   issues: CompanyPortabilityIssueManifestEntry[];
   envInputs: CompanyPortabilityEnvInput[];
@@ -196,4 +215,5 @@ export interface CompanyPortabilityExportRequest {
   projects?: string[];
   issues?: string[];
   projectIssues?: string[];
+  expandReferencedSkills?: boolean;
 }

@@ -24,6 +24,10 @@ The normative package format draft lives in:
 
 This plan is about implementation and rollout inside Paperclip.
 
+Adapter-wide skill rollout details live in:
+
+- `doc/plans/2026-03-14-adapter-skill-sync-rollout.md`
+
 ## 2. Executive Summary
 
 Paperclip already has portability primitives in the repo:

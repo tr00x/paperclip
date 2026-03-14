@@ -34,6 +34,7 @@ type ImportedSkill = {
   name: string;
   description: string | null;
   markdown: string;
+  packageDir?: string | null;
   sourceType: CompanySkillSourceType;
   sourceLocator: string | null;
   sourceRef: string | null;
@@ -70,6 +71,16 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizePortablePath(input: string) {
   return input.replace(/\\/g, "/").replace(/^\.\/+/, "").replace(/^\/+/, "");
+}
+
+function normalizePackageFileMap(files: Record<string, string>) {
+  const out: Record<string, string> = {};
+  for (const [rawPath, content] of Object.entries(files)) {
+    const nextPath = normalizePortablePath(rawPath);
+    if (!nextPath) continue;
+    out[nextPath] = content;
+  }
+  return out;
 }
 
 function normalizeSkillSlug(value: string | null | undefined) {
@@ -399,6 +410,111 @@ function deriveImportedSkillSlug(frontmatter: Record<string, unknown>, fallback:
   return normalizeSkillSlug(asString(frontmatter.name)) ?? normalizeAgentUrlKey(fallback) ?? "skill";
 }
 
+function deriveImportedSkillSource(
+  frontmatter: Record<string, unknown>,
+  fallbackSlug: string,
+): Pick<ImportedSkill, "sourceType" | "sourceLocator" | "sourceRef" | "metadata"> {
+  const metadata = isPlainRecord(frontmatter.metadata) ? frontmatter.metadata : null;
+  const rawSources = metadata && Array.isArray(metadata.sources) ? metadata.sources : [];
+  const sourceEntry = rawSources.find((entry) => isPlainRecord(entry)) as Record<string, unknown> | undefined;
+  const kind = asString(sourceEntry?.kind);
+
+  if (kind === "github-dir" || kind === "github-file") {
+    const repo = asString(sourceEntry?.repo);
+    const repoPath = asString(sourceEntry?.path);
+    const commit = asString(sourceEntry?.commit);
+    const trackingRef = asString(sourceEntry?.trackingRef);
+    const url = asString(sourceEntry?.url)
+      ?? (repo
+        ? `https://github.com/${repo}${repoPath ? `/tree/${trackingRef ?? commit ?? "main"}/${repoPath}` : ""}`
+        : null);
+    const [owner, repoName] = (repo ?? "").split("/");
+    if (repo && owner && repoName) {
+      return {
+        sourceType: "github",
+        sourceLocator: url,
+        sourceRef: commit,
+        metadata: {
+          sourceKind: "github",
+          owner,
+          repo: repoName,
+          ref: commit,
+          trackingRef,
+          repoSkillDir: repoPath ?? `skills/${fallbackSlug}`,
+        },
+      };
+    }
+  }
+
+  if (kind === "url") {
+    const url = asString(sourceEntry?.url) ?? asString(sourceEntry?.rawUrl);
+    if (url) {
+      return {
+        sourceType: "url",
+        sourceLocator: url,
+        sourceRef: null,
+        metadata: {
+          sourceKind: "url",
+        },
+      };
+    }
+  }
+
+  return {
+    sourceType: "catalog",
+    sourceLocator: null,
+    sourceRef: null,
+    metadata: {
+      sourceKind: "catalog",
+    },
+  };
+}
+
+function readInlineSkillImports(files: Record<string, string>): ImportedSkill[] {
+  const normalizedFiles = normalizePackageFileMap(files);
+  const skillPaths = Object.keys(normalizedFiles).filter(
+    (entry) => path.posix.basename(entry).toLowerCase() === "skill.md",
+  );
+  const imports: ImportedSkill[] = [];
+
+  for (const skillPath of skillPaths) {
+    const dir = path.posix.dirname(skillPath);
+    const skillDir = dir === "." ? "" : dir;
+    const slugFallback = path.posix.basename(skillDir || path.posix.dirname(skillPath));
+    const markdown = normalizedFiles[skillPath]!;
+    const parsed = parseFrontmatterMarkdown(markdown);
+    const slug = deriveImportedSkillSlug(parsed.frontmatter, slugFallback);
+    const source = deriveImportedSkillSource(parsed.frontmatter, slug);
+    const inventory = Object.keys(normalizedFiles)
+      .filter((entry) => entry === skillPath || (skillDir ? entry.startsWith(`${skillDir}/`) : false))
+      .map((entry) => {
+        const relative = entry === skillPath ? "SKILL.md" : entry.slice(skillDir.length + 1);
+        return {
+          path: normalizePortablePath(relative),
+          kind: classifyInventoryKind(relative),
+        };
+      })
+      .sort((left, right) => left.path.localeCompare(right.path));
+
+    imports.push({
+      slug,
+      name: asString(parsed.frontmatter.name) ?? slug,
+      description: asString(parsed.frontmatter.description),
+      markdown,
+      packageDir: skillDir,
+      sourceType: source.sourceType,
+      sourceLocator: source.sourceLocator,
+      sourceRef: source.sourceRef,
+      trustLevel: deriveTrustLevel(inventory),
+      compatibility: "compatible",
+      fileInventory: inventory,
+      metadata: source.metadata,
+    });
+  }
+
+  return imports;
+}
+
 async function walkLocalFiles(root: string, current: string, out: string[]) {
   const entries = await fs.readdir(current, { withFileTypes: true });
   for (const entry of entries) {
@@ -432,6 +548,7 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
       name: asString(parsed.frontmatter.name) ?? slug,
       description: asString(parsed.frontmatter.description),
       markdown,
+      packageDir: path.dirname(resolvedPath),
       sourceType: "local_path",
       sourceLocator: path.dirname(resolvedPath),
       sourceRef: null,
@@ -471,6 +588,7 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
       name: asString(parsed.frontmatter.name) ?? slug,
       description: asString(parsed.frontmatter.description),
       markdown,
+      packageDir: path.join(root, skillDir),
       sourceType: "local_path",
       sourceLocator: path.join(root, skillDir),
       sourceRef: null,
@@ -633,7 +751,7 @@ function getSkillMeta(skill: CompanySkill): SkillSourceMeta {
 }
 
 function normalizeSkillDirectory(skill: CompanySkill) {
-  if (skill.sourceType !== "local_path" || !skill.sourceLocator) return null;
+  if ((skill.sourceType !== "local_path" && skill.sourceType !== "catalog") || !skill.sourceLocator) return null;
   const resolved = path.resolve(skill.sourceLocator);
   if (path.basename(resolved).toLowerCase() === "skill.md") {
     return path.dirname(resolved);
@@ -921,10 +1039,15 @@ export function companySkillService(db: Db) {
     const source = deriveSkillSourceInfo(skill);
     let content = "";
 
-    if (skill.sourceType === "local_path") {
+    if (skill.sourceType === "local_path" || skill.sourceType === "catalog") {
       const absolutePath = resolveLocalSkillFilePath(skill, normalizedPath);
-      if (!absolutePath) throw notFound("Skill file not found");
-      content = await fs.readFile(absolutePath, "utf8");
+      if (absolutePath) {
+        content = await fs.readFile(absolutePath, "utf8");
+      } else if (normalizedPath === "SKILL.md") {
+        content = skill.markdown;
+      } else {
+        throw notFound("Skill file not found");
+      }
     } else if (skill.sourceType === "github") {
       const metadata = getSkillMeta(skill);
       const owner = asString(metadata.owner);
@@ -1061,10 +1184,69 @@ export function companySkillService(db: Db) {
     return imported[0] ?? null;
   }
 
+  async function materializeCatalogSkillFiles(
+    companyId: string,
+    skill: ImportedSkill,
+    normalizedFiles: Record<string, string>,
+  ) {
+    const packageDir = skill.packageDir ? normalizePortablePath(skill.packageDir) : null;
+    if (!packageDir) return null;
+    const catalogRoot = path.resolve(resolveManagedSkillsRoot(companyId), "__catalog__");
+    const skillDir = path.resolve(catalogRoot, skill.slug);
+    await fs.rm(skillDir, { recursive: true, force: true });
+    await fs.mkdir(skillDir, { recursive: true });
+
+    for (const entry of skill.fileInventory) {
+      const sourcePath = entry.path === "SKILL.md"
+        ? `${packageDir}/SKILL.md`
+        : `${packageDir}/${entry.path}`;
+      const content = normalizedFiles[sourcePath];
+      if (typeof content !== "string") continue;
+      const targetPath = path.resolve(skillDir, entry.path);
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.writeFile(targetPath, content, "utf8");
+    }
+
+    return skillDir;
+  }
+
+  async function importPackageFiles(companyId: string, files: Record<string, string>): Promise<CompanySkill[]> {
+    await ensureBundledSkills(companyId);
+    const normalizedFiles = normalizePackageFileMap(files);
+    const importedSkills = readInlineSkillImports(normalizedFiles);
+    if (importedSkills.length === 0) return [];
+
+    for (const skill of importedSkills) {
+      if (skill.sourceType !== "catalog") continue;
+      const materializedDir = await materializeCatalogSkillFiles(companyId, skill, normalizedFiles);
+      if (materializedDir) {
+        skill.sourceLocator = materializedDir;
+      }
+    }
+
+    return upsertImportedSkills(companyId, importedSkills);
+  }
+
   async function upsertImportedSkills(companyId: string, imported: ImportedSkill[]): Promise<CompanySkill[]> {
     const out: CompanySkill[] = [];
     for (const skill of imported) {
       const existing = await getBySlug(companyId, skill.slug);
+      const existingMeta = existing ? getSkillMeta(existing) : {};
+      const incomingMeta = skill.metadata && isPlainRecord(skill.metadata) ? skill.metadata : {};
+      const incomingOwner = asString(incomingMeta.owner);
+      const incomingRepo = asString(incomingMeta.repo);
+      const incomingKind = asString(incomingMeta.sourceKind);
+      if (
+        existing
+        && existingMeta.sourceKind === "paperclip_bundled"
+        && incomingKind === "github"
+        && incomingOwner === "paperclipai"
+        && incomingRepo === "paperclip"
+      ) {
+        out.push(existing);
+        continue;
+      }
+
       const values = {
         companyId,
         slug: skill.slug,
@@ -1137,6 +1319,7 @@ export function companySkillService(db: Db) {
     updateFile,
     createLocalSkill,
     importFromSource,
+    importPackageFiles,
     installUpdate,
   };
 }

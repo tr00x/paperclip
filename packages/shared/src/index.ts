@@ -133,6 +133,7 @@ export type {
   CompanyPortabilityEnvInput,
   CompanyPortabilityCompanyManifestEntry,
   CompanyPortabilityAgentManifestEntry,
+  CompanyPortabilitySkillManifestEntry,
   CompanyPortabilityProjectManifestEntry,
   CompanyPortabilityIssueManifestEntry,
   CompanyPortabilityManifest,

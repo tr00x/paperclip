@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import type { Db } from "@paperclipai/db";
 import type {
@@ -16,6 +17,8 @@ import type {
   CompanyPortabilityPreviewResult,
   CompanyPortabilityProjectManifestEntry,
   CompanyPortabilityIssueManifestEntry,
+  CompanyPortabilitySkillManifestEntry,
+  CompanySkill,
 } from "@paperclipai/shared";
 import {
   ISSUE_PRIORITIES,
@@ -24,9 +27,14 @@ import {
   deriveProjectUrlKey,
   normalizeAgentUrlKey,
 } from "@paperclipai/shared";
+import {
+  readPaperclipSkillSyncPreference,
+  writePaperclipSkillSyncPreference,
+} from "@paperclipai/adapter-utils/server-utils";
 import { notFound, unprocessable } from "../errors.js";
 import { accessService } from "./access.js";
 import { agentService } from "./agents.js";
+import { companySkillService } from "./company-skills.js";
 import { companyService } from "./companies.js";
 import { issueService } from "./issues.js";
 import { projectService } from "./projects.js";
@@ -475,6 +483,7 @@ const YAML_KEY_PRIORITY = [
   "kind",
   "slug",
   "reportsTo",
+  "skills",
   "owner",
   "assignee",
   "project",
@@ -592,6 +601,93 @@ function buildMarkdown(frontmatter: Record<string, unknown>, body: string) {
     return `${renderFrontmatter(frontmatter)}\n`;
   }
   return `${renderFrontmatter(frontmatter)}\n${cleanBody}\n`;
+}
+
+function buildSkillSourceEntry(skill: CompanySkill) {
+  const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
+  if (asString(metadata?.sourceKind) === "paperclip_bundled") {
+    let commit: string | null = null;
+    try {
+      const resolved = execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: process.cwd(),
+        encoding: "utf8",
+      }).trim();
+      commit = resolved || null;
+    } catch {
+      commit = null;
+    }
+    return {
+      kind: "github-dir",
+      repo: "paperclipai/paperclip",
+      path: `skills/${skill.slug}`,
+      commit,
+      trackingRef: "master",
+      url: `https://github.com/paperclipai/paperclip/tree/master/skills/${skill.slug}`,
+    };
+  }
+
+  if (skill.sourceType === "github") {
+    const owner = asString(metadata?.owner);
+    const repo = asString(metadata?.repo);
+    const repoSkillDir = asString(metadata?.repoSkillDir);
+    if (!owner || !repo || !repoSkillDir) return null;
+    return {
+      kind: "github-dir",
+      repo: `${owner}/${repo}`,
+      path: repoSkillDir,
+      commit: skill.sourceRef ?? null,
+      trackingRef: asString(metadata?.trackingRef),
+      url: skill.sourceLocator,
+    };
+  }
+
+  if (skill.sourceType === "url" && skill.sourceLocator) {
+    return {
+      kind: "url",
+      url: skill.sourceLocator,
+    };
+  }
+
+  return null;
+}
+
+function shouldReferenceSkillOnExport(skill: CompanySkill, expandReferencedSkills: boolean) {
+  if (expandReferencedSkills) return false;
+  const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
+  if (asString(metadata?.sourceKind) === "paperclip_bundled") return true;
+  return skill.sourceType === "github" || skill.sourceType === "url";
+}
+
+function buildReferencedSkillMarkdown(skill: CompanySkill) {
+  const sourceEntry = buildSkillSourceEntry(skill);
+  const frontmatter: Record<string, unknown> = {
+    name: skill.name,
+    description: skill.description ?? null,
+  };
+  if (sourceEntry) {
+    frontmatter.metadata = {
+      sources: [sourceEntry],
+    };
+  }
+  return buildMarkdown(frontmatter, "");
+}
+
+function withSkillSourceMetadata(skill: CompanySkill, markdown: string) {
+  const sourceEntry = buildSkillSourceEntry(skill);
+  if (!sourceEntry) return markdown;
+  const parsed = parseFrontmatterMarkdown(markdown);
+  const metadata = isPlainRecord(parsed.frontmatter.metadata)
+    ? { ...parsed.frontmatter.metadata }
+    : {};
+  const existingSources = Array.isArray(metadata.sources)
+    ? metadata.sources.filter((entry) => isPlainRecord(entry))
+    : [];
+  metadata.sources = [...existingSources, sourceEntry];
+  const frontmatter = {
+    ...parsed.frontmatter,
+    metadata,
+  };
+  return buildMarkdown(frontmatter, parsed.body);
 }
 
 function renderCompanyAgentsSection(agentSummaries: Array<{ slug: string; name: string }>) {
@@ -854,6 +950,17 @@ function readAgentEnvInputs(
   });
 }
 
+function readAgentSkillRefs(frontmatter: Record<string, unknown>) {
+  const skills = frontmatter.skills;
+  if (!Array.isArray(skills)) return [];
+  return Array.from(new Set(
+    skills
+      .filter((entry): entry is string => typeof entry === "string")
+      .map((entry) => normalizeAgentUrlKey(entry) ?? entry.trim())
+      .filter(Boolean),
+  ));
+}
+
 function buildManifestFromPackageFiles(
   files: Record<string, string>,
   opts?: { sourceLabel?: { companyId: string; companyName: string } | null },
@@ -898,6 +1005,9 @@ function buildManifestFromPackageFiles(
   const referencedTaskPaths = includeEntries
     .map((entry) => resolvePortablePath(resolvedCompanyPath, entry.path))
     .filter((entry) => entry.endsWith("/TASK.md") || entry === "TASK.md");
+  const referencedSkillPaths = includeEntries
+    .map((entry) => resolvePortablePath(resolvedCompanyPath, entry.path))
+    .filter((entry) => entry.endsWith("/SKILL.md") || entry === "SKILL.md");
   const discoveredAgentPaths = Object.keys(normalizedFiles).filter(
     (entry) => entry.endsWith("/AGENTS.md") || entry === "AGENTS.md",
   );
@@ -907,9 +1017,13 @@ function buildManifestFromPackageFiles(
   const discoveredTaskPaths = Object.keys(normalizedFiles).filter(
     (entry) => entry.endsWith("/TASK.md") || entry === "TASK.md",
   );
+  const discoveredSkillPaths = Object.keys(normalizedFiles).filter(
+    (entry) => entry.endsWith("/SKILL.md") || entry === "SKILL.md",
+  );
   const agentPaths = Array.from(new Set([...referencedAgentPaths, ...discoveredAgentPaths])).sort();
   const projectPaths = Array.from(new Set([...referencedProjectPaths, ...discoveredProjectPaths])).sort();
   const taskPaths = Array.from(new Set([...referencedTaskPaths, ...discoveredTaskPaths])).sort();
+  const skillPaths = Array.from(new Set([...referencedSkillPaths, ...discoveredSkillPaths])).sort();
 
   const manifest: CompanyPortabilityManifest = {
     schemaVersion: 3,
@@ -932,6 +1046,7 @@ function buildManifestFromPackageFiles(
           : readCompanyApprovalDefault(companyFrontmatter),
     },
     agents: [],
+    skills: [],
     projects: [],
     issues: [],
     envInputs: [],
@@ -963,6 +1078,7 @@ function buildManifestFromPackageFiles(
       slug,
       name: asString(frontmatter.name) ?? title ?? slug,
       path: agentPath,
+      skills: readAgentSkillRefs(frontmatter),
       role: asString(extension.role) ?? "agent",
       title,
       icon: asString(extension.icon),
@@ -984,6 +1100,89 @@ function buildManifestFromPackageFiles(
     if (frontmatter.kind && frontmatter.kind !== "agent") {
       warnings.push(`Agent markdown ${agentPath} does not declare kind: agent in frontmatter.`);
     }
+  }
+
+  for (const skillPath of skillPaths) {
+    const markdownRaw = normalizedFiles[skillPath];
+    if (typeof markdownRaw !== "string") {
+      warnings.push(`Referenced skill file is missing from package: ${skillPath}`);
+      continue;
+    }
+    const skillDoc = parseFrontmatterMarkdown(markdownRaw);
+    const frontmatter = skillDoc.frontmatter;
+    const skillDir = path.posix.dirname(skillPath);
+    const fallbackSlug = normalizeAgentUrlKey(path.posix.basename(skillDir)) ?? "skill";
+    const slug = asString(frontmatter.slug) ?? normalizeAgentUrlKey(asString(frontmatter.name) ?? "") ?? fallbackSlug;
+    const inventory = Object.keys(normalizedFiles)
+      .filter((entry) => entry === skillPath || entry.startsWith(`${skillDir}/`))
+      .map((entry) => ({
+        path: entry === skillPath ? "SKILL.md" : entry.slice(skillDir.length + 1),
+        kind: entry === skillPath
+          ? "skill"
+          : entry.startsWith(`${skillDir}/references/`)
+            ? "reference"
+            : entry.startsWith(`${skillDir}/scripts/`)
+              ? "script"
+              : entry.startsWith(`${skillDir}/assets/`)
+                ? "asset"
+                : entry.endsWith(".md")
+                  ? "markdown"
+                  : "other",
+      }));
+    const metadata = isPlainRecord(frontmatter.metadata) ? frontmatter.metadata : null;
+    const sources = metadata && Array.isArray(metadata.sources) ? metadata.sources : [];
+    const primarySource = sources.find((entry) => isPlainRecord(entry)) as Record<string, unknown> | undefined;
+    const sourceKind = asString(primarySource?.kind);
+    let sourceType = "catalog";
+    let sourceLocator: string | null = null;
+    let sourceRef: string | null = null;
+    let normalizedMetadata: Record<string, unknown> | null = null;
+
+    if (sourceKind === "github-dir" || sourceKind === "github-file") {
+      const repo = asString(primarySource?.repo);
+      const repoPath = asString(primarySource?.path);
+      const commit = asString(primarySource?.commit);
+      const trackingRef = asString(primarySource?.trackingRef);
+      const [owner, repoName] = (repo ?? "").split("/");
+      sourceType = "github";
+      sourceLocator = asString(primarySource?.url)
+        ?? (repo ? `https://github.com/${repo}${repoPath ? `/tree/${trackingRef ?? commit ?? "main"}/${repoPath}` : ""}` : null);
+      sourceRef = commit;
+      normalizedMetadata = owner && repoName
+        ? {
+            sourceKind: "github",
+            owner,
+            repo: repoName,
+            ref: commit,
+            trackingRef,
+            repoSkillDir: repoPath ?? `skills/${slug}`,
+          }
+        : null;
+    } else if (sourceKind === "url") {
+      sourceType = "url";
+      sourceLocator = asString(primarySource?.url) ?? asString(primarySource?.rawUrl);
+      normalizedMetadata = {
+        sourceKind: "url",
+      };
+    } else if (metadata) {
+      normalizedMetadata = {
+        sourceKind: "catalog",
+      };
+    }
+
+    manifest.skills.push({
+      slug,
+      name: asString(frontmatter.name) ?? slug,
+      path: skillPath,
+      description: asString(frontmatter.description),
+      sourceType,
+      sourceLocator,
+      sourceRef,
+      trustLevel: null,
+      compatibility: "compatible",
+      metadata: normalizedMetadata,
+      fileInventory: inventory,
+    });
   }
 
   for (const projectPath of projectPaths) {
@@ -1163,6 +1362,7 @@ export function companyPortabilityService(db: Db) {
   const access = accessService(db);
   const projects = projectService(db);
   const issues = issueService(db);
+  const companySkills = companySkillService(db);
 
   async function resolveSource(source: CompanyPortabilityPreview["source"]): Promise<ResolvedSource> {
     if (source.type === "inline") {
@@ -1246,6 +1446,7 @@ export function companyPortabilityService(db: Db) {
         const relative = basePrefix ? entry.slice(basePrefix.length) : entry;
         return (
           relative.endsWith(".md") ||
+          relative.startsWith("skills/") ||
           relative === ".paperclip.yaml" ||
           relative === ".paperclip.yml"
         );
@@ -1296,6 +1497,7 @@ export function companyPortabilityService(db: Db) {
 
     const allAgentRows = include.agents ? await agents.list(companyId, { includeTerminated: true }) : [];
     const agentRows = allAgentRows.filter((agent) => agent.status !== "terminated");
+    const companySkillRows = await companySkills.list(companyId);
     if (include.agents) {
       const skipped = allAgentRows.length - agentRows.length;
       if (skipped > 0) {
@@ -1399,7 +1601,7 @@ export function companyPortabilityService(db: Db) {
     const projectSlugById = new Map<string, string>();
     const usedProjectSlugs = new Set<string>();
     for (const project of selectedProjectRows) {
-      const baseSlug = deriveProjectUrlKey(project.name, project.id);
+      const baseSlug = deriveProjectUrlKey(project.name, project.name);
       projectSlugById.set(project.id, uniqueSlug(baseSlug, usedProjectSlugs));
     }
 
@@ -1430,6 +1632,22 @@ export function companyPortabilityService(db: Db) {
     const paperclipAgentsOut: Record<string, Record<string, unknown>> = {};
     const paperclipProjectsOut: Record<string, Record<string, unknown>> = {};
     const paperclipTasksOut: Record<string, Record<string, unknown>> = {};
+
+    for (const skill of companySkillRows) {
+      if (shouldReferenceSkillOnExport(skill, Boolean(input.expandReferencedSkills))) {
+        files[`skills/${skill.slug}/SKILL.md`] = buildReferencedSkillMarkdown(skill);
+        continue;
+      }
+
+      for (const inventoryEntry of skill.fileInventory) {
+        const fileDetail = await companySkills.readFile(companyId, skill.id, inventoryEntry.path).catch(() => null);
+        if (!fileDetail) continue;
+        const filePath = `skills/${skill.slug}/${inventoryEntry.path}`;
+        files[filePath] = inventoryEntry.path === "SKILL.md"
+          ? withSkillSourceMetadata(skill, fileDetail.content)
+          : fileDetail.content;
+      }
+    }
 
     if (include.agents) {
       for (const agent of agentRows) {
@@ -1467,6 +1685,9 @@ export function companyPortabilityService(db: Db) {
             .filter((inputValue) => inputValue.agentSlug === slug),
         );
         const reportsToSlug = agent.reportsTo ? (idToSlug.get(agent.reportsTo) ?? null) : null;
+        const desiredSkills = readPaperclipSkillSyncPreference(
+          (agent.adapterConfig as Record<string, unknown>) ?? {},
+        ).desiredSkills;
 
         const commandValue = asString(portableAdapterConfig.command);
         if (commandValue && isAbsoluteCommand(commandValue)) {
@@ -1475,11 +1696,12 @@ export function companyPortabilityService(db: Db) {
         }
 
         files[agentPath] = buildMarkdown(
-          {
+          stripEmptyValues({
             name: agent.name,
             title: agent.title ?? null,
             reportsTo: reportsToSlug,
-          },
+            skills: desiredSkills.length > 0 ? desiredSkills : undefined,
+          }) as Record<string, unknown>,
           instructions.body,
         );
 
@@ -1627,6 +1849,8 @@ export function companyPortabilityService(db: Db) {
       warnings.push("No agents selected for import.");
     }
 
+    const availableSkillSlugs = new Set(source.manifest.skills.map((skill) => skill.slug));
+
     for (const agent of selectedAgents) {
       const filePath = ensureMarkdownPath(agent.path);
       const markdown = source.files[filePath];
@@ -1637,6 +1861,11 @@ export function companyPortabilityService(db: Db) {
       const parsed = parseFrontmatterMarkdown(markdown);
       if (parsed.frontmatter.kind && parsed.frontmatter.kind !== "agent") {
         warnings.push(`Agent markdown ${filePath} does not declare kind: agent in frontmatter.`);
+      }
+      for (const skillSlug of agent.skills) {
+        if (!availableSkillSlugs.has(skillSlug)) {
+          warnings.push(`Agent ${agent.slug} references skill ${skillSlug}, but that skill is not present in the package.`);
+        }
       }
     }
 
@@ -1912,6 +2141,8 @@ export function companyPortabilityService(db: Db) {
       existingProjectSlugToId.set(existing.urlKey, existing.id);
     }
 
+    await companySkills.importPackageFiles(targetCompany.id, plan.source.files);
+
     if (include.agents) {
       for (const planAgent of plan.preview.plan.agentPlans) {
         const manifestAgent = plan.selectedAgents.find((agent) => agent.slug === planAgent.slug);
@@ -1936,6 +2167,11 @@ export function companyPortabilityService(db: Db) {
           ...manifestAgent.adapterConfig,
           promptTemplate: markdown.body || asString((manifestAgent.adapterConfig as Record<string, unknown>).promptTemplate) || "",
         } as Record<string, unknown>;
+        const desiredSkills = manifestAgent.skills ?? [];
+        const adapterConfigWithSkills = writePaperclipSkillSyncPreference(
+          adapterConfig,
+          desiredSkills,
+        );
         delete adapterConfig.instructionsFilePath;
         const patch = {
           name: planAgent.plannedName,
@@ -1945,7 +2181,7 @@ export function companyPortabilityService(db: Db) {
           capabilities: manifestAgent.capabilities,
           reportsTo: null,
           adapterType: manifestAgent.adapterType,
-          adapterConfig,
+          adapterConfig: adapterConfigWithSkills,
           runtimeConfig: manifestAgent.runtimeConfig,
           budgetMonthlyCents: manifestAgent.budgetMonthlyCents,
           permissions: manifestAgent.permissions,

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import * as p from "@clack/prompts";
 import type {
   Company,
   CompanyPortabilityExportResult,
@@ -35,6 +36,7 @@ interface CompanyExportOptions extends BaseClientOptions {
   projects?: string;
   issues?: string;
   projectIssues?: string;
+  expandReferencedSkills?: boolean;
 }
 
 interface CompanyImportOptions extends BaseClientOptions {
@@ -134,6 +136,31 @@ async function writeExportToFolder(outDir: string, exported: CompanyPortabilityE
     const filePath = path.join(root, normalized);
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, content, "utf8");
+  }
+}
+
+async function confirmOverwriteExportDirectory(outDir: string): Promise<void> {
+  const root = path.resolve(outDir);
+  const stats = await stat(root).catch(() => null);
+  if (!stats) return;
+  if (!stats.isDirectory()) {
+    throw new Error(`Export output path ${root} exists and is not a directory.`);
+  }
+
+  const entries = await readdir(root);
+  if (entries.length === 0) return;
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    throw new Error(`Export output directory ${root} already contains files. Re-run interactively or choose an empty directory.`);
+  }
+
+  const confirmed = await p.confirm({
+    message: `Overwrite existing files in ${root}?`,
+    initialValue: false,
+  });
+
+  if (p.isCancel(confirmed) || !confirmed) {
+    throw new Error("Export cancelled.");
   }
 }
 
@@ -278,6 +305,7 @@ export function registerCompanyCommands(program: Command): void {
       .option("--projects <values>", "Comma-separated project shortnames/ids to export")
       .option("--issues <values>", "Comma-separated issue identifiers/ids to export")
       .option("--project-issues <values>", "Comma-separated project shortnames/ids whose issues should be exported")
+      .option("--expand-referenced-skills", "Vendor skill contents instead of exporting upstream references", false)
       .action(async (companyId: string, opts: CompanyExportOptions) => {
         try {
           const ctx = resolveCommandContext(opts);
@@ -289,11 +317,13 @@ export function registerCompanyCommands(program: Command): void {
               projects: parseCsvValues(opts.projects),
               issues: parseCsvValues(opts.issues),
               projectIssues: parseCsvValues(opts.projectIssues),
+              expandReferencedSkills: Boolean(opts.expandReferencedSkills),
             },
           );
           if (!exported) {
             throw new Error("Export request returned no data");
           }
+          await confirmOverwriteExportDirectory(opts.out!);
           await writeExportToFolder(opts.out!, exported);
           printOutput(
             {

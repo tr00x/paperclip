@@ -81,6 +81,27 @@ function stripFrontmatter(markdown: string) {
   return normalized.slice(closing + 5).trim();
 }
 
+function splitFrontmatter(markdown: string): { frontmatter: string | null; body: string } {
+  const normalized = markdown.replace(/\r\n/g, "\n");
+  if (!normalized.startsWith("---\n")) {
+    return { frontmatter: null, body: normalized };
+  }
+  const closing = normalized.indexOf("\n---\n", 4);
+  if (closing < 0) {
+    return { frontmatter: null, body: normalized };
+  }
+  return {
+    frontmatter: normalized.slice(4, closing).trim(),
+    body: normalized.slice(closing + 5).trimStart(),
+  };
+}
+
+function mergeFrontmatter(markdown: string, body: string) {
+  const parsed = splitFrontmatter(markdown);
+  if (!parsed.frontmatter) return body;
+  return ["---", parsed.frontmatter, "---", "", body].join("\n");
+}
+
 function buildTree(entries: CompanySkillFileInventoryEntry[]) {
   const root: SkillTreeNode = { name: "", path: null, kind: "dir", children: [] };
 
@@ -778,7 +799,7 @@ export function CompanySkills() {
   useEffect(() => {
     if (fileQuery.data) {
       setDisplayedFile(fileQuery.data);
-      setDraft(fileQuery.data.content);
+      setDraft(fileQuery.data.markdown ? splitFrontmatter(fileQuery.data.content).body : fileQuery.data.content);
     }
   }, [fileQuery.data]);
 
@@ -837,14 +858,19 @@ export function CompanySkills() {
   });
 
   const saveFile = useMutation({
-    mutationFn: () => companySkillsApi.updateFile(selectedCompanyId!, selectedSkillId!, selectedPath, draft),
+    mutationFn: () => companySkillsApi.updateFile(
+      selectedCompanyId!,
+      selectedSkillId!,
+      selectedPath,
+      activeFile?.markdown ? mergeFrontmatter(activeFile.content, draft) : draft,
+    ),
     onSuccess: async (result) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.companySkills.list(selectedCompanyId!) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.companySkills.detail(selectedCompanyId!, selectedSkillId!) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.companySkills.file(selectedCompanyId!, selectedSkillId!, selectedPath) }),
       ]);
-      setDraft(result.content);
+      setDraft(result.markdown ? splitFrontmatter(result.content).body : result.content);
       setEditMode(false);
       pushToast({
         tone: "success",

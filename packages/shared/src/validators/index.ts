@@ -36,6 +36,7 @@ export {
   portabilityEnvInputSchema,
   portabilityCompanyManifestEntrySchema,
   portabilityAgentManifestEntrySchema,
+  portabilitySkillManifestEntrySchema,
   portabilityManifestSchema,
   portabilitySourceSchema,
   portabilityTargetSchema,
