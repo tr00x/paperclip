@@ -83,4 +83,14 @@ export const queryKeys = {
   liveRuns: (companyId: string) => ["live-runs", companyId] as const,
   runIssues: (runId: string) => ["run-issues", runId] as const,
   org: (companyId: string) => ["org", companyId] as const,
+  plugins: {
+    all: ["plugins"] as const,
+    examples: ["plugins", "examples"] as const,
+    detail: (pluginId: string) => ["plugins", pluginId] as const,
+    health: (pluginId: string) => ["plugins", pluginId, "health"] as const,
+    uiContributions: ["plugins", "ui-contributions"] as const,
+    config: (pluginId: string) => ["plugins", pluginId, "config"] as const,
+    dashboard: (pluginId: string) => ["plugins", pluginId, "dashboard"] as const,
+    logs: (pluginId: string) => ["plugins", pluginId, "logs"] as const,
+  },
 };
