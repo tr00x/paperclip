@@ -541,6 +541,7 @@ If importing skills:
 - preserve Agent Skills compatibility in presentation and export
 - preserve `skills.sh` compatibility in both import and install flows
 - show agent skill attachments by shortname/slug rather than noisy file paths
+- treat agent skills as a dedicated agent tab, not just another subsection of configuration
 - show current adapter-reported skills when supported
 - show desired package skills separately from actual adapter state
 - offer reconcile actions when the adapter supports sync
@@ -570,6 +571,7 @@ If importing skills:
 - team subtree attach flow
 - licensing/trust/reference warnings
 - company skill library groundwork
+- dedicated agent `Skills` tab groundwork
 - adapter skill read/sync UI groundwork
 
 ### Phase 4: New Export Model

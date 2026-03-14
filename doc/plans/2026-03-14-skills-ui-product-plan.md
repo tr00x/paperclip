@@ -42,6 +42,16 @@ Current limitations:
 5. The current UI is adapter-sync-oriented, not package-oriented.
 6. Unsupported adapters degrade safely, but not elegantly.
 
+## 2.1 V1 Decisions
+
+For V1, this plan assumes the following product decisions are already made:
+
+1. `skills.sh` compatibility is required.
+2. Agent-to-skill association in `AGENTS.md` is by shortname or slug.
+3. Company skills and agent skill attachments are separate concepts.
+4. Agent skills should move to their own tab rather than living inside configuration.
+5. Company import/export should eventually round-trip skill packages and agent skill attachments.
+
 ## 3. Product Principles
 
 1. Skills are company assets first, agent attachments second.
@@ -97,6 +107,18 @@ Agent attachments should normally reference skills by shortname or slug, for exa
 
 not by noisy relative file path.
 
+## 4.3 Primary user jobs
+
+The UI should support these jobs cleanly:
+
+1. “Show me what skills this company has.”
+2. “Import a skill from GitHub or a local folder.”
+3. “See whether a skill is safe, compatible, and who uses it.”
+4. “Attach skills to an agent.”
+5. “See whether the adapter actually has those skills.”
+6. “Reconcile desired vs actual skill state.”
+7. “Understand what Paperclip knows vs what the adapter knows.”
+
 ## 5. Core UI Surfaces
 
 The product should have two primary skill surfaces.
@@ -113,6 +135,27 @@ Purpose:
 - import and inspect skill packages
 - understand provenance and trust
 - see which agents use which skills
+
+#### Route
+
+- `/companies/:companyId/skills`
+
+#### Primary actions
+
+- import skill
+- inspect skill
+- attach to agents
+- detach from agents
+- export selected skills later
+
+#### Empty state
+
+When the company has no managed skills:
+
+- explain what skills are
+- explain `skills.sh` / Agent Skills compatibility
+- offer `Import from GitHub` and `Import from folder`
+- optionally show adapter-discovered skills as a secondary “not managed yet” section
 
 #### A. Skill library list
 
@@ -146,6 +189,14 @@ Suggested trust states:
 - assets
 - scripts/executables
 
+Suggested list affordances:
+
+- search by name or slug
+- filter by source
+- filter by trust level
+- filter by usage
+- sort by name, recent import, usage count
+
 #### B. Import actions
 
 Allow:
@@ -159,6 +210,10 @@ Future:
 - install from `companies.sh`
 - install from `skills.sh`
 
+V1 requirement:
+
+- importing from a `skills.sh`-compatible source should work without requiring a Paperclip-specific package layout
+
 #### C. Skill detail drawer or page
 
 Each skill should have a detail view showing:
@@ -170,9 +225,34 @@ Each skill should have a detail view showing:
 - who uses it
 - adapter compatibility notes
 
-### 5.2 Agent Skills panel
+Recommended route:
 
-Keep and evolve the existing `AgentDetail` skills section.
+- `/companies/:companyId/skills/:skillId`
+
+Recommended sections:
+
+- Overview
+- Contents
+- Usage
+- Source
+- Trust / licensing
+
+#### D. Usage view
+
+Each company skill should show which agents use it.
+
+Suggested columns:
+
+- agent
+- desired state
+- actual state
+- adapter
+- sync mode
+- last sync status
+
+### 5.2 Agent Skills tab
+
+Keep and evolve the existing `AgentDetail` skill sync UI, but move it out of configuration.
 
 Purpose:
 
@@ -180,6 +260,42 @@ Purpose:
 - inspect adapter reality for that agent
 - reconcile desired vs actual state
 - keep the association format readable and aligned with `AGENTS.md`
+
+#### Route
+
+- `/agents/:agentId/skills`
+
+#### Agent tabs
+
+The intended agent-level tab model becomes:
+
+- `dashboard`
+- `configuration`
+- `skills`
+- `runs`
+
+This is preferable to hiding skills inside configuration because:
+
+- skills are not just adapter config
+- skills need their own sync/status language
+- skills are a reusable company asset, not merely one agent field
+- the screen needs room for desired vs actual state, warnings, and external skill adoption
+
+#### Tab layout
+
+The `Skills` tab should have three stacked sections:
+
+1. Summary
+2. Managed skills
+3. External / discovered skills
+
+Summary should show:
+
+- adapter sync support
+- sync mode
+- number of managed skills
+- number of external skills
+- drift or warning count
 
 #### A. Desired skills
 
@@ -193,6 +309,13 @@ Each row should show:
 - source
 - last adapter observation if available
 
+Each row should support:
+
+- enable / disable
+- open skill detail
+- see source badge
+- see sync badge
+
 #### B. External or discovered skills
 
 Show skills reported by the adapter that are not company-managed.
@@ -203,6 +326,12 @@ These should be clearly marked:
 
 - external
 - not managed by Paperclip
+
+Each external row should support:
+
+- inspect
+- adopt into company library later
+- attach as managed skill later if appropriate
 
 #### C. Sync controls
 
@@ -216,6 +345,12 @@ Future:
 
 - import external skill into company library
 - promote ad hoc local skill into a managed company skill
+
+Recommended footer actions:
+
+- `Sync skills`
+- `Reset`
+- `Refresh adapter state`
 
 ## 6. Skill State Model In The UI
 
@@ -238,6 +373,15 @@ Definitions:
 - `drifted`: adapter has a conflicting or unexpected version/location
 - `unmanaged`: adapter does not support sync, Paperclip only tracks desired state
 - `unknown`: adapter read failed or state cannot be trusted
+
+Suggested badge copy:
+
+- `In sync`
+- `Needs sync`
+- `External`
+- `Drifted`
+- `Unmanaged`
+- `Unknown`
 
 ## 7. Adapter Presentation Rules
 
@@ -280,23 +424,43 @@ This state should still allow:
 - attaching company skills to the agent as desired state
 - export/import of those desired attachments
 
+## 7.4 Read-only adapters
+
+Some adapters may be able to list skills but not mutate them.
+
+Language:
+
+- Paperclip can see adapter skills
+- this adapter does not support applying changes
+- desired state can be tracked, but reconciliation is manual
+
 ## 8. Information Architecture
 
 Recommended navigation:
 
 - company nav adds `Skills`
-- agent detail keeps `Skills` inside configuration for now
-
-Later, if the skill system grows:
-
-- company-level `Skills` page
-- optional skill detail route
-- optional skill usage graph view
+- agent detail adds `Skills` as its own tab
+- company skill detail gets its own route when the company library ships
 
 Recommended separation:
 
 - Company Skills page answers: “What skills do we have?”
-- Agent Skills panel answers: “What does this agent use, and is it synced?”
+- Agent Skills tab answers: “What does this agent use, and is it synced?”
+
+## 8.1 Proposed route map
+
+- `/companies/:companyId/skills`
+- `/companies/:companyId/skills/:skillId`
+- `/agents/:agentId/skills`
+
+## 8.2 Nav and discovery
+
+Recommended entry points:
+
+- company sidebar: `Skills`
+- agent page tabs: `Skills`
+- company import preview: link imported skills to company skills page later
+- agent skills rows: link to company skill detail
 
 ## 9. Import / Export Integration
 
@@ -315,6 +479,35 @@ Export behavior:
 - `AGENTS.md` should emit skill associations by shortname or slug
 - `.paperclip.yaml` may add Paperclip-specific skill fidelity later if needed, but should not be required for ordinary agent-to-skill association
 - adapter-only external skills should not be silently exported as managed company skills
+
+## 9.1 Import workflows
+
+V1 workflows should support:
+
+1. import one or more skills from a local folder
+2. import one or more skills from a GitHub repo
+3. import a company package that contains skills
+4. attach imported skills to one or more agents
+
+Import preview for skills should show:
+
+- skills discovered
+- source and pinning
+- trust level
+- licensing warnings
+- whether an existing company skill will be created, updated, or skipped
+
+## 9.2 Export workflows
+
+V1 should support:
+
+1. export a company with managed skills included when selected
+2. export an agent whose `AGENTS.md` contains shortname skill associations
+3. preserve Agent Skills compatibility for each `SKILL.md`
+
+Out of scope for V1:
+
+- exporting adapter-only external skills as managed packages automatically
 
 ## 10. Data And API Shape
 
@@ -351,13 +544,127 @@ Adapter reads should return:
 
 This already exists in rough form and should be the basis for the UI.
 
-## 11. UI Phases
+### 10.4 UI-facing API needs
+
+The complete UI implies these API surfaces:
+
+- list company-managed skills
+- import company skills from path/URL/GitHub
+- get one company skill detail
+- list agents using a given skill
+- attach/detach company skills for an agent
+- list adapter sync snapshot for an agent
+- apply desired skills for an agent
+
+Existing agent-level skill sync APIs can remain the base for the agent tab.
+The company-level library APIs still need to be designed and implemented.
+
+## 11. Page-by-page UX
+
+### 11.1 Company Skills list page
+
+Header:
+
+- title
+- short explanation of compatibility with Agent Skills / `skills.sh`
+- import button
+
+Body:
+
+- filters
+- skill table or cards
+- empty state when none
+
+Secondary content:
+
+- warnings panel for untrusted or incompatible skills
+
+### 11.2 Company Skill detail page
+
+Header:
+
+- skill name
+- shortname
+- source badge
+- trust badge
+- compatibility badge
+
+Sections:
+
+- rendered `SKILL.md`
+- files and references
+- usage by agents
+- source / provenance
+- trust and licensing warnings
+
+Actions:
+
+- attach to agent
+- remove from company library later
+- export later
+
+### 11.3 Agent Skills tab
+
+Header:
+
+- adapter support summary
+- sync mode
+- refresh and sync actions
+
+Body:
+
+- managed skills list
+- external/discovered skills list
+- warnings / unsupported state block
+
+## 12. States And Empty Cases
+
+### 12.1 Company Skills page
+
+States:
+
+- empty
+- loading
+- loaded
+- import in progress
+- import failed
+
+### 12.2 Company Skill detail
+
+States:
+
+- loading
+- not found
+- incompatible
+- loaded
+
+### 12.3 Agent Skills tab
+
+States:
+
+- loading snapshot
+- unsupported adapter
+- read-only adapter
+- sync-capable adapter
+- sync failed
+- stale draft
+
+## 13. Permissions And Governance
+
+Suggested V1 policy:
+
+- board users can manage company skills
+- board users can attach skills to agents
+- agents themselves do not mutate company skill library by default
+- later, certain agents may get scoped permissions for skill attachment or sync
+
+## 14. UI Phases
 
 ### Phase A: Stabilize current agent skill sync UI
 
 Goals:
 
-- keep current `AgentDetail` panel
+- move skills to an `AgentDetail` tab
 - improve status language
 - support desired-only state even on unsupported adapters
 - polish copy for persistent vs ephemeral adapters
@@ -370,6 +677,7 @@ Goals:
 - import from GitHub/local folder
 - basic detail view
 - usage counts by agent
+- `skills.sh`-compatible import path
 
 ### Phase C: Connect skills to portability
 
@@ -377,7 +685,7 @@ Goals:
 
 - importing company packages creates company skills
 - exporting selected skills works cleanly
-- agent attachments round-trip through `.paperclip.yaml`
+- agent attachments round-trip primarily through `AGENTS.md` shortnames
 
 ### Phase D: External skill adoption flow
 
@@ -395,18 +703,19 @@ Goals:
 - drift resolution actions
 - multi-agent skill usage and sync reporting
 
-## 12. Design Risks
+## 15. Design Risks
 
 1. Overloading the agent page with package management will make the feature confusing.
 2. Treating unsupported adapters as broken rather than unmanaged will make the product feel inconsistent.
 3. Mixing external adapter-discovered skills with company-managed skills without clear labels will erode trust.
 4. If company skill records do not exist, import/export and UI will remain loosely coupled and round-trip fidelity will stay weak.
+5. If agent skill associations are path-based instead of shortname-based, the format will feel too technical and too Paperclip-specific.
 
-## 13. Recommendation
+## 16. Recommendation
 
 The next product step should be:
 
-1. keep the current agent-level skill sync panel as the short-term attachment UI
+1. move skills out of agent configuration and into a dedicated `Skills` tab
 2. add a dedicated company-level `Skills` page as the library and package-management surface
 3. make company import/export target that company skill library, not the agent page directly
 4. preserve adapter-aware truth in the UI by clearly separating:
@@ -414,5 +723,6 @@ The next product step should be:
    - actual
    - external
    - unmanaged
+5. keep agent-to-skill associations shortname-based in `AGENTS.md`
 
 That gives Paperclip one coherent skill story instead of forcing package management, adapter sync, and agent configuration into the same screen.
