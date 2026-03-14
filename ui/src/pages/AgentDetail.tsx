@@ -1215,7 +1215,7 @@ function AgentSkillsTab({
   return (
     <div className="max-w-5xl space-y-6">
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="border-b border-border bg-[linear-gradient(135deg,rgba(14,165,233,0.08),transparent_45%),linear-gradient(315deg,rgba(16,185,129,0.08),transparent_45%)] px-5 py-5">
+        <div className="border-b border-border bg-card px-5 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">

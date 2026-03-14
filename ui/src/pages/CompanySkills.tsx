@@ -153,7 +153,7 @@ function SkillDetailPanel({
   return (
     <div className="space-y-5">
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="border-b border-border bg-[linear-gradient(135deg,rgba(24,24,27,0.02),rgba(24,24,27,0.06))] px-5 py-4 dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.03),rgba(255,255,255,0.06))]">
+        <div className="border-b border-border bg-card px-5 py-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
@@ -180,7 +180,7 @@ function SkillDetailPanel({
           <div className="min-w-0">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-sm font-medium">SKILL.md</h3>
-              {detail.sourceLocator && (
+              {detail.sourceLocator?.startsWith("http") ? (
                 <a
                   href={detail.sourceLocator}
                   target="_blank"
@@ -190,7 +190,11 @@ function SkillDetailPanel({
                   Open source
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </a>
-              )}
+              ) : detail.sourceLocator ? (
+                <span className="truncate text-xs font-mono text-muted-foreground">
+                  {detail.sourceLocator}
+                </span>
+              ) : null}
             </div>
             <div className="rounded-xl border border-border/70 bg-background px-4 py-4">
               <MarkdownBody>{markdownBody}</MarkdownBody>
@@ -318,7 +322,7 @@ export function CompanySkills() {
   return (
     <div className="space-y-5">
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="border-b border-border bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.10),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.10),transparent_40%)] px-5 py-5">
+        <div className="border-b border-border bg-card px-5 py-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -362,7 +366,7 @@ export function CompanySkills() {
               <Input
                 value={source}
                 onChange={(event) => setSource(event.target.value)}
-                placeholder="Local path, GitHub repo/tree/blob URL, or direct SKILL.md URL"
+                placeholder="Path, GitHub URL, npx skills add ..., or owner/repo/skill"
                 className="h-10"
               />
             </div>

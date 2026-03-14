@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { and, asc, eq } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { companySkills } from "@paperclipai/db";
@@ -37,6 +38,12 @@ type ImportedSkill = {
   metadata: Record<string, unknown> | null;
 };
 
+type ParsedSkillImportSource = {
+  resolvedSource: string;
+  requestedSkillSlug: string | null;
+  warnings: string[];
+};
+
 function asString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -49,6 +56,10 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizePortablePath(input: string) {
   return input.replace(/\\/g, "/").replace(/^\.\/+/, "").replace(/^\/+/, "");
+}
+
+function normalizeSkillSlug(value: string | null | undefined) {
+  return value ? normalizeAgentUrlKey(value) ?? null : null;
 }
 
 function classifyInventoryKind(relativePath: string): CompanySkillFileInventoryEntry["kind"] {
@@ -251,6 +262,90 @@ function resolveRawGitHubUrl(owner: string, repo: string, ref: string, filePath:
   return `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${filePath.replace(/^\/+/, "")}`;
 }
 
+function extractCommandTokens(raw: string) {
+  const matches = raw.match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
+  return matches.map((token) => token.replace(/^['"]|['"]$/g, ""));
+}
+
+export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImportSource {
+  const trimmed = rawInput.trim();
+  if (!trimmed) {
+    throw unprocessable("Skill source is required.");
+  }
+
+  const warnings: string[] = [];
+  let source = trimmed;
+  let requestedSkillSlug: string | null = null;
+
+  if (/^npx\s+skills\s+add\s+/i.test(trimmed)) {
+    const tokens = extractCommandTokens(trimmed);
+    const addIndex = tokens.findIndex(
+      (token, index) =>
+        token === "add"
+        && index > 0
+        && tokens[index - 1]?.toLowerCase() === "skills",
+    );
+    if (addIndex >= 0) {
+      source = tokens[addIndex + 1] ?? "";
+      for (let index = addIndex + 2; index < tokens.length; index += 1) {
+        const token = tokens[index]!;
+        if (token === "--skill") {
+          requestedSkillSlug = normalizeSkillSlug(tokens[index + 1] ?? null);
+          index += 1;
+          continue;
+        }
+        if (token.startsWith("--skill=")) {
+          requestedSkillSlug = normalizeSkillSlug(token.slice("--skill=".length));
+        }
+      }
+      warnings.push("Parsed a skills.sh command. Paperclip imports the referenced skill package without executing shell input.");
+    }
+  }
+
+  const normalizedSource = source.trim();
+  if (!normalizedSource) {
+    throw unprocessable("Skill source is required.");
+  }
+
+  if (!/^https?:\/\//i.test(normalizedSource) && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(normalizedSource)) {
+    const [owner, repo, skillSlugRaw] = normalizedSource.split("/");
+    return {
+      resolvedSource: `https://github.com/${owner}/${repo}`,
+      requestedSkillSlug: normalizeSkillSlug(skillSlugRaw),
+      warnings,
+    };
+  }
+
+  if (!/^https?:\/\//i.test(normalizedSource) && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(normalizedSource)) {
+    return {
+      resolvedSource: `https://github.com/${normalizedSource}`,
+      requestedSkillSlug,
+      warnings,
+    };
+  }
+
+  return {
+    resolvedSource: normalizedSource,
+    requestedSkillSlug,
+    warnings,
+  };
+}
+
+function resolveBundledSkillsRoot() {
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  return [
+    path.resolve(moduleDir, "../../skills"),
+    path.resolve(process.cwd(), "skills"),
+    path.resolve(moduleDir, "../../../skills"),
+  ];
+}
+
+function matchesRequestedSkill(relativeSkillPath: string, requestedSkillSlug: string | null) {
+  if (!requestedSkillSlug) return true;
+  const skillDir = path.posix.dirname(relativeSkillPath);
+  return normalizeSkillSlug(path.posix.basename(skillDir)) === requestedSkillSlug;
+}
+
 async function walkLocalFiles(root: string, current: string, out: string[]) {
   const entries = await fs.readdir(current, { withFileTypes: true });
   for (const entry of entries) {
@@ -336,7 +431,10 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
   return imports;
 }
 
-async function readUrlSkillImports(sourceUrl: string): Promise<{ skills: ImportedSkill[]; warnings: string[] }> {
+async function readUrlSkillImports(
+  sourceUrl: string,
+  requestedSkillSlug: string | null = null,
+): Promise<{ skills: ImportedSkill[]; warnings: string[] }> {
   const url = sourceUrl.trim();
   const warnings: string[] = [];
   if (url.includes("github.com/")) {
@@ -369,9 +467,15 @@ async function readUrlSkillImports(sourceUrl: string): Promise<{ skills: Importe
     const filteredPaths = parsed.filePath
       ? relativePaths.filter((entry) => entry === path.posix.relative(parsed.basePath || ".", parsed.filePath!))
       : relativePaths;
-    const skillPaths = filteredPaths.filter((entry) => path.posix.basename(entry).toLowerCase() === "skill.md");
+    const skillPaths = filteredPaths.filter(
+      (entry) => path.posix.basename(entry).toLowerCase() === "skill.md" && matchesRequestedSkill(entry, requestedSkillSlug),
+    );
     if (skillPaths.length === 0) {
-      throw unprocessable("No SKILL.md files were found in the provided GitHub source.");
+      throw unprocessable(
+        requestedSkillSlug
+          ? `Skill ${requestedSkillSlug} was not found in the provided GitHub source.`
+          : "No SKILL.md files were found in the provided GitHub source.",
+      );
     }
     const skills: ImportedSkill[] = [];
     for (const relativeSkillPath of skillPaths) {
@@ -467,7 +571,19 @@ export function companySkillService(db: Db) {
   const agents = agentService(db);
   const secretsSvc = secretService(db);
 
+  async function ensureBundledSkills(companyId: string) {
+    for (const skillsRoot of resolveBundledSkillsRoot()) {
+      const stats = await fs.stat(skillsRoot).catch(() => null);
+      if (!stats?.isDirectory()) continue;
+      const bundledSkills = await readLocalSkillImports(skillsRoot).catch(() => [] as ImportedSkill[]);
+      if (bundledSkills.length === 0) continue;
+      return upsertImportedSkills(companyId, bundledSkills);
+    }
+    return [];
+  }
+
   async function list(companyId: string): Promise<CompanySkillListItem[]> {
+    await ensureBundledSkills(companyId);
     const rows = await db
       .select()
       .from(companySkills)
@@ -551,6 +667,7 @@ export function companySkillService(db: Db) {
   }
 
   async function detail(companyId: string, id: string): Promise<CompanySkillDetail | null> {
+    await ensureBundledSkills(companyId);
     const skill = await getById(id);
     if (!skill || skill.companyId !== companyId) return null;
     const usedByAgents = await usage(companyId, skill.slug);
@@ -599,15 +716,31 @@ export function companySkillService(db: Db) {
   }
 
   async function importFromSource(companyId: string, source: string): Promise<CompanySkillImportResult> {
-    const trimmed = source.trim();
-    if (!trimmed) {
-      throw unprocessable("Skill source is required.");
-    }
-    const local = !/^https?:\/\//i.test(trimmed);
+    await ensureBundledSkills(companyId);
+    const parsed = parseSkillImportSourceInput(source);
+    const local = !/^https?:\/\//i.test(parsed.resolvedSource);
     const { skills, warnings } = local
-      ? { skills: await readLocalSkillImports(trimmed), warnings: [] as string[] }
-      : await readUrlSkillImports(trimmed);
-    const imported = await upsertImportedSkills(companyId, skills);
+      ? {
+        skills: (await readLocalSkillImports(parsed.resolvedSource))
+          .filter((skill) => !parsed.requestedSkillSlug || skill.slug === parsed.requestedSkillSlug),
+        warnings: parsed.warnings,
+      }
+      : await readUrlSkillImports(parsed.resolvedSource, parsed.requestedSkillSlug)
+        .then((result) => ({
+          skills: result.skills,
+          warnings: [...parsed.warnings, ...result.warnings],
+        }));
+    const filteredSkills = parsed.requestedSkillSlug
+      ? skills.filter((skill) => skill.slug === parsed.requestedSkillSlug)
+      : skills;
+    if (filteredSkills.length === 0) {
+      throw unprocessable(
+        parsed.requestedSkillSlug
+          ? `Skill ${parsed.requestedSkillSlug} was not found in the provided source.`
+          : "No skills were found in the provided source.",
+      );
+    }
+    const imported = await upsertImportedSkills(companyId, filteredSkills);
     return { imported, warnings };
   }
 
