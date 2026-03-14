@@ -12,7 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { PluginSlotOutlet } from "@/plugins/slots";
 
 export function BreadcrumbBar() {
@@ -20,7 +20,29 @@ export function BreadcrumbBar() {
   const { toggleSidebar, isMobile } = useSidebar();
   const { selectedCompanyId, selectedCompany } = useCompany();
 
-  if (breadcrumbs.length === 0) return null;
+  const globalToolbarSlotContext = useMemo(
+    () => ({
+      companyId: selectedCompanyId ?? null,
+      companyPrefix: selectedCompany?.issuePrefix ?? null,
+    }),
+    [selectedCompanyId, selectedCompany?.issuePrefix],
+  );
+
+  const globalToolbarSlots = (
+    <PluginSlotOutlet
+      slotTypes={["toolbarButton"]}
+      context={globalToolbarSlotContext}
+      className="flex items-center gap-1 ml-auto shrink-0 pl-2"
+    />
+  );
+
+  if (breadcrumbs.length === 0) {
+    return (
+      <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center justify-end">
+        {globalToolbarSlots}
+      </div>
+    );
+  }
 
   const menuButton = isMobile && (
     <Button
@@ -32,17 +54,6 @@ export function BreadcrumbBar() {
     >
       <Menu className="h-5 w-5" />
     </Button>
-  );
-
-  const globalToolbarSlots = (
-    <PluginSlotOutlet
-      slotTypes={["toolbarButton"]}
-      context={{
-        companyId: selectedCompanyId ?? null,
-        companyPrefix: selectedCompany?.issuePrefix ?? null,
-      }}
-      className="flex items-center gap-1 ml-auto shrink-0 pl-2"
-    />
   );
 
   // Single breadcrumb = page title (uppercase)
