@@ -102,7 +102,7 @@ export const issueDocumentKeySchema = z
 export const upsertIssueDocumentSchema = z.object({
   title: z.string().trim().max(200).nullable().optional(),
   format: issueDocumentFormatSchema,
-  body: z.string(),
+  body: z.string().max(524288),
   changeSummary: z.string().trim().max(500).nullable().optional(),
   baseRevisionId: z.string().uuid().nullable().optional(),
 });
