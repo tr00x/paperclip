@@ -126,7 +126,7 @@ const hermesLocalAdapter: ServerAdapterModule = {
   testEnvironment: hermesTestEnvironment,
   sessionCodec: hermesSessionCodec,
   models: hermesModels,
-  supportsLocalAgentJwt: false,
+  supportsLocalAgentJwt: true,
   agentConfigurationDoc: hermesAgentConfigurationDoc,
 };
 
