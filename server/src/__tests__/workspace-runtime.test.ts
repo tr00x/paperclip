@@ -10,6 +10,7 @@ import {
   normalizeAdapterManagedRuntimeServices,
   realizeExecutionWorkspace,
   releaseRuntimeServicesForRun,
+  stopRuntimeServicesForExecutionWorkspace,
   type RealizedExecutionWorkspace,
 } from "../services/workspace-runtime.ts";
 
@@ -456,6 +457,60 @@ describe("ensureRuntimeServicesForRun", () => {
     expect(captured.customEnv).toBe("from-adapter");
     expect(captured.port).toMatch(/^\d+$/);
     expect(services[0]?.executionWorkspaceId).toBe("execution-workspace-1");
+  });
+
+  it("stops execution workspace runtime services by executionWorkspaceId", async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-stop-"));
+    const workspace = buildWorkspace(workspaceRoot);
+    const runId = "run-stop";
+    leasedRunIds.add(runId);
+
+    const services = await ensureRuntimeServicesForRun({
+      runId,
+      agent: {
+        id: "agent-1",
+        name: "Codex Coder",
+        companyId: "company-1",
+      },
+      issue: null,
+      workspace,
+      executionWorkspaceId: "execution-workspace-stop",
+      config: {
+        workspaceRuntime: {
+          services: [
+            {
+              name: "web",
+              command:
+                "node -e \"require('node:http').createServer((req,res)=>res.end('ok')).listen(Number(process.env.PORT), '127.0.0.1')\"",
+              port: { type: "auto" },
+              readiness: {
+                type: "http",
+                urlTemplate: "http://127.0.0.1:{{port}}",
+                timeoutSec: 10,
+                intervalMs: 100,
+              },
+              lifecycle: "shared",
+              reuseScope: "execution_workspace",
+              stopPolicy: {
+                type: "manual",
+              },
+            },
+          ],
+        },
+      },
+      adapterEnv: {},
+    });
+
+    expect(services[0]?.url).toBeTruthy();
+    await stopRuntimeServicesForExecutionWorkspace({
+      executionWorkspaceId: "execution-workspace-stop",
+      workspaceCwd: workspace.cwd,
+    });
+    await releaseRuntimeServicesForRun(runId);
+    leasedRunIds.delete(runId);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    await expect(fetch(services[0]!.url!)).rejects.toThrow();
   });
 });
 

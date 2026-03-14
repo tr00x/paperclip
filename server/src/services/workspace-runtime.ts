@@ -249,6 +249,21 @@ async function directoryExists(value: string) {
   return fs.stat(value).then((stats) => stats.isDirectory()).catch(() => false);
 }
 
+function terminateChildProcess(child: ChildProcess) {
+  if (!child.pid) return;
+  if (process.platform !== "win32") {
+    try {
+      process.kill(-child.pid, "SIGTERM");
+      return;
+    } catch {
+      // Fall through to the direct child kill.
+    }
+  }
+  if (!child.killed) {
+    child.kill("SIGTERM");
+  }
+}
+
 function buildWorkspaceCommandEnv(input: {
   base: ExecutionWorkspaceInput;
   repoRoot: string;
@@ -528,12 +543,12 @@ export async function cleanupExecutionWorkspaceArtifacts(input: {
   }
 
   if (input.workspace.providerType === "git_worktree" && workspacePath) {
+    const repoRoot = await resolveGitRepoRootForWorkspaceCleanup(
+      workspacePath,
+      input.projectWorkspace?.cwd ?? null,
+    );
     const worktreeExists = await directoryExists(workspacePath);
     if (worktreeExists) {
-      const repoRoot = await resolveGitRepoRootForWorkspaceCleanup(
-        workspacePath,
-        input.projectWorkspace?.cwd ?? null,
-      );
       if (!repoRoot) {
         warnings.push(`Could not resolve git repo root for "${workspacePath}".`);
       } else {
@@ -542,12 +557,16 @@ export async function cleanupExecutionWorkspaceArtifacts(input: {
         } catch (err) {
           warnings.push(err instanceof Error ? err.message : String(err));
         }
-        if (createdByRuntime && input.workspace.branchName) {
-          try {
-            await runGit(["branch", "-D", input.workspace.branchName], repoRoot);
-          } catch (err) {
-            warnings.push(err instanceof Error ? err.message : String(err));
-          }
+      }
+    }
+    if (createdByRuntime && input.workspace.branchName) {
+      if (!repoRoot) {
+        warnings.push(`Could not resolve git repo root to delete branch "${input.workspace.branchName}".`);
+      } else {
+        try {
+          await runGit(["branch", "-D", input.workspace.branchName], repoRoot);
+        } catch (err) {
+          warnings.push(err instanceof Error ? err.message : String(err));
         }
       }
     }
@@ -859,7 +878,7 @@ async function startLocalRuntimeService(input: {
   const child = spawn(shell, ["-lc", command], {
     cwd: serviceCwd,
     env,
-    detached: false,
+    detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
   });
   let stderrExcerpt = "";
@@ -885,7 +904,7 @@ async function startLocalRuntimeService(input: {
   try {
     await waitForReadiness({ service: input.service, url });
   } catch (err) {
-    child.kill("SIGTERM");
+    terminateChildProcess(child);
     throw new Error(
       `Failed to start runtime service "${serviceName}": ${err instanceof Error ? err.message : String(err)}${stderrExcerpt ? ` | stderr: ${stderrExcerpt.trim()}` : ""}`,
     );
@@ -944,8 +963,8 @@ async function stopRuntimeService(serviceId: string) {
   record.status = "stopped";
   record.lastUsedAt = new Date().toISOString();
   record.stoppedAt = new Date().toISOString();
-  if (record.child && !record.child.killed) {
-    record.child.kill("SIGTERM");
+  if (record.child && record.child.pid) {
+    terminateChildProcess(record.child);
   }
   runtimeServicesById.delete(serviceId);
   if (record.reuseKey) {
