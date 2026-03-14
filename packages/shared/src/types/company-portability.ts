@@ -1,13 +1,18 @@
 export interface CompanyPortabilityInclude {
   company: boolean;
   agents: boolean;
+  projects: boolean;
+  issues: boolean;
 }
 
-export interface CompanyPortabilitySecretRequirement {
+export interface CompanyPortabilityEnvInput {
   key: string;
   description: string | null;
   agentSlug: string | null;
-  providerHint: string | null;
+  kind: "secret" | "plain";
+  requirement: "required" | "optional";
+  defaultValue: string | null;
+  portability: "portable" | "system_dependent";
 }
 
 export interface CompanyPortabilityCompanyManifestEntry {
@@ -16,6 +21,38 @@ export interface CompanyPortabilityCompanyManifestEntry {
   description: string | null;
   brandColor: string | null;
   requireBoardApprovalForNewAgents: boolean;
+}
+
+export interface CompanyPortabilityProjectManifestEntry {
+  slug: string;
+  name: string;
+  path: string;
+  description: string | null;
+  ownerAgentSlug: string | null;
+  leadAgentSlug: string | null;
+  targetDate: string | null;
+  color: string | null;
+  status: string | null;
+  executionWorkspacePolicy: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface CompanyPortabilityIssueManifestEntry {
+  slug: string;
+  identifier: string | null;
+  title: string;
+  path: string;
+  projectSlug: string | null;
+  assigneeAgentSlug: string | null;
+  description: string | null;
+  recurrence: Record<string, unknown> | null;
+  status: string | null;
+  priority: string | null;
+  labelIds: string[];
+  billingCode: string | null;
+  executionWorkspaceSettings: Record<string, unknown> | null;
+  assigneeAdapterOverrides: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface CompanyPortabilityAgentManifestEntry {
@@ -45,7 +82,9 @@ export interface CompanyPortabilityManifest {
   includes: CompanyPortabilityInclude;
   company: CompanyPortabilityCompanyManifestEntry | null;
   agents: CompanyPortabilityAgentManifestEntry[];
-  requiredSecrets: CompanyPortabilitySecretRequirement[];
+  projects: CompanyPortabilityProjectManifestEntry[];
+  issues: CompanyPortabilityIssueManifestEntry[];
+  envInputs: CompanyPortabilityEnvInput[];
 }
 
 export interface CompanyPortabilityExportResult {
@@ -53,6 +92,7 @@ export interface CompanyPortabilityExportResult {
   manifest: CompanyPortabilityManifest;
   files: Record<string, string>;
   warnings: string[];
+  paperclipExtensionPath: string;
 }
 
 export type CompanyPortabilitySource =
@@ -100,6 +140,21 @@ export interface CompanyPortabilityPreviewAgentPlan {
   reason: string | null;
 }
 
+export interface CompanyPortabilityPreviewProjectPlan {
+  slug: string;
+  action: "create" | "update" | "skip";
+  plannedName: string;
+  existingProjectId: string | null;
+  reason: string | null;
+}
+
+export interface CompanyPortabilityPreviewIssuePlan {
+  slug: string;
+  action: "create" | "skip";
+  plannedTitle: string;
+  reason: string | null;
+}
+
 export interface CompanyPortabilityPreviewResult {
   include: CompanyPortabilityInclude;
   targetCompanyId: string | null;
@@ -109,8 +164,10 @@ export interface CompanyPortabilityPreviewResult {
   plan: {
     companyAction: "none" | "create" | "update";
     agentPlans: CompanyPortabilityPreviewAgentPlan[];
+    projectPlans: CompanyPortabilityPreviewProjectPlan[];
+    issuePlans: CompanyPortabilityPreviewIssuePlan[];
   };
-  requiredSecrets: CompanyPortabilitySecretRequirement[];
+  envInputs: CompanyPortabilityEnvInput[];
   warnings: string[];
   errors: string[];
 }
@@ -130,10 +187,13 @@ export interface CompanyPortabilityImportResult {
     name: string;
     reason: string | null;
   }[];
-  requiredSecrets: CompanyPortabilitySecretRequirement[];
+  envInputs: CompanyPortabilityEnvInput[];
   warnings: string[];
 }
 
 export interface CompanyPortabilityExportRequest {
   include?: Partial<CompanyPortabilityInclude>;
+  projects?: string[];
+  issues?: string[];
+  projectIssues?: string[];
 }

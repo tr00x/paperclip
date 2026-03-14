@@ -70,9 +70,11 @@ export type {
 } from "./access.js";
 export type {
   CompanyPortabilityInclude,
-  CompanyPortabilitySecretRequirement,
+  CompanyPortabilityEnvInput,
   CompanyPortabilityCompanyManifestEntry,
   CompanyPortabilityAgentManifestEntry,
+  CompanyPortabilityProjectManifestEntry,
+  CompanyPortabilityIssueManifestEntry,
   CompanyPortabilityManifest,
   CompanyPortabilityExportResult,
   CompanyPortabilitySource,
@@ -81,6 +83,8 @@ export type {
   CompanyPortabilityCollisionStrategy,
   CompanyPortabilityPreviewRequest,
   CompanyPortabilityPreviewAgentPlan,
+  CompanyPortabilityPreviewProjectPlan,
+  CompanyPortabilityPreviewIssuePlan,
   CompanyPortabilityPreviewResult,
   CompanyPortabilityImportRequest,
   CompanyPortabilityImportResult,

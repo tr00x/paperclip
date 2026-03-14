@@ -1,16 +1,18 @@
-# Company Packages Specification
+# Agent Companies Specification
 
 Extension of the Agent Skills Specification
 
-Version: `0.1-draft`
+Version: `agentcompanies/v1-draft`
 
 ## 1. Purpose
 
-A Company Package is a filesystem- and GitHub-native format for describing a company, team, agent, and associated skills using markdown files with YAML frontmatter.
+An Agent Company package is a filesystem- and GitHub-native format for describing a company, team, agent, project, task, and associated skills using markdown files with YAML frontmatter.
 
 This specification is an extension of the Agent Skills specification, not a replacement for it.
 
 It defines how company-, team-, and agent-level package structure composes around the existing `SKILL.md` model.
+
+This specification is vendor-neutral. It is intended to be usable by any agent-company runtime, not only Paperclip.
 
 The format is designed to:
 
@@ -30,6 +32,8 @@ The format is designed to:
 5. External references must be pinnable to immutable Git commits.
 6. Attribution and license metadata must survive import/export.
 7. Slugs and relative paths are the portable identity layer, not database ids.
+8. Conventional folder structure should work without verbose wiring.
+9. Vendor-specific fidelity belongs in optional extensions, not the base package.
 
 ## 3. Package Kinds
 
@@ -38,6 +42,8 @@ A package root is identified by one primary markdown file:
 - `COMPANY.md` for a company package
 - `TEAM.md` for a team package
 - `AGENTS.md` for an agent package
+- `PROJECT.md` for a project package
+- `TASK.md` for a task package
 - `SKILL.md` for a skill package defined by the Agent Skills specification
 
 A GitHub repo may contain one package at root or many packages in subdirectories.
@@ -50,11 +56,17 @@ Common conventions:
 COMPANY.md
 TEAM.md
 AGENTS.md
+PROJECT.md
+TASK.md
 SKILL.md
 
 agents/<slug>/AGENTS.md
 teams/<slug>/TEAM.md
+projects/<slug>/PROJECT.md
+projects/<slug>/tasks/<slug>/TASK.md
+tasks/<slug>/TASK.md
 skills/<slug>/SKILL.md
+.paperclip.yaml
 
 HEARTBEAT.md
 SOUL.md
@@ -73,11 +85,11 @@ Rules:
 
 ## 5. Common Frontmatter
 
-All package root docs should support these fields:
+Package docs may support these fields:
 
 ```yaml
-schema: company-packages/v0.1
-kind: company | team | agent
+schema: agentcompanies/v1
+kind: company | team | agent | project | task
 slug: my-slug
 name: Human Readable Name
 description: Short description
@@ -95,11 +107,12 @@ sources: []
 
 Notes:
 
-- `schema` is required for `COMPANY.md`, `TEAM.md`, and `AGENTS.md`
-- `kind` is required
+- `schema` is optional and should usually appear only at the package root
+- `kind` is optional when file path and file name already make the kind obvious
 - `slug` should be URL-safe and stable
 - `sources` is for provenance and external references
 - `metadata` is for tool-specific extensions
+- exporters should omit empty or default-valued fields
 
 ## 6. COMPANY.md
 
@@ -108,11 +121,10 @@ Notes:
 ### Required fields
 
 ```yaml
-schema: company-packages/v0.1
-kind: company
-slug: lean-dev-shop
 name: Lean Dev Shop
 description: Small engineering-focused AI company
+slug: lean-dev-shop
+schema: agentcompanies/v1
 ```
 
 ### Recommended fields
@@ -122,15 +134,10 @@ version: 1.0.0
 license: MIT
 authors:
   - name: Example Org
-brandColor: "#22c55e"
 goals:
   - Build and ship software products
-defaults:
-  requireBoardApprovalForNewAgents: true
 includes:
-  - path: agents/ceo/AGENTS.md
-  - path: teams/engineering/TEAM.md
-  - path: skills/review/SKILL.md
+  - https://github.com/example/shared-company-parts/blob/0123456789abcdef0123456789abcdef01234567/teams/engineering/TEAM.md
 requirements:
   secrets:
     - OPENAI_API_KEY
@@ -139,8 +146,10 @@ requirements:
 ### Semantics
 
 - `includes` defines the package graph
+- local package contents should be discovered implicitly by folder convention
+- `includes` is optional and should be used mainly for external refs or nonstandard locations
 - included items may be local or external references
-- `COMPANY.md` may include agents directly, teams, or skills
+- `COMPANY.md` may include agents directly, teams, projects, tasks, or skills
 - a company importer may render `includes` as the tree/checkbox import UI
 
 ## 7. TEAM.md
@@ -150,17 +159,15 @@ requirements:
 ### Example
 
 ```yaml
-schema: company-packages/v0.1
-kind: team
-slug: engineering
 name: Engineering
 description: Product and platform engineering team
-manager:
-  path: ../cto/AGENTS.md
+schema: agentcompanies/v1
+slug: engineering
+manager: ../cto/AGENTS.md
 includes:
-  - path: ../platform-lead/AGENTS.md
-  - path: ../frontend-lead/AGENTS.md
-  - path: ../../skills/review/SKILL.md
+  - ../platform-lead/AGENTS.md
+  - ../frontend-lead/AGENTS.md
+  - ../../skills/review/SKILL.md
 tags:
   - team
   - engineering
@@ -180,37 +187,11 @@ tags:
 ### Example
 
 ```yaml
-schema: company-packages/v0.1
-kind: agent
-slug: ceo
 name: CEO
-role: ceo
 title: Chief Executive Officer
-description: Sets strategy and manages executives
-icon: crown
-capabilities:
-  - strategy
-  - delegation
 reportsTo: null
-adapter:
-  type: codex_local
-  config:
-    model: gpt-5
-runtime:
-  heartbeat:
-    intervalSec: 3600
-permissions:
-  canCreateAgents: true
 skills:
-  - path: ../../skills/plan-ceo-review/SKILL.md
-docs:
-  instructions: AGENTS.md
-  heartbeat: HEARTBEAT.md
-  soul: SOUL.md
-requirements:
-  secrets:
-    - OPENAI_API_KEY
-metadata: {}
+  - ../../skills/plan-ceo-review/SKILL.md
 ```
 
 ### Semantics
@@ -218,10 +199,111 @@ metadata: {}
 - body content is the canonical default instruction content for the agent
 - `docs` points to sibling markdown docs when present
 - `skills` references reusable `SKILL.md` packages
-- `adapter.config` and `runtime` should contain only portable values
+- vendor-specific adapter/runtime config should not live in the base package
 - local absolute paths, machine-specific cwd values, and secret values must not be exported as canonical package data
 
-## 9. SKILL.md Compatibility
+## 9. PROJECT.md
+
+`PROJECT.md` defines a lightweight project package.
+
+### Example
+
+```yaml
+name: Q2 Launch
+description: Ship the Q2 launch plan and supporting assets
+owner: cto
+```
+
+### Semantics
+
+- a project package groups related starter tasks and supporting markdown
+- `owner` should reference an agent slug when there is a clear project owner
+- a conventional `tasks/` subfolder should be discovered implicitly
+- `includes` may contain `TASK.md`, `SKILL.md`, or supporting docs when explicit wiring is needed
+- project packages are intended to seed planned work, not represent runtime task state
+
+## 10. TASK.md
+
+`TASK.md` defines a lightweight starter task.
+
+### Example
+
+```yaml
+name: Monday Review
+assignee: ceo
+project: q2-launch
+schedule:
+  timezone: America/Chicago
+  startsAt: 2026-03-16T09:00:00-05:00
+  recurrence:
+    frequency: weekly
+    interval: 1
+    weekdays:
+      - monday
+    time:
+      hour: 9
+      minute: 0
+```
+
+### Semantics
+
+- body content is the canonical markdown task description
+- `assignee` should reference an agent slug inside the package
+- `project` should reference a project slug when the task belongs to a `PROJECT.md`
+- tasks are intentionally basic seed work: title, markdown body, assignee, and optional recurrence
+- tools may also support optional fields like `priority`, `labels`, or `metadata`, but they should not require them in the base package
+
+### Scheduling
+
+The scheduling model is intentionally lightweight. It should cover common recurring patterns such as:
+
+- every 6 hours
+- every weekday at 9:00
+- every Monday morning
+- every month on the 1st
+- every first Monday of the month
+- every year on January 1
+
+Suggested shape:
+
+```yaml
+schedule:
+  timezone: America/Chicago
+  startsAt: 2026-03-14T09:00:00-05:00
+  recurrence:
+    frequency: hourly | daily | weekly | monthly | yearly
+    interval: 1
+    weekdays:
+      - monday
+      - wednesday
+    monthDays:
+      - 1
+      - 15
+    ordinalWeekdays:
+      - weekday: monday
+        ordinal: 1
+    months:
+      - 1
+      - 6
+    time:
+      hour: 9
+      minute: 0
+    until: 2026-12-31T23:59:59-06:00
+    count: 10
+```
+
+Rules:
+
+- `timezone` should use an IANA timezone like `America/Chicago`
+- `startsAt` anchors the first occurrence
+- `frequency` and `interval` are the only required recurrence fields
+- `weekdays`, `monthDays`, `ordinalWeekdays`, and `months` are optional narrowing rules
+- `ordinalWeekdays` uses `ordinal` values like `1`, `2`, `3`, `4`, or `-1` for “last”
+- `time.hour` and `time.minute` keep common “morning / 9:00 / end of day” scheduling human-readable
+- `until` and `count` are optional recurrence end bounds
+- tools may accept richer calendar syntaxes such as RFC5545 `RRULE`, but exporters should prefer the structured form above
+
+## 11. SKILL.md Compatibility
 
 A skill package must remain a valid Agent Skills package.
 
@@ -259,7 +341,7 @@ metadata:
 ---
 ```
 
-## 10. Source References
+## 12. Source References
 
 A package may point to upstream content instead of vendoring it.
 
@@ -301,7 +383,7 @@ sources:
 - branch-only refs may be allowed in development mode but must warn
 - exporters should default to `referenced` for third-party content unless redistribution is clearly allowed
 
-## 11. Resolution Rules
+## 13. Resolution Rules
 
 Given a package root, an importer resolves in this order:
 
@@ -326,13 +408,15 @@ An importer must surface:
 - referenced upstream content that requires network fetch
 - executable content in skills or scripts
 
-## 12. Import Graph
+## 14. Import Graph
 
 A package importer should build a graph from:
 
 - `COMPANY.md`
 - `TEAM.md`
 - `AGENTS.md`
+- `PROJECT.md`
+- `TASK.md`
 - `SKILL.md`
 - local and external refs
 
@@ -342,9 +426,71 @@ Suggested import UI behavior:
 - checkbox at entity level, not raw file level
 - selecting an agent auto-selects required docs and referenced skills
 - selecting a team auto-selects its subtree
+- selecting a project auto-selects its included tasks
+- selecting a recurring task should surface its schedule before import
 - selecting referenced third-party content shows attribution, license, and fetch policy
 
-## 13. Export Rules
+## 15. Vendor Extensions
+
+Vendor-specific data should live outside the base package shape.
+
+For Paperclip, the preferred fidelity extension is:
+
+```text
+.paperclip.yaml
+```
+
+Example uses:
+
+- adapter type and adapter config
+- adapter env inputs and defaults
+- runtime settings
+- permissions
+- budgets
+- approval policies
+- project execution workspace policies
+- issue/task Paperclip-only metadata
+
+Rules:
+
+- the base package must remain readable without the extension
+- tools that do not understand a vendor extension should ignore it
+- Paperclip tools may emit the vendor extension by default as a sidecar while keeping the base markdown clean
+
+Suggested Paperclip shape:
+
+```yaml
+schema: paperclip/v1
+agents:
+  claudecoder:
+    adapter:
+      type: claude_local
+      config:
+        model: claude-opus-4-6
+    inputs:
+      env:
+        ANTHROPIC_API_KEY:
+          kind: secret
+          requirement: optional
+          default: ""
+        GH_TOKEN:
+          kind: secret
+          requirement: optional
+        CLAUDE_BIN:
+          kind: plain
+          requirement: optional
+          default: claude
+```
+
+Additional rules for Paperclip exporters:
+
+- do not duplicate `promptTemplate` when `AGENTS.md` already contains the agent instructions
+- do not export provider-specific secret bindings such as `secretId`, `version`, or `type: secret_ref`
+- export env inputs as portable declarations with `required` or `optional` semantics and optional defaults
+- warn on system-dependent values such as absolute commands and absolute `PATH` overrides
+- omit empty and default-valued Paperclip fields when possible
+
+## 16. Export Rules
 
 A compliant exporter should:
 
@@ -352,11 +498,15 @@ A compliant exporter should:
 - omit machine-local ids and timestamps
 - omit secret values
 - omit machine-specific paths
+- preserve task descriptions and recurrence definitions when exporting tasks
+- omit empty/default fields
+- default to the vendor-neutral base package
+- Paperclip exporters should emit `.paperclip.yaml` as a sidecar by default
 - preserve attribution and source references
 - prefer `referenced` over silent vendoring for third-party content
 - preserve `SKILL.md` as-is when exporting compatible skills
 
-## 14. Licensing And Attribution
+## 17. Licensing And Attribution
 
 A compliant tool must:
 
@@ -366,7 +516,7 @@ A compliant tool must:
 - surface missing license metadata as a warning
 - surface restrictive or unknown licenses before install/import if content is vendored or mirrored
 
-## 15. Optional Lock File
+## 18. Optional Lock File
 
 Authoring does not require a lock file.
 
@@ -388,23 +538,30 @@ Rules:
 - lock files are generated artifacts, not canonical authoring input
 - the markdown package remains the source of truth
 
-## 16. Paperclip Mapping
+## 19. Paperclip Mapping
 
 Paperclip can map this spec to its runtime model like this:
 
-- `COMPANY.md` -> company metadata
-- `TEAM.md` -> importable org subtree
-- `AGENTS.md` -> agent records plus adapter/runtime config
-- `SKILL.md` -> imported skill package, ideally as a managed reusable skill reference
-- `sources[]` -> provenance and pinned upstream refs
+- base package:
+  - `COMPANY.md` -> company metadata
+  - `TEAM.md` -> importable org subtree
+  - `AGENTS.md` -> agent identity and instructions
+  - `PROJECT.md` -> starter project definition
+  - `TASK.md` -> starter issue/task definition, or automation template when recurrence is present
+  - `SKILL.md` -> imported skill package
+  - `sources[]` -> provenance and pinned upstream refs
+- Paperclip extension:
+  - `.paperclip.yaml` -> adapter config, runtime config, env input declarations, permissions, budgets, and other Paperclip-specific fidelity
 
-Paperclip-specific data should live under:
+Inline Paperclip-only metadata that must live inside a shared markdown file should use:
 
 - `metadata.paperclip`
 
 That keeps the base format broader than Paperclip.
 
-## 17. Cutover
+This specification itself remains vendor-neutral and intended for any agent-company runtime, not only Paperclip.
+
+## 20. Cutover
 
 Paperclip should cut over to this markdown-first package model as the primary portability format.
 
@@ -412,7 +569,7 @@ Paperclip should cut over to this markdown-first package model as the primary po
 
 For Paperclip, this should be treated as a hard cutover in product direction rather than a long-lived dual-format strategy.
 
-## 18. Minimal Example
+## 21. Minimal Example
 
 ```text
 lean-dev-shop/
@@ -420,10 +577,24 @@ lean-dev-shop/
 ├── agents/
 │   ├── ceo/AGENTS.md
 │   └── cto/AGENTS.md
+├── projects/
+│   └── q2-launch/
+│       ├── PROJECT.md
+│       └── tasks/
+│           └── monday-review/
+│               └── TASK.md
 ├── teams/
 │   └── engineering/TEAM.md
+├── tasks/
+│   └── weekly-review/TASK.md
 └── skills/
     └── review/SKILL.md
+
+Optional:
+
+```text
+.paperclip.yaml
+```
 ```
 
 **Recommendation**

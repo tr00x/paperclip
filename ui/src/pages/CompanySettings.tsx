@@ -79,7 +79,9 @@ export function CompanySettings() {
   const packageInclude = useMemo(
     () => ({
       company: packageIncludeCompany,
-      agents: packageIncludeAgents
+      agents: packageIncludeAgents,
+      projects: false,
+      issues: false
     }),
     [packageIncludeAgents, packageIncludeCompany]
   );
@@ -376,7 +378,7 @@ export function CompanySettings() {
       pushToast({
         tone: "success",
         title: "Local package loaded",
-        body: `${Object.keys(parsed.files).length} markdown file${Object.keys(parsed.files).length === 1 ? "" : "s"} ready for preview.`
+        body: `${Object.keys(parsed.files).length} package file${Object.keys(parsed.files).length === 1 ? "" : "s"} ready for preview.`
       });
     } catch (err) {
       setLocalPackage(null);
@@ -666,6 +668,9 @@ export function CompanySettings() {
               Include agents
             </label>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Export always includes `.paperclip.yaml` as a Paperclip sidecar while keeping the markdown package readable and shareable.
+          </p>
 
           {exportMutation.data && (
             <div className="rounded-md border border-border bg-muted/20 p-3">
@@ -675,7 +680,8 @@ export function CompanySettings() {
               <div className="mt-2 text-sm">
                 {exportMutation.data.rootPath}.tar with{" "}
                 {Object.keys(exportMutation.data.files).length} file
-                {Object.keys(exportMutation.data.files).length === 1 ? "" : "s"}.
+                {Object.keys(exportMutation.data.files).length === 1 ? "" : "s"}. Includes{" "}
+                <span className="font-mono">{exportMutation.data.paperclipExtensionPath}</span>.
               </div>
               <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 {Object.keys(exportMutation.data.files).map((filePath) => (
@@ -773,7 +779,7 @@ export function CompanySettings() {
                 {localPackage && (
                   <span className="text-xs text-muted-foreground">
                     {localPackage.rootPath ?? "package"} with{" "}
-                    {Object.keys(localPackage.files).length} markdown file
+                    {Object.keys(localPackage.files).length} package file
                     {Object.keys(localPackage.files).length === 1 ? "" : "s"}
                   </span>
                 )}
@@ -889,7 +895,7 @@ export function CompanySettings() {
 
           {importPreview && (
             <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
-              <div className="grid gap-2 md:grid-cols-2">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-md border border-border bg-background/70 px-3 py-2">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">
                     Company action
@@ -904,6 +910,22 @@ export function CompanySettings() {
                   </div>
                   <div className="mt-1 text-sm font-medium">
                     {importPreview.plan.agentPlans.length}
+                  </div>
+                </div>
+                <div className="rounded-md border border-border bg-background/70 px-3 py-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Project actions
+                  </div>
+                  <div className="mt-1 text-sm font-medium">
+                    {importPreview.plan.projectPlans.length}
+                  </div>
+                </div>
+                <div className="rounded-md border border-border bg-background/70 px-3 py-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Task actions
+                  </div>
+                  <div className="mt-1 text-sm font-medium">
+                    {importPreview.plan.issuePlans.length}
                   </div>
                 </div>
               </div>
@@ -933,18 +955,72 @@ export function CompanySettings() {
                 </div>
               )}
 
-              {importPreview.requiredSecrets.length > 0 && (
+              {importPreview.plan.projectPlans.length > 0 && (
+                <div className="space-y-2">
+                  {importPreview.plan.projectPlans.map((projectPlan) => (
+                    <div
+                      key={projectPlan.slug}
+                      className="rounded-md border border-border bg-background/70 px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="font-medium">
+                          {projectPlan.slug} {"->"} {projectPlan.plannedName}
+                        </span>
+                        <span className="rounded-full border border-border px-2 py-0.5 text-xs uppercase tracking-wide text-muted-foreground">
+                          {projectPlan.action}
+                        </span>
+                      </div>
+                      {projectPlan.reason && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {projectPlan.reason}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {importPreview.plan.issuePlans.length > 0 && (
+                <div className="space-y-2">
+                  {importPreview.plan.issuePlans.map((issuePlan) => (
+                    <div
+                      key={issuePlan.slug}
+                      className="rounded-md border border-border bg-background/70 px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="font-medium">
+                          {issuePlan.slug} {"->"} {issuePlan.plannedTitle}
+                        </span>
+                        <span className="rounded-full border border-border px-2 py-0.5 text-xs uppercase tracking-wide text-muted-foreground">
+                          {issuePlan.action}
+                        </span>
+                      </div>
+                      {issuePlan.reason && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {issuePlan.reason}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {importPreview.envInputs.length > 0 && (
                 <div className="space-y-1">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Required secrets
+                    Environment inputs
                   </div>
-                  {importPreview.requiredSecrets.map((secret) => (
+                  {importPreview.envInputs.map((inputValue) => (
                     <div
-                      key={`${secret.agentSlug ?? "company"}:${secret.key}`}
+                      key={`${inputValue.agentSlug ?? "company"}:${inputValue.key}`}
                       className="text-xs text-muted-foreground"
                     >
-                      {secret.key}
-                      {secret.agentSlug ? ` for ${secret.agentSlug}` : ""}
+                      {inputValue.key}
+                      {inputValue.agentSlug ? ` for ${inputValue.agentSlug}` : ""}
+                      {` · ${inputValue.kind}`}
+                      {` · ${inputValue.requirement}`}
+                      {inputValue.defaultValue !== null ? ` · default ${JSON.stringify(inputValue.defaultValue)}` : ""}
+                      {inputValue.portability === "system_dependent" ? " · system-dependent" : ""}
                     </div>
                   ))}
                 </div>
@@ -1039,14 +1115,18 @@ async function readLocalPackageSelection(fileList: FileList): Promise<{
         /\\/g,
         "/"
       ) || file.name;
-    if (!relativePath.endsWith(".md")) continue;
+    const isMarkdown = relativePath.endsWith(".md");
+    const isPaperclipYaml =
+      relativePath.endsWith(".paperclip.yaml") ||
+      relativePath.endsWith(".paperclip.yml");
+    if (!isMarkdown && !isPaperclipYaml) continue;
     const topLevel = relativePath.split("/")[0] ?? null;
     if (!rootPath && topLevel) rootPath = topLevel;
     files[relativePath] = await file.text();
   }
 
   if (Object.keys(files).length === 0) {
-    throw new Error("No markdown files were found in the selected folder.");
+    throw new Error("No package files were found in the selected folder.");
   }
 
   return { rootPath, files };

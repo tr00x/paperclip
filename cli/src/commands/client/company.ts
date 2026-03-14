@@ -32,6 +32,9 @@ interface CompanyDeleteOptions extends BaseClientOptions {
 interface CompanyExportOptions extends BaseClientOptions {
   out?: string;
   include?: string;
+  projects?: string;
+  issues?: string;
+  projectIssues?: string;
 }
 
 interface CompanyImportOptions extends BaseClientOptions {
@@ -54,14 +57,16 @@ function normalizeSelector(input: string): string {
 }
 
 function parseInclude(input: string | undefined): CompanyPortabilityInclude {
-  if (!input || !input.trim()) return { company: true, agents: true };
+  if (!input || !input.trim()) return { company: true, agents: true, projects: false, issues: false };
   const values = input.split(",").map((part) => part.trim().toLowerCase()).filter(Boolean);
   const include = {
     company: values.includes("company"),
     agents: values.includes("agents"),
+    projects: values.includes("projects"),
+    issues: values.includes("issues"),
   };
-  if (!include.company && !include.agents) {
-    throw new Error("Invalid --include value. Use one or both of: company,agents");
+  if (!include.company && !include.agents && !include.projects && !include.issues) {
+    throw new Error("Invalid --include value. Use one or more of: company,agents,projects,issues");
   }
   return include;
 }
@@ -73,6 +78,11 @@ function parseAgents(input: string | undefined): "all" | string[] {
   const values = input.split(",").map((part) => part.trim()).filter(Boolean);
   if (values.length === 0) return "all";
   return Array.from(new Set(values));
+}
+
+function parseCsvValues(input: string | undefined): string[] {
+  if (!input || !input.trim()) return [];
+  return Array.from(new Set(input.split(",").map((part) => part.trim()).filter(Boolean)));
 }
 
 function isHttpUrl(input: string): boolean {
@@ -92,7 +102,10 @@ async function collectPackageFiles(root: string, current: string, files: Record<
       await collectPackageFiles(root, absolutePath, files);
       continue;
     }
-    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+    if (!entry.isFile()) continue;
+    const isMarkdown = entry.name.endsWith(".md");
+    const isPaperclipYaml = entry.name === ".paperclip.yaml" || entry.name === ".paperclip.yml";
+    if (!isMarkdown && !isPaperclipYaml) continue;
     const relativePath = path.relative(root, absolutePath).replace(/\\/g, "/");
     files[relativePath] = await readFile(absolutePath, "utf8");
   }
@@ -261,14 +274,22 @@ export function registerCompanyCommands(program: Command): void {
       .description("Export a company into a portable markdown package")
       .argument("<companyId>", "Company ID")
       .requiredOption("--out <path>", "Output directory")
-      .option("--include <values>", "Comma-separated include set: company,agents", "company,agents")
+      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues", "company,agents")
+      .option("--projects <values>", "Comma-separated project shortnames/ids to export")
+      .option("--issues <values>", "Comma-separated issue identifiers/ids to export")
+      .option("--project-issues <values>", "Comma-separated project shortnames/ids whose issues should be exported")
       .action(async (companyId: string, opts: CompanyExportOptions) => {
         try {
           const ctx = resolveCommandContext(opts);
           const include = parseInclude(opts.include);
           const exported = await ctx.api.post<CompanyPortabilityExportResult>(
             `/api/companies/${companyId}/export`,
-            { include },
+            {
+              include,
+              projects: parseCsvValues(opts.projects),
+              issues: parseCsvValues(opts.issues),
+              projectIssues: parseCsvValues(opts.projectIssues),
+            },
           );
           if (!exported) {
             throw new Error("Export request returned no data");
@@ -280,6 +301,7 @@ export function registerCompanyCommands(program: Command): void {
               out: path.resolve(opts.out!),
               rootPath: exported.rootPath,
               filesWritten: Object.keys(exported.files).length,
+              paperclipExtensionPath: exported.paperclipExtensionPath,
               warningCount: exported.warnings.length,
             },
             { json: ctx.json },
@@ -300,7 +322,7 @@ export function registerCompanyCommands(program: Command): void {
       .command("import")
       .description("Import a portable markdown company package from local path, URL, or GitHub")
       .requiredOption("--from <pathOrUrl>", "Source path or URL")
-      .option("--include <values>", "Comma-separated include set: company,agents", "company,agents")
+      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues", "company,agents")
       .option("--target <mode>", "Target mode: new | existing")
       .option("-C, --company-id <id>", "Existing target company ID")
       .option("--new-company-name <name>", "Name override for --target new")

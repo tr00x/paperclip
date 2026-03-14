@@ -26,24 +26,26 @@ This plan is about implementation and rollout inside Paperclip.
 
 ## 2. Executive Summary
 
-Paperclip already has a V1 portability feature:
+Paperclip already has portability primitives in the repo:
 
 - server import/export/preview APIs
 - CLI import/export commands
-- a `paperclip.manifest.json` plus markdown payload format
-- company metadata + agent portability only
+- shared portability types and validators
 
-That is useful, but it is not the right long-term authoring format.
+Those primitives are being cut over to the new package model rather than extended for backward compatibility.
 
 The new direction is:
 
 1. markdown-first package authoring
 2. GitHub repo or local folder as the default source of truth
-3. the company package model is explicitly an extension of Agent Skills
-4. no future dependency on `paperclip.manifest.json`
-5. package graph resolution at import time
-6. entity-level import UI with dependency-aware tree selection
-7. adapter-aware skill sync surfaces so Paperclip can read, diff, enable, disable, and reconcile skills where the adapter supports it
+3. a vendor-neutral base package spec for agent-company runtimes, not just Paperclip
+4. the company package model is explicitly an extension of Agent Skills
+5. no future dependency on `paperclip.manifest.json`
+6. implicit folder discovery by convention for the common case
+7. an always-emitted `.paperclip.yaml` sidecar for high-fidelity Paperclip-specific details
+8. package graph resolution at import time
+9. entity-level import UI with dependency-aware tree selection
+10. adapter-aware skill sync surfaces so Paperclip can read, diff, enable, disable, and reconcile skills where the adapter supports it
 
 ## 3. Product Goals
 
@@ -55,6 +57,7 @@ The new direction is:
   - company definition
   - org subtree / team definition
   - agent definitions
+  - optional starter projects and tasks
   - reusable skills
 - A user can import into:
   - a new company
@@ -66,6 +69,7 @@ The new direction is:
   - what is referenced externally
   - what needs secrets or approvals
 - Export preserves attribution, licensing, and pinned upstream references.
+- Export produces a clean vendor-neutral package plus a Paperclip sidecar.
 - `companies.sh` can later act as a discovery/index layer over repos implementing this format.
 
 ### 3.2 Non-Goals
@@ -92,11 +96,11 @@ Current implementation exists here:
 
 Current product limitations:
 
-1. Portability model is only `company` + `agents`.
-2. Current import/export contract is JSON-entrypoint-first.
-3. UI API methods exist but there is no real Company Settings import/export UX.
-4. Import is lossy relative to export.
-5. The current markdown frontmatter parser is too primitive for the richer package model.
+1. Import/export UX still needs deeper tree-selection and skill/package management polish.
+2. Adapter-specific skill sync remains uneven across adapters and must degrade cleanly when unsupported.
+3. Projects and starter tasks should stay opt-in on export rather than default package content.
+4. Import/export still needs stronger coverage around attribution, pin verification, and executable-package warnings.
+5. The current markdown frontmatter parser is intentionally lightweight and should stay constrained to the documented shape.
 
 ## 5. Canonical Package Direction
 
@@ -107,6 +111,8 @@ The canonical authoring format becomes a markdown-first package rooted in one of
 - `COMPANY.md`
 - `TEAM.md`
 - `AGENTS.md`
+- `PROJECT.md`
+- `TASK.md`
 - `SKILL.md`
 
 The normative draft is:
@@ -121,10 +127,24 @@ Rules:
 
 - `SKILL.md` stays Agent Skills compatible
 - the company package model is an extension of Agent Skills
-- Paperclip-specific extensions live under metadata
+- the base package is vendor-neutral and intended for any agent-company runtime
+- Paperclip-specific fidelity lives in `.paperclip.yaml`
 - Paperclip may resolve and install `SKILL.md` packages, but it must not require a Paperclip-only skill format
 
-### 5.3 Relationship To Current V1 Manifest
+### 5.3 Base Package Vs Paperclip Extension
+
+The repo format should have two layers:
+
+- base package:
+  - minimal, readable, social, vendor-neutral
+  - implicit folder discovery by convention
+  - no Paperclip-only runtime fields by default
+- Paperclip extension:
+  - `.paperclip.yaml`
+  - adapter/runtime/permissions/budget/workspace fidelity
+  - emitted by Paperclip tools as a sidecar while the base package stays readable
+
+### 5.4 Relationship To Current V1 Manifest
 
 `paperclip.manifest.json` is not part of the future package direction.
 
@@ -143,13 +163,9 @@ Paperclip import/export should support these entity kinds:
 - company
 - team
 - agent
-- skill
-
-Future optional kinds:
-
 - project
-- goal
-- seed task bundle
+- task
+- skill
 
 ### 6.2 Team Semantics
 
@@ -179,6 +195,7 @@ Examples:
 - selecting an agent auto-selects its required docs and skill refs
 - selecting a team auto-selects its subtree
 - selecting a company auto-selects all included entities by default
+- selecting a project auto-selects its starter tasks
 
 The preview output should reflect graph resolution explicitly.
 
@@ -272,7 +289,7 @@ Every import preview should surface:
 - referenced external content
 - missing files
 - hash mismatch or pinning issues
-- required secrets
+- env inputs, including required vs optional and default values when present
 - unsupported content types
 - trust/licensing warnings
 
@@ -342,21 +359,34 @@ Exports should:
 - omit timestamps and counters unless explicitly needed
 - omit secret values
 - omit local absolute paths
+- omit duplicated inline prompt content from `.paperclip.yaml` when `AGENTS.md` already carries the instructions
 - preserve references and attribution
+- emit `.paperclip.yaml` alongside the base package
+- express adapter env/secrets as portable env input declarations rather than exported secret binding ids
 - preserve compatible `SKILL.md` content as-is
 
-### 9.3 Export Modes
+Projects and issues should not be exported by default.
 
-Initial export modes:
+They should be opt-in through selectors such as:
+
+- `--projects project-shortname-1,project-shortname-2`
+- `--issues PAP-1,PAP-3`
+- `--project-issues project-shortname-1,project-shortname-2`
+
+This supports “clean public company package” workflows where a maintainer exports a follower-facing company package without bundling active work items every time.
+
+### 9.3 Export Units
+
+Initial export units:
 
 - company package
 - team package
 - single agent package
 
-Later optional modes:
+Later optional units:
 
 - skill pack export
-- seed projects/goals bundle
+- seed projects/tasks bundle
 
 ## 10. Storage Model Inside Paperclip
 

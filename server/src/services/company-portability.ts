@@ -4,6 +4,7 @@ import type { Db } from "@paperclipai/db";
 import type {
   CompanyPortabilityAgentManifestEntry,
   CompanyPortabilityCollisionStrategy,
+  CompanyPortabilityEnvInput,
   CompanyPortabilityExport,
   CompanyPortabilityExportResult,
   CompanyPortabilityImport,
@@ -13,22 +14,57 @@ import type {
   CompanyPortabilityPreview,
   CompanyPortabilityPreviewAgentPlan,
   CompanyPortabilityPreviewResult,
+  CompanyPortabilityProjectManifestEntry,
+  CompanyPortabilityIssueManifestEntry,
 } from "@paperclipai/shared";
-import { normalizeAgentUrlKey } from "@paperclipai/shared";
+import {
+  ISSUE_PRIORITIES,
+  ISSUE_STATUSES,
+  PROJECT_STATUSES,
+  deriveProjectUrlKey,
+  normalizeAgentUrlKey,
+} from "@paperclipai/shared";
 import { notFound, unprocessable } from "../errors.js";
 import { accessService } from "./access.js";
 import { agentService } from "./agents.js";
 import { companyService } from "./companies.js";
+import { issueService } from "./issues.js";
+import { projectService } from "./projects.js";
 
 const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
   company: true,
   agents: true,
+  projects: false,
+  issues: false,
 };
 
 const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename";
 
-const SENSITIVE_ENV_KEY_RE =
-  /(api[-_]?key|access[-_]?token|auth(?:_?token)?|authorization|bearer|secret|passwd|password|credential|jwt|private[-_]?key|cookie|connectionstring)/i;
+function isSensitiveEnvKey(key: string) {
+  const normalized = key.trim().toLowerCase();
+  return (
+    normalized === "token" ||
+    normalized.endsWith("_token") ||
+    normalized.endsWith("-token") ||
+    normalized.includes("api_key") ||
+    normalized.includes("api-key") ||
+    normalized.includes("access_token") ||
+    normalized.includes("access-token") ||
+    normalized.includes("auth_token") ||
+    normalized.includes("auth-token") ||
+    normalized.includes("authorization") ||
+    normalized.includes("bearer") ||
+    normalized.includes("secret") ||
+    normalized.includes("passwd") ||
+    normalized.includes("password") ||
+    normalized.includes("credential") ||
+    normalized.includes("jwt") ||
+    normalized.includes("private_key") ||
+    normalized.includes("private-key") ||
+    normalized.includes("cookie") ||
+    normalized.includes("connectionstring")
+  );
+}
 
 type ResolvedSource = {
   manifest: CompanyPortabilityManifest;
@@ -45,6 +81,41 @@ type CompanyPackageIncludeEntry = {
   path: string;
 };
 
+type PaperclipExtensionDoc = {
+  schema?: string;
+  company?: Record<string, unknown> | null;
+  agents?: Record<string, Record<string, unknown>> | null;
+  projects?: Record<string, Record<string, unknown>> | null;
+  tasks?: Record<string, Record<string, unknown>> | null;
+};
+
+type ProjectLike = {
+  id: string;
+  name: string;
+  description: string | null;
+  leadAgentId: string | null;
+  targetDate: string | null;
+  color: string | null;
+  status: string;
+  executionWorkspacePolicy: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+type IssueLike = {
+  id: string;
+  identifier: string | null;
+  title: string;
+  description: string | null;
+  projectId: string | null;
+  assigneeAgentId: string | null;
+  status: string;
+  priority: string;
+  labelIds?: string[];
+  billingCode: string | null;
+  executionWorkspaceSettings: Record<string, unknown> | null;
+  assigneeAdapterOverrides: Record<string, unknown> | null;
+};
+
 type ImportPlanInternal = {
   preview: CompanyPortabilityPreviewResult;
   source: ResolvedSource;
@@ -57,6 +128,14 @@ type AgentLike = {
   id: string;
   name: string;
   adapterConfig: Record<string, unknown>;
+};
+
+type EnvInputRecord = {
+  kind: "secret" | "plain";
+  requirement: "required" | "optional";
+  default?: string | null;
+  description?: string | null;
+  portability?: "portable" | "system_dependent";
 };
 
 const RUNTIME_DEFAULT_RULES: Array<{ path: string[]; value: unknown }> = [
@@ -143,10 +222,24 @@ function uniqueNameBySlug(baseName: string, existingSlugs: Set<string>) {
   }
 }
 
+function uniqueProjectName(baseName: string, existingProjectSlugs: Set<string>) {
+  const baseSlug = deriveProjectUrlKey(baseName, baseName);
+  if (!existingProjectSlugs.has(baseSlug)) return baseName;
+  let idx = 2;
+  while (true) {
+    const candidateName = `${baseName} ${idx}`;
+    const candidateSlug = deriveProjectUrlKey(candidateName, candidateName);
+    if (!existingProjectSlugs.has(candidateSlug)) return candidateName;
+    idx += 1;
+  }
+}
+
 function normalizeInclude(input?: Partial<CompanyPortabilityInclude>): CompanyPortabilityInclude {
   return {
     company: input?.company ?? DEFAULT_INCLUDE.company,
     agents: input?.agents ?? DEFAULT_INCLUDE.agents,
+    projects: input?.projects ?? DEFAULT_INCLUDE.projects,
+    issues: input?.issues ?? DEFAULT_INCLUDE.issues,
   };
 }
 
@@ -189,6 +282,12 @@ function normalizeFileMap(
   return out;
 }
 
+function findPaperclipExtensionPath(files: Record<string, string>) {
+  if (typeof files[".paperclip.yaml"] === "string") return ".paperclip.yaml";
+  if (typeof files[".paperclip.yml"] === "string") return ".paperclip.yml";
+  return Object.keys(files).find((entry) => entry.endsWith("/.paperclip.yaml") || entry.endsWith("/.paperclip.yml")) ?? null;
+}
+
 function ensureMarkdownPath(pathValue: string) {
   const normalized = pathValue.replace(/\\/g, "/");
   if (!normalized.endsWith(".md")) {
@@ -197,49 +296,92 @@ function ensureMarkdownPath(pathValue: string) {
   return normalized;
 }
 
-function normalizePortableEnv(
-  agentSlug: string,
-  envValue: unknown,
-  requiredSecrets: CompanyPortabilityManifest["requiredSecrets"],
-) {
-  if (typeof envValue !== "object" || envValue === null || Array.isArray(envValue)) return {};
-  const env = envValue as Record<string, unknown>;
-  const next: Record<string, unknown> = {};
-
-  for (const [key, binding] of Object.entries(env)) {
-    if (SENSITIVE_ENV_KEY_RE.test(key)) {
-      requiredSecrets.push({
-        key,
-        description: `Set ${key} for agent ${agentSlug}`,
-        agentSlug,
-        providerHint: null,
-      });
-      continue;
-    }
-    next[key] = binding;
-  }
-  return next;
-}
-
 function normalizePortableConfig(
   value: unknown,
-  agentSlug: string,
-  requiredSecrets: CompanyPortabilityManifest["requiredSecrets"],
 ): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
   const input = value as Record<string, unknown>;
   const next: Record<string, unknown> = {};
 
   for (const [key, entry] of Object.entries(input)) {
-    if (key === "cwd" || key === "instructionsFilePath") continue;
-    if (key === "env") {
-      next[key] = normalizePortableEnv(agentSlug, entry, requiredSecrets);
-      continue;
-    }
+    if (key === "cwd" || key === "instructionsFilePath" || key === "promptTemplate") continue;
+    if (key === "env") continue;
     next[key] = entry;
   }
 
   return next;
+}
+
+function isAbsoluteCommand(value: string) {
+  return path.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value);
+}
+
+function extractPortableEnvInputs(
+  agentSlug: string,
+  envValue: unknown,
+  warnings: string[],
+): CompanyPortabilityEnvInput[] {
+  if (!isPlainRecord(envValue)) return [];
+  const env = envValue as Record<string, unknown>;
+  const inputs: CompanyPortabilityEnvInput[] = [];
+
+  for (const [key, binding] of Object.entries(env)) {
+    if (key.toUpperCase() === "PATH") {
+      warnings.push(`Agent ${agentSlug} PATH override was omitted from export because it is system-dependent.`);
+      continue;
+    }
+
+    if (isPlainRecord(binding) && binding.type === "secret_ref") {
+      inputs.push({
+        key,
+        description: `Provide ${key} for agent ${agentSlug}`,
+        agentSlug,
+        kind: "secret",
+        requirement: "optional",
+        defaultValue: "",
+        portability: "portable",
+      });
+      continue;
+    }
+
+    if (isPlainRecord(binding) && binding.type === "plain") {
+      const defaultValue = asString(binding.value);
+      const portability = defaultValue && isAbsoluteCommand(defaultValue)
+        ? "system_dependent"
+        : "portable";
+      if (portability === "system_dependent") {
+        warnings.push(`Agent ${agentSlug} env ${key} default was exported as system-dependent.`);
+      }
+      inputs.push({
+        key,
+        description: `Optional default for ${key} on agent ${agentSlug}`,
+        agentSlug,
+        kind: "plain",
+        requirement: "optional",
+        defaultValue: defaultValue ?? "",
+        portability,
+      });
+      continue;
+    }
+
+    if (typeof binding === "string") {
+      const portability = isAbsoluteCommand(binding) ? "system_dependent" : "portable";
+      if (portability === "system_dependent") {
+        warnings.push(`Agent ${agentSlug} env ${key} default was exported as system-dependent.`);
+      }
+      inputs.push({
+        key,
+        description: `Optional default for ${key} on agent ${agentSlug}`,
+        agentSlug,
+        kind: isSensitiveEnvKey(key) ? "secret" : "plain",
+        requirement: "optional",
+        defaultValue: binding,
+        portability,
+      });
+    }
+  }
+
+  return inputs;
 }
 
 function jsonEqual(left: unknown, right: unknown): boolean {
@@ -293,6 +435,87 @@ function isEmptyObject(value: unknown): boolean {
   return isPlainRecord(value) && Object.keys(value).length === 0;
 }
 
+function isEmptyArray(value: unknown): boolean {
+  return Array.isArray(value) && value.length === 0;
+}
+
+function stripEmptyValues(value: unknown, opts?: { preserveEmptyStrings?: boolean }): unknown {
+  if (Array.isArray(value)) {
+    const next = value
+      .map((entry) => stripEmptyValues(entry, opts))
+      .filter((entry) => entry !== undefined);
+    return next.length > 0 ? next : undefined;
+  }
+  if (isPlainRecord(value)) {
+    const next: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      const cleaned = stripEmptyValues(entry, opts);
+      if (cleaned === undefined) continue;
+      next[key] = cleaned;
+    }
+    return Object.keys(next).length > 0 ? next : undefined;
+  }
+  if (
+    value === undefined ||
+    value === null ||
+    (!opts?.preserveEmptyStrings && value === "") ||
+    isEmptyArray(value) ||
+    isEmptyObject(value)
+  ) {
+    return undefined;
+  }
+  return value;
+}
+
+const YAML_KEY_PRIORITY = [
+  "name",
+  "description",
+  "title",
+  "schema",
+  "kind",
+  "slug",
+  "reportsTo",
+  "owner",
+  "assignee",
+  "project",
+  "schedule",
+  "version",
+  "license",
+  "authors",
+  "homepage",
+  "tags",
+  "includes",
+  "requirements",
+  "role",
+  "icon",
+  "capabilities",
+  "brandColor",
+  "adapter",
+  "runtime",
+  "permissions",
+  "budgetMonthlyCents",
+  "metadata",
+] as const;
+
+const YAML_KEY_PRIORITY_INDEX = new Map<string, number>(
+  YAML_KEY_PRIORITY.map((key, index) => [key, index]),
+);
+
+function compareYamlKeys(left: string, right: string) {
+  const leftPriority = YAML_KEY_PRIORITY_INDEX.get(left);
+  const rightPriority = YAML_KEY_PRIORITY_INDEX.get(right);
+  if (leftPriority !== undefined || rightPriority !== undefined) {
+    if (leftPriority === undefined) return 1;
+    if (rightPriority === undefined) return -1;
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+  }
+  return left.localeCompare(right);
+}
+
+function orderedYamlEntries(value: Record<string, unknown>) {
+  return Object.entries(value).sort(([leftKey], [rightKey]) => compareYamlKeys(leftKey, rightKey));
+}
+
 function renderYamlBlock(value: unknown, indentLevel: number): string[] {
   const indent = "  ".repeat(indentLevel);
 
@@ -318,7 +541,7 @@ function renderYamlBlock(value: unknown, indentLevel: number): string[] {
   }
 
   if (isPlainRecord(value)) {
-    const entries = Object.entries(value);
+    const entries = orderedYamlEntries(value);
     if (entries.length === 0) return [`${indent}{}`];
     const lines: string[] = [];
     for (const [key, entry] of entries) {
@@ -344,7 +567,7 @@ function renderYamlBlock(value: unknown, indentLevel: number): string[] {
 
 function renderFrontmatter(frontmatter: Record<string, unknown>) {
   const lines: string[] = ["---"];
-  for (const [key, value] of Object.entries(frontmatter)) {
+  for (const [key, value] of orderedYamlEntries(frontmatter)) {
     const scalar =
       value === null ||
       typeof value === "string" ||
@@ -506,6 +729,16 @@ function parseYamlFrontmatter(raw: string): Record<string, unknown> {
   return isPlainRecord(parsed.value) ? parsed.value : {};
 }
 
+function parseYamlFile(raw: string): Record<string, unknown> {
+  return parseYamlFrontmatter(raw);
+}
+
+function buildYamlFile(value: Record<string, unknown>, opts?: { preserveEmptyStrings?: boolean }) {
+  const cleaned = stripEmptyValues(value, opts);
+  if (!isPlainRecord(cleaned)) return "{}\n";
+  return renderYamlBlock(cleaned, 0).join("\n") + "\n";
+}
+
 function parseFrontmatterMarkdown(raw: string): MarkdownDoc {
   const normalized = raw.replace(/\r\n/g, "\n");
   if (!normalized.startsWith("---\n")) {
@@ -540,9 +773,21 @@ async function fetchOptionalText(url: string) {
   return response.text();
 }
 
-function dedupeRequiredSecrets(values: CompanyPortabilityManifest["requiredSecrets"]) {
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/vnd.github+json",
+    },
+  });
+  if (!response.ok) {
+    throw unprocessable(`Failed to fetch ${url}: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+function dedupeEnvInputs(values: CompanyPortabilityManifest["envInputs"]) {
   const seen = new Set<string>();
-  const out: CompanyPortabilityManifest["requiredSecrets"] = [];
+  const out: CompanyPortabilityManifest["envInputs"] = [];
   for (const value of values) {
     const key = `${value.agentSlug ?? ""}:${value.key.toUpperCase()}`;
     if (seen.has(key)) continue;
@@ -552,17 +797,22 @@ function dedupeRequiredSecrets(values: CompanyPortabilityManifest["requiredSecre
   return out;
 }
 
-function buildIncludes(paths: string[]): CompanyPackageIncludeEntry[] {
-  return paths.map((value) => ({ path: value }));
+function buildEnvInputMap(inputs: CompanyPortabilityEnvInput[]) {
+  const env: Record<string, Record<string, unknown>> = {};
+  for (const input of inputs) {
+    const entry: Record<string, unknown> = {
+      kind: input.kind,
+      requirement: input.requirement,
+    };
+    if (input.defaultValue !== null) entry.default = input.defaultValue;
+    if (input.description) entry.description = input.description;
+    if (input.portability === "system_dependent") entry.portability = "system_dependent";
+    env[input.key] = entry;
+  }
+  return env;
 }
 
-function readCompanyApprovalDefault(frontmatter: Record<string, unknown>) {
-  const topLevel = frontmatter.requireBoardApprovalForNewAgents;
-  if (typeof topLevel === "boolean") return topLevel;
-  const defaults = frontmatter.defaults;
-  if (isPlainRecord(defaults) && typeof defaults.requireBoardApprovalForNewAgents === "boolean") {
-    return defaults.requireBoardApprovalForNewAgents;
-  }
+function readCompanyApprovalDefault(_frontmatter: Record<string, unknown>) {
   return true;
 }
 
@@ -581,40 +831,26 @@ function readIncludeEntries(frontmatter: Record<string, unknown>): CompanyPackag
   });
 }
 
-function readAgentSecretRequirements(
-  frontmatter: Record<string, unknown>,
+function readAgentEnvInputs(
+  extension: Record<string, unknown>,
   agentSlug: string,
-): CompanyPortabilityManifest["requiredSecrets"] {
-  const requirements = frontmatter.requirements;
-  const secretsFromRequirements =
-    isPlainRecord(requirements) && Array.isArray(requirements.secrets)
-      ? requirements.secrets
-      : [];
-  const legacyRequiredSecrets = Array.isArray(frontmatter.requiredSecrets)
-    ? frontmatter.requiredSecrets
-    : [];
-  const combined = [...secretsFromRequirements, ...legacyRequiredSecrets];
+): CompanyPortabilityManifest["envInputs"] {
+  const inputs = isPlainRecord(extension.inputs) ? extension.inputs : null;
+  const env = inputs && isPlainRecord(inputs.env) ? inputs.env : null;
+  if (!env) return [];
 
-  return combined.flatMap((entry) => {
-    if (typeof entry === "string" && entry.trim()) {
-      return [{
-        key: entry.trim(),
-        description: `Set ${entry.trim()} for agent ${agentSlug}`,
-        agentSlug,
-        providerHint: null,
-      }];
-    }
-    if (isPlainRecord(entry)) {
-      const key = asString(entry.key);
-      if (!key) return [];
-      return [{
-        key,
-        description: asString(entry.description) ?? `Set ${key} for agent ${agentSlug}`,
-        agentSlug,
-        providerHint: asString(entry.providerHint),
-      }];
-    }
-    return [];
+  return Object.entries(env).flatMap(([key, value]) => {
+    if (!isPlainRecord(value)) return [];
+    const record = value as EnvInputRecord;
+    return [{
+      key,
+      description: asString(record.description) ?? null,
+      agentSlug,
+      kind: record.kind === "plain" ? "plain" : "secret",
+      requirement: record.requirement === "required" ? "required" : "optional",
+      defaultValue: typeof record.default === "string" ? record.default : null,
+      portability: record.portability === "system_dependent" ? "system_dependent" : "portable",
+    }];
   });
 }
 
@@ -635,6 +871,14 @@ function buildManifestFromPackageFiles(
 
   const companyDoc = parseFrontmatterMarkdown(normalizedFiles[resolvedCompanyPath]!);
   const companyFrontmatter = companyDoc.frontmatter;
+  const paperclipExtensionPath = findPaperclipExtensionPath(normalizedFiles);
+  const paperclipExtension = paperclipExtensionPath
+    ? parseYamlFile(normalizedFiles[paperclipExtensionPath] ?? "")
+    : {};
+  const paperclipCompany = isPlainRecord(paperclipExtension.company) ? paperclipExtension.company : {};
+  const paperclipAgents = isPlainRecord(paperclipExtension.agents) ? paperclipExtension.agents : {};
+  const paperclipProjects = isPlainRecord(paperclipExtension.projects) ? paperclipExtension.projects : {};
+  const paperclipTasks = isPlainRecord(paperclipExtension.tasks) ? paperclipExtension.tasks : {};
   const companyName =
     asString(companyFrontmatter.name)
     ?? opts?.sourceLabel?.companyName
@@ -648,28 +892,49 @@ function buildManifestFromPackageFiles(
   const referencedAgentPaths = includeEntries
     .map((entry) => resolvePortablePath(resolvedCompanyPath, entry.path))
     .filter((entry) => entry.endsWith("/AGENTS.md") || entry === "AGENTS.md");
+  const referencedProjectPaths = includeEntries
+    .map((entry) => resolvePortablePath(resolvedCompanyPath, entry.path))
+    .filter((entry) => entry.endsWith("/PROJECT.md") || entry === "PROJECT.md");
+  const referencedTaskPaths = includeEntries
+    .map((entry) => resolvePortablePath(resolvedCompanyPath, entry.path))
+    .filter((entry) => entry.endsWith("/TASK.md") || entry === "TASK.md");
   const discoveredAgentPaths = Object.keys(normalizedFiles).filter(
     (entry) => entry.endsWith("/AGENTS.md") || entry === "AGENTS.md",
   );
+  const discoveredProjectPaths = Object.keys(normalizedFiles).filter(
+    (entry) => entry.endsWith("/PROJECT.md") || entry === "PROJECT.md",
+  );
+  const discoveredTaskPaths = Object.keys(normalizedFiles).filter(
+    (entry) => entry.endsWith("/TASK.md") || entry === "TASK.md",
+  );
   const agentPaths = Array.from(new Set([...referencedAgentPaths, ...discoveredAgentPaths])).sort();
+  const projectPaths = Array.from(new Set([...referencedProjectPaths, ...discoveredProjectPaths])).sort();
+  const taskPaths = Array.from(new Set([...referencedTaskPaths, ...discoveredTaskPaths])).sort();
 
   const manifest: CompanyPortabilityManifest = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     generatedAt: new Date().toISOString(),
     source: opts?.sourceLabel ?? null,
     includes: {
       company: true,
       agents: true,
+      projects: projectPaths.length > 0,
+      issues: taskPaths.length > 0,
     },
     company: {
       path: resolvedCompanyPath,
       name: companyName,
       description: asString(companyFrontmatter.description),
-      brandColor: asString(companyFrontmatter.brandColor),
-      requireBoardApprovalForNewAgents: readCompanyApprovalDefault(companyFrontmatter),
+      brandColor: asString(paperclipCompany.brandColor),
+      requireBoardApprovalForNewAgents:
+        typeof paperclipCompany.requireBoardApprovalForNewAgents === "boolean"
+          ? paperclipCompany.requireBoardApprovalForNewAgents
+          : readCompanyApprovalDefault(companyFrontmatter),
     },
     agents: [],
-    requiredSecrets: [],
+    projects: [],
+    issues: [],
+    envInputs: [],
   };
 
   const warnings: string[] = [];
@@ -683,47 +948,124 @@ function buildManifestFromPackageFiles(
     const frontmatter = agentDoc.frontmatter;
     const fallbackSlug = normalizeAgentUrlKey(path.posix.basename(path.posix.dirname(agentPath))) ?? "agent";
     const slug = asString(frontmatter.slug) ?? fallbackSlug;
-    const adapter = isPlainRecord(frontmatter.adapter) ? frontmatter.adapter : null;
-    const runtime = isPlainRecord(frontmatter.runtime) ? frontmatter.runtime : null;
-    const permissions = isPlainRecord(frontmatter.permissions) ? frontmatter.permissions : {};
-    const metadata = isPlainRecord(frontmatter.metadata) ? frontmatter.metadata : null;
-    const adapterConfig = isPlainRecord(adapter?.config)
-      ? adapter.config
-      : isPlainRecord(frontmatter.adapterConfig)
-        ? frontmatter.adapterConfig
-        : {};
-    const runtimeConfig = runtime ?? (isPlainRecord(frontmatter.runtimeConfig) ? frontmatter.runtimeConfig : {});
+    const extension = isPlainRecord(paperclipAgents[slug]) ? paperclipAgents[slug] : {};
+    const extensionAdapter = isPlainRecord(extension.adapter) ? extension.adapter : null;
+    const extensionRuntime = isPlainRecord(extension.runtime) ? extension.runtime : null;
+    const extensionPermissions = isPlainRecord(extension.permissions) ? extension.permissions : null;
+    const extensionMetadata = isPlainRecord(extension.metadata) ? extension.metadata : null;
+    const adapterConfig = isPlainRecord(extensionAdapter?.config)
+      ? extensionAdapter.config
+      : {};
+    const runtimeConfig = extensionRuntime ?? {};
     const title = asString(frontmatter.title);
-    const capabilities = asString(frontmatter.capabilities);
 
     manifest.agents.push({
       slug,
       name: asString(frontmatter.name) ?? title ?? slug,
       path: agentPath,
-      role: asString(frontmatter.role) ?? "agent",
+      role: asString(extension.role) ?? "agent",
       title,
-      icon: asString(frontmatter.icon),
-      capabilities,
-      reportsToSlug: asString(frontmatter.reportsTo),
-      adapterType: asString(adapter?.type) ?? asString(frontmatter.adapterType) ?? "process",
+      icon: asString(extension.icon),
+      capabilities: asString(extension.capabilities),
+      reportsToSlug: asString(frontmatter.reportsTo) ?? asString(extension.reportsTo),
+      adapterType: asString(extensionAdapter?.type) ?? "process",
       adapterConfig,
       runtimeConfig,
-      permissions,
+      permissions: extensionPermissions ?? {},
       budgetMonthlyCents:
-        typeof frontmatter.budgetMonthlyCents === "number" && Number.isFinite(frontmatter.budgetMonthlyCents)
-          ? Math.max(0, Math.floor(frontmatter.budgetMonthlyCents))
+        typeof extension.budgetMonthlyCents === "number" && Number.isFinite(extension.budgetMonthlyCents)
+          ? Math.max(0, Math.floor(extension.budgetMonthlyCents))
           : 0,
-      metadata,
+      metadata: extensionMetadata,
     });
 
-    manifest.requiredSecrets.push(...readAgentSecretRequirements(frontmatter, slug));
+    manifest.envInputs.push(...readAgentEnvInputs(extension, slug));
 
-    if (frontmatter.kind !== "agent") {
+    if (frontmatter.kind && frontmatter.kind !== "agent") {
       warnings.push(`Agent markdown ${agentPath} does not declare kind: agent in frontmatter.`);
     }
   }
 
-  manifest.requiredSecrets = dedupeRequiredSecrets(manifest.requiredSecrets);
+  for (const projectPath of projectPaths) {
+    const markdownRaw = normalizedFiles[projectPath];
+    if (typeof markdownRaw !== "string") {
+      warnings.push(`Referenced project file is missing from package: ${projectPath}`);
+      continue;
+    }
+    const projectDoc = parseFrontmatterMarkdown(markdownRaw);
+    const frontmatter = projectDoc.frontmatter;
+    const fallbackSlug = deriveProjectUrlKey(
+      asString(frontmatter.name) ?? path.posix.basename(path.posix.dirname(projectPath)) ?? "project",
+      projectPath,
+    );
+    const slug = asString(frontmatter.slug) ?? fallbackSlug;
+    const extension = isPlainRecord(paperclipProjects[slug]) ? paperclipProjects[slug] : {};
+    manifest.projects.push({
+      slug,
+      name: asString(frontmatter.name) ?? slug,
+      path: projectPath,
+      description: asString(frontmatter.description),
+      ownerAgentSlug: asString(frontmatter.owner),
+      leadAgentSlug: asString(extension.leadAgentSlug),
+      targetDate: asString(extension.targetDate),
+      color: asString(extension.color),
+      status: asString(extension.status),
+      executionWorkspacePolicy: isPlainRecord(extension.executionWorkspacePolicy)
+        ? extension.executionWorkspacePolicy
+        : null,
+      metadata: isPlainRecord(extension.metadata) ? extension.metadata : null,
+    });
+    if (frontmatter.kind && frontmatter.kind !== "project") {
+      warnings.push(`Project markdown ${projectPath} does not declare kind: project in frontmatter.`);
+    }
+  }
+
+  for (const taskPath of taskPaths) {
+    const markdownRaw = normalizedFiles[taskPath];
+    if (typeof markdownRaw !== "string") {
+      warnings.push(`Referenced task file is missing from package: ${taskPath}`);
+      continue;
+    }
+    const taskDoc = parseFrontmatterMarkdown(markdownRaw);
+    const frontmatter = taskDoc.frontmatter;
+    const fallbackSlug = normalizeAgentUrlKey(path.posix.basename(path.posix.dirname(taskPath))) ?? "task";
+    const slug = asString(frontmatter.slug) ?? fallbackSlug;
+    const extension = isPlainRecord(paperclipTasks[slug]) ? paperclipTasks[slug] : {};
+    const schedule = isPlainRecord(frontmatter.schedule) ? frontmatter.schedule : null;
+    const recurrence = schedule && isPlainRecord(schedule.recurrence)
+      ? schedule.recurrence
+      : isPlainRecord(extension.recurrence)
+        ? extension.recurrence
+        : null;
+    manifest.issues.push({
+      slug,
+      identifier: asString(extension.identifier),
+      title: asString(frontmatter.name) ?? asString(frontmatter.title) ?? slug,
+      path: taskPath,
+      projectSlug: asString(frontmatter.project),
+      assigneeAgentSlug: asString(frontmatter.assignee),
+      description: taskDoc.body || asString(frontmatter.description),
+      recurrence,
+      status: asString(extension.status),
+      priority: asString(extension.priority),
+      labelIds: Array.isArray(extension.labelIds)
+        ? extension.labelIds.filter((entry): entry is string => typeof entry === "string")
+        : [],
+      billingCode: asString(extension.billingCode),
+      executionWorkspaceSettings: isPlainRecord(extension.executionWorkspaceSettings)
+        ? extension.executionWorkspaceSettings
+        : null,
+      assigneeAdapterOverrides: isPlainRecord(extension.assigneeAdapterOverrides)
+        ? extension.assigneeAdapterOverrides
+        : null,
+      metadata: isPlainRecord(extension.metadata) ? extension.metadata : null,
+    });
+    if (frontmatter.kind && frontmatter.kind !== "task") {
+      warnings.push(`Task markdown ${taskPath} does not declare kind: task in frontmatter.`);
+    }
+  }
+
+  manifest.envInputs = dedupeEnvInputs(manifest.envInputs);
   return {
     manifest,
     files: normalizedFiles,
@@ -819,6 +1161,8 @@ export function companyPortabilityService(db: Db) {
   const companies = companyService(db);
   const agents = agentService(db);
   const access = accessService(db);
+  const projects = projectService(db);
+  const issues = issueService(db);
 
   async function resolveSource(source: CompanyPortabilityPreview["source"]): Promise<ResolvedSource> {
     if (source.type === "inline") {
@@ -836,6 +1180,12 @@ export function companyPortabilityService(db: Db) {
       const files: Record<string, string> = {
         "COMPANY.md": companyMarkdown,
       };
+      const paperclipYaml = await fetchOptionalText(
+        new URL(".paperclip.yaml", companyUrl).toString(),
+      ).catch(() => null);
+      if (paperclipYaml) {
+        files[".paperclip.yaml"] = paperclipYaml;
+      }
       const companyDoc = parseFrontmatterMarkdown(companyMarkdown);
       const includeEntries = readIncludeEntries(companyDoc.frontmatter);
 
@@ -883,12 +1233,38 @@ export function companyPortabilityService(db: Db) {
     const files: Record<string, string> = {
       [companyPath]: companyMarkdown,
     };
+    const tree = await fetchJson<{ tree?: Array<{ path: string; type: string }> }>(
+      `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${ref}?recursive=1`,
+    ).catch(() => ({ tree: [] }));
+    const basePrefix = parsed.basePath ? `${parsed.basePath.replace(/^\/+|\/+$/g, "")}/` : "";
+    const candidatePaths = (tree.tree ?? [])
+      .filter((entry) => entry.type === "blob")
+      .map((entry) => entry.path)
+      .filter((entry): entry is string => typeof entry === "string")
+      .filter((entry) => {
+        if (basePrefix && !entry.startsWith(basePrefix)) return false;
+        const relative = basePrefix ? entry.slice(basePrefix.length) : entry;
+        return (
+          relative.endsWith(".md") ||
+          relative === ".paperclip.yaml" ||
+          relative === ".paperclip.yml"
+        );
+      });
+    for (const repoPath of candidatePaths) {
+      const relativePath = basePrefix ? repoPath.slice(basePrefix.length) : repoPath;
+      if (files[relativePath] !== undefined) continue;
+      files[normalizePortablePath(relativePath)] = await fetchText(
+        resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, repoPath),
+      );
+    }
     const companyDoc = parseFrontmatterMarkdown(companyMarkdown);
     const includeEntries = readIncludeEntries(companyDoc.frontmatter);
     for (const includeEntry of includeEntries) {
       const repoPath = [parsed.basePath, includeEntry.path].filter(Boolean).join("/");
-      if (!repoPath.endsWith(".md")) continue;
-      files[normalizePortablePath(includeEntry.path)] = await fetchText(
+      const relativePath = normalizePortablePath(includeEntry.path);
+      if (files[relativePath] !== undefined) continue;
+      if (!(repoPath.endsWith(".md") || repoPath.endsWith(".yaml") || repoPath.endsWith(".yml"))) continue;
+      files[relativePath] = await fetchText(
         resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, repoPath),
       );
     }
@@ -902,13 +1278,20 @@ export function companyPortabilityService(db: Db) {
     companyId: string,
     input: CompanyPortabilityExport,
   ): Promise<CompanyPortabilityExportResult> {
-    const include = normalizeInclude(input.include);
+    const include = normalizeInclude({
+      ...input.include,
+      projects: input.projects && input.projects.length > 0 ? true : input.include?.projects,
+      issues:
+        (input.issues && input.issues.length > 0) || (input.projectIssues && input.projectIssues.length > 0)
+          ? true
+          : input.include?.issues,
+    });
     const company = await companies.getById(companyId);
     if (!company) throw notFound("Company not found");
 
     const files: Record<string, string> = {};
     const warnings: string[] = [];
-    const requiredSecrets: CompanyPortabilityManifest["requiredSecrets"] = [];
+    const envInputs: CompanyPortabilityManifest["envInputs"] = [];
     const rootPath = normalizeAgentUrlKey(company.name) ?? "company-package";
 
     const allAgentRows = include.agents ? await agents.list(companyId, { includeTerminated: true }) : [];
@@ -928,33 +1311,125 @@ export function companyPortabilityService(db: Db) {
       idToSlug.set(agent.id, slug);
     }
 
-    {
-      const companyPath = "COMPANY.md";
+    const projectsSvc = projectService(db);
+    const issuesSvc = issueService(db);
+    const allProjects = include.projects || include.issues ? await projectsSvc.list(companyId) : [];
+    const projectById = new Map(allProjects.map((project) => [project.id, project]));
+    const projectByReference = new Map<string, typeof allProjects[number]>();
+    for (const project of allProjects) {
+      projectByReference.set(project.id, project);
+      projectByReference.set(project.urlKey, project);
+    }
+
+    const selectedProjects = new Map<string, typeof allProjects[number]>();
+    const normalizeProjectSelector = (selector: string) => selector.trim().toLowerCase();
+    for (const selector of input.projects ?? []) {
+      const match = projectByReference.get(selector) ?? projectByReference.get(normalizeProjectSelector(selector));
+      if (!match) {
+        warnings.push(`Project selector "${selector}" was not found and was skipped.`);
+        continue;
+      }
+      selectedProjects.set(match.id, match);
+    }
+
+    const selectedIssues = new Map<string, Awaited<ReturnType<typeof issuesSvc.getById>>>();
+    const resolveIssueBySelector = async (selector: string) => {
+      const trimmed = selector.trim();
+      if (!trimmed) return null;
+      return trimmed.includes("-")
+        ? issuesSvc.getByIdentifier(trimmed)
+        : issuesSvc.getById(trimmed);
+    };
+    for (const selector of input.issues ?? []) {
+      const issue = await resolveIssueBySelector(selector);
+      if (!issue || issue.companyId !== companyId) {
+        warnings.push(`Issue selector "${selector}" was not found and was skipped.`);
+        continue;
+      }
+      selectedIssues.set(issue.id, issue);
+      if (issue.projectId) {
+        const parentProject = projectById.get(issue.projectId);
+        if (parentProject) selectedProjects.set(parentProject.id, parentProject);
+      }
+    }
+
+    for (const selector of input.projectIssues ?? []) {
+      const match = projectByReference.get(selector) ?? projectByReference.get(normalizeProjectSelector(selector));
+      if (!match) {
+        warnings.push(`Project-issues selector "${selector}" was not found and was skipped.`);
+        continue;
+      }
+      selectedProjects.set(match.id, match);
+      const projectIssues = await issuesSvc.list(companyId, { projectId: match.id });
+      for (const issue of projectIssues) {
+        selectedIssues.set(issue.id, issue);
+      }
+    }
+
+    if (include.projects && selectedProjects.size === 0) {
+      for (const project of allProjects) {
+        selectedProjects.set(project.id, project);
+      }
+    }
+
+    if (include.issues && selectedIssues.size === 0) {
+      const allIssues = await issuesSvc.list(companyId);
+      for (const issue of allIssues) {
+        selectedIssues.set(issue.id, issue);
+        if (issue.projectId) {
+          const parentProject = projectById.get(issue.projectId);
+          if (parentProject) selectedProjects.set(parentProject.id, parentProject);
+        }
+      }
+    }
+
+    const selectedProjectRows = Array.from(selectedProjects.values())
+      .sort((left, right) => left.name.localeCompare(right.name));
+    const selectedIssueRows = Array.from(selectedIssues.values())
+      .filter((issue): issue is NonNullable<typeof issue> => issue != null)
+      .sort((left, right) => (left.identifier ?? left.title).localeCompare(right.identifier ?? right.title));
+
+    const taskSlugByIssueId = new Map<string, string>();
+    const usedTaskSlugs = new Set<string>();
+    for (const issue of selectedIssueRows) {
+      const baseSlug = normalizeAgentUrlKey(issue.identifier ?? issue.title) ?? "task";
+      taskSlugByIssueId.set(issue.id, uniqueSlug(baseSlug, usedTaskSlugs));
+    }
+
+    const projectSlugById = new Map<string, string>();
+    const usedProjectSlugs = new Set<string>();
+    for (const project of selectedProjectRows) {
+      const baseSlug = deriveProjectUrlKey(project.name, project.id);
+      projectSlugById.set(project.id, uniqueSlug(baseSlug, usedProjectSlugs));
+    }
+
+    const companyPath = "COMPANY.md";
+    const companyBodySections: string[] = [];
+    if (include.agents) {
       const companyAgentSummaries = agentRows.map((agent) => ({
         slug: idToSlug.get(agent.id) ?? "agent",
         name: agent.name,
       }));
-      const includes = include.agents
-        ? buildIncludes(
-            companyAgentSummaries.map((agent) => `agents/${agent.slug}/AGENTS.md`),
-          )
-        : [];
-      files[companyPath] = buildMarkdown(
-        {
-          schema: "company-packages/v0.1",
-          kind: "company",
-          slug: rootPath,
-          name: company.name,
-          description: company.description ?? null,
-          brandColor: company.brandColor ?? null,
-          defaults: {
-            requireBoardApprovalForNewAgents: company.requireBoardApprovalForNewAgents,
-          },
-          includes,
-        },
-        renderCompanyAgentsSection(companyAgentSummaries),
+      companyBodySections.push(renderCompanyAgentsSection(companyAgentSummaries));
+    }
+    if (selectedProjectRows.length > 0) {
+      companyBodySections.push(
+        ["# Projects", "", ...selectedProjectRows.map((project) => `- ${projectSlugById.get(project.id) ?? project.id} - ${project.name}`)].join("\n"),
       );
     }
+    files[companyPath] = buildMarkdown(
+      {
+        name: company.name,
+        description: company.description ?? null,
+        schema: "agentcompanies/v1",
+        slug: rootPath,
+      },
+      companyBodySections.join("\n\n").trim(),
+    );
+
+    const paperclipAgentsOut: Record<string, Record<string, unknown>> = {};
+    const paperclipProjectsOut: Record<string, Record<string, unknown>> = {};
+    const paperclipTasksOut: Record<string, Record<string, unknown>> = {};
 
     if (include.agents) {
       for (const agent of agentRows) {
@@ -963,63 +1438,144 @@ export function companyPortabilityService(db: Db) {
         if (instructions.warning) warnings.push(instructions.warning);
         const agentPath = `agents/${slug}/AGENTS.md`;
 
-        const secretStart = requiredSecrets.length;
+        const envInputsStart = envInputs.length;
+        const exportedEnvInputs = extractPortableEnvInputs(
+          slug,
+          (agent.adapterConfig as Record<string, unknown>).env,
+          warnings,
+        );
+        envInputs.push(...exportedEnvInputs);
         const adapterDefaultRules = ADAPTER_DEFAULT_RULES_BY_TYPE[agent.adapterType] ?? [];
         const portableAdapterConfig = pruneDefaultLikeValue(
-          normalizePortableConfig(agent.adapterConfig, slug, requiredSecrets),
+          normalizePortableConfig(agent.adapterConfig),
           {
             dropFalseBooleans: true,
             defaultRules: adapterDefaultRules,
           },
         ) as Record<string, unknown>;
         const portableRuntimeConfig = pruneDefaultLikeValue(
-          normalizePortableConfig(agent.runtimeConfig, slug, requiredSecrets),
+          normalizePortableConfig(agent.runtimeConfig),
           {
             dropFalseBooleans: true,
             defaultRules: RUNTIME_DEFAULT_RULES,
           },
         ) as Record<string, unknown>;
         const portablePermissions = pruneDefaultLikeValue(agent.permissions ?? {}, { dropFalseBooleans: true }) as Record<string, unknown>;
-        const agentRequiredSecrets = dedupeRequiredSecrets(
-          requiredSecrets
-            .slice(secretStart)
-            .filter((requirement) => requirement.agentSlug === slug),
+        const agentEnvInputs = dedupeEnvInputs(
+          envInputs
+            .slice(envInputsStart)
+            .filter((inputValue) => inputValue.agentSlug === slug),
         );
         const reportsToSlug = agent.reportsTo ? (idToSlug.get(agent.reportsTo) ?? null) : null;
 
+        const commandValue = asString(portableAdapterConfig.command);
+        if (commandValue && isAbsoluteCommand(commandValue)) {
+          warnings.push(`Agent ${slug} command ${commandValue} was omitted from export because it is system-dependent.`);
+          delete portableAdapterConfig.command;
+        }
+
         files[agentPath] = buildMarkdown(
           {
-            schema: "company-packages/v0.1",
             name: agent.name,
-            slug,
-            kind: "agent",
-            role: agent.role,
             title: agent.title ?? null,
-            icon: agent.icon ?? null,
-            capabilities: agent.capabilities ?? null,
             reportsTo: reportsToSlug,
-            adapter: {
-              type: agent.adapterType,
-              config: portableAdapterConfig,
-            },
-            runtime: portableRuntimeConfig,
-            permissions: portablePermissions,
-            budgetMonthlyCents: agent.budgetMonthlyCents ?? 0,
-            metadata: (agent.metadata as Record<string, unknown> | null) ?? null,
-            requirements: agentRequiredSecrets.length > 0
-              ? {
-                  secrets: agentRequiredSecrets.map((secret) => ({
-                    key: secret.key,
-                    description: secret.description,
-                    providerHint: secret.providerHint,
-                  })),
-                }
-              : {},
           },
           instructions.body,
         );
+
+        const extension = stripEmptyValues({
+          role: agent.role !== "agent" ? agent.role : undefined,
+          icon: agent.icon ?? null,
+          capabilities: agent.capabilities ?? null,
+          adapter: {
+            type: agent.adapterType,
+            config: portableAdapterConfig,
+          },
+          runtime: portableRuntimeConfig,
+          permissions: portablePermissions,
+          budgetMonthlyCents: (agent.budgetMonthlyCents ?? 0) > 0 ? agent.budgetMonthlyCents : undefined,
+          metadata: (agent.metadata as Record<string, unknown> | null) ?? null,
+        });
+        if (isPlainRecord(extension) && agentEnvInputs.length > 0) {
+          extension.inputs = {
+            env: buildEnvInputMap(agentEnvInputs),
+          };
+        }
+        paperclipAgentsOut[slug] = isPlainRecord(extension) ? extension : {};
       }
     }
+
+    for (const project of selectedProjectRows) {
+      const slug = projectSlugById.get(project.id)!;
+      const projectPath = `projects/${slug}/PROJECT.md`;
+      files[projectPath] = buildMarkdown(
+        {
+          name: project.name,
+          description: project.description ?? null,
+          owner: project.leadAgentId ? (idToSlug.get(project.leadAgentId) ?? null) : null,
+        },
+        project.description ?? "",
+      );
+      const extension = stripEmptyValues({
+        leadAgentSlug: project.leadAgentId ? (idToSlug.get(project.leadAgentId) ?? null) : null,
+        targetDate: project.targetDate ?? null,
+        color: project.color ?? null,
+        status: project.status,
+        executionWorkspacePolicy: project.executionWorkspacePolicy ?? undefined,
+      });
+      paperclipProjectsOut[slug] = isPlainRecord(extension) ? extension : {};
+    }
+
+    for (const issue of selectedIssueRows) {
+      const taskSlug = taskSlugByIssueId.get(issue.id)!;
+      const projectSlug = issue.projectId ? (projectSlugById.get(issue.projectId) ?? null) : null;
+      const taskPath = projectSlug
+        ? `projects/${projectSlug}/tasks/${taskSlug}/TASK.md`
+        : `tasks/${taskSlug}/TASK.md`;
+      const assigneeSlug = issue.assigneeAgentId ? (idToSlug.get(issue.assigneeAgentId) ?? null) : null;
+      files[taskPath] = buildMarkdown(
+        {
+          name: issue.title,
+          project: projectSlug,
+          assignee: assigneeSlug,
+        },
+        issue.description ?? "",
+      );
+      const extension = stripEmptyValues({
+        identifier: issue.identifier,
+        status: issue.status,
+        priority: issue.priority,
+        labelIds: issue.labelIds ?? undefined,
+        billingCode: issue.billingCode ?? null,
+        executionWorkspaceSettings: issue.executionWorkspaceSettings ?? undefined,
+        assigneeAdapterOverrides: issue.assigneeAdapterOverrides ?? undefined,
+      });
+      paperclipTasksOut[taskSlug] = isPlainRecord(extension) ? extension : {};
+    }
+
+    const paperclipExtensionPath = ".paperclip.yaml";
+    const paperclipAgents = Object.fromEntries(
+      Object.entries(paperclipAgentsOut).filter(([, value]) => isPlainRecord(value) && Object.keys(value).length > 0),
+    );
+    const paperclipProjects = Object.fromEntries(
+      Object.entries(paperclipProjectsOut).filter(([, value]) => isPlainRecord(value) && Object.keys(value).length > 0),
+    );
+    const paperclipTasks = Object.fromEntries(
+      Object.entries(paperclipTasksOut).filter(([, value]) => isPlainRecord(value) && Object.keys(value).length > 0),
+    );
+    files[paperclipExtensionPath] = buildYamlFile(
+      {
+        schema: "paperclip/v1",
+        company: stripEmptyValues({
+          brandColor: company.brandColor ?? null,
+          requireBoardApprovalForNewAgents: company.requireBoardApprovalForNewAgents ? undefined : false,
+        }),
+        agents: Object.keys(paperclipAgents).length > 0 ? paperclipAgents : undefined,
+        projects: Object.keys(paperclipProjects).length > 0 ? paperclipProjects : undefined,
+        tasks: Object.keys(paperclipTasks).length > 0 ? paperclipTasks : undefined,
+      },
+      { preserveEmptyStrings: true },
+    );
 
     const resolved = buildManifestFromPackageFiles(files, {
       sourceLabel: {
@@ -1028,13 +1584,14 @@ export function companyPortabilityService(db: Db) {
       },
     });
     resolved.manifest.includes = include;
-    resolved.manifest.requiredSecrets = dedupeRequiredSecrets(requiredSecrets);
+    resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
     return {
       rootPath,
       manifest: resolved.manifest,
       files,
       warnings: resolved.warnings,
+      paperclipExtensionPath,
     };
   }
 
@@ -1078,8 +1635,45 @@ export function companyPortabilityService(db: Db) {
         continue;
       }
       const parsed = parseFrontmatterMarkdown(markdown);
-      if (parsed.frontmatter.kind !== "agent") {
+      if (parsed.frontmatter.kind && parsed.frontmatter.kind !== "agent") {
         warnings.push(`Agent markdown ${filePath} does not declare kind: agent in frontmatter.`);
+      }
+    }
+
+    if (include.projects) {
+      for (const project of manifest.projects) {
+        const markdown = source.files[ensureMarkdownPath(project.path)];
+        if (typeof markdown !== "string") {
+          errors.push(`Missing markdown file for project ${project.slug}: ${project.path}`);
+          continue;
+        }
+        const parsed = parseFrontmatterMarkdown(markdown);
+        if (parsed.frontmatter.kind && parsed.frontmatter.kind !== "project") {
+          warnings.push(`Project markdown ${project.path} does not declare kind: project in frontmatter.`);
+        }
+      }
+    }
+
+    if (include.issues) {
+      for (const issue of manifest.issues) {
+        const markdown = source.files[ensureMarkdownPath(issue.path)];
+        if (typeof markdown !== "string") {
+          errors.push(`Missing markdown file for task ${issue.slug}: ${issue.path}`);
+          continue;
+        }
+        const parsed = parseFrontmatterMarkdown(markdown);
+        if (parsed.frontmatter.kind && parsed.frontmatter.kind !== "task") {
+          warnings.push(`Task markdown ${issue.path} does not declare kind: task in frontmatter.`);
+        }
+        if (issue.recurrence) {
+          warnings.push(`Task ${issue.slug} has recurrence metadata; Paperclip will import it as a one-time issue for now.`);
+        }
+      }
+    }
+
+    for (const envInput of manifest.envInputs) {
+      if (envInput.portability === "system_dependent") {
+        warnings.push(`Environment input ${envInput.key}${envInput.agentSlug ? ` for ${envInput.agentSlug}` : ""} is system-dependent and may need manual adjustment after import.`);
       }
     }
 
@@ -1096,6 +1690,10 @@ export function companyPortabilityService(db: Db) {
     const agentPlans: CompanyPortabilityPreviewAgentPlan[] = [];
     const existingSlugToAgent = new Map<string, { id: string; name: string }>();
     const existingSlugs = new Set<string>();
+    const projectPlans: CompanyPortabilityPreviewResult["plan"]["projectPlans"] = [];
+    const issuePlans: CompanyPortabilityPreviewResult["plan"]["issuePlans"] = [];
+    const existingProjectSlugToProject = new Map<string, { id: string; name: string }>();
+    const existingProjectSlugs = new Set<string>();
 
     if (input.target.mode === "existing_company") {
       const existingAgents = await agents.list(input.target.companyId);
@@ -1103,6 +1701,13 @@ export function companyPortabilityService(db: Db) {
         const slug = normalizeAgentUrlKey(existing.name) ?? existing.id;
         if (!existingSlugToAgent.has(slug)) existingSlugToAgent.set(slug, existing);
         existingSlugs.add(slug);
+      }
+      const existingProjects = await projects.list(input.target.companyId);
+      for (const existing of existingProjects) {
+        if (!existingProjectSlugToProject.has(existing.urlKey)) {
+          existingProjectSlugToProject.set(existing.urlKey, { id: existing.id, name: existing.name });
+        }
+        existingProjectSlugs.add(existing.urlKey);
       }
     }
 
@@ -1152,6 +1757,62 @@ export function companyPortabilityService(db: Db) {
       });
     }
 
+    if (include.projects) {
+      for (const manifestProject of manifest.projects) {
+        const existing = existingProjectSlugToProject.get(manifestProject.slug) ?? null;
+        if (!existing) {
+          projectPlans.push({
+            slug: manifestProject.slug,
+            action: "create",
+            plannedName: manifestProject.name,
+            existingProjectId: null,
+            reason: null,
+          });
+          continue;
+        }
+        if (collisionStrategy === "replace") {
+          projectPlans.push({
+            slug: manifestProject.slug,
+            action: "update",
+            plannedName: existing.name,
+            existingProjectId: existing.id,
+            reason: "Existing slug matched; replace strategy.",
+          });
+          continue;
+        }
+        if (collisionStrategy === "skip") {
+          projectPlans.push({
+            slug: manifestProject.slug,
+            action: "skip",
+            plannedName: existing.name,
+            existingProjectId: existing.id,
+            reason: "Existing slug matched; skip strategy.",
+          });
+          continue;
+        }
+        const renamed = uniqueProjectName(manifestProject.name, existingProjectSlugs);
+        existingProjectSlugs.add(deriveProjectUrlKey(renamed, renamed));
+        projectPlans.push({
+          slug: manifestProject.slug,
+          action: "create",
+          plannedName: renamed,
+          existingProjectId: existing.id,
+          reason: "Existing slug matched; rename strategy.",
+        });
+      }
+    }
+
+    if (include.issues) {
+      for (const manifestIssue of manifest.issues) {
+        issuePlans.push({
+          slug: manifestIssue.slug,
+          action: "create",
+          plannedTitle: manifestIssue.title,
+          reason: manifestIssue.recurrence ? "Recurrence will not be activated on import." : null,
+        });
+      }
+    }
+
     const preview: CompanyPortabilityPreviewResult = {
       include,
       targetCompanyId,
@@ -1165,8 +1826,10 @@ export function companyPortabilityService(db: Db) {
             ? "update"
             : "none",
         agentPlans,
+        projectPlans,
+        issuePlans,
       },
-      requiredSecrets: manifest.requiredSecrets ?? [],
+      envInputs: manifest.envInputs ?? [],
       warnings,
       errors,
     };
@@ -1241,6 +1904,12 @@ export function companyPortabilityService(db: Db) {
     const existingAgents = await agents.list(targetCompany.id);
     for (const existing of existingAgents) {
       existingSlugToAgentId.set(normalizeAgentUrlKey(existing.name) ?? existing.id, existing.id);
+    }
+    const importedSlugToProjectId = new Map<string, string>();
+    const existingProjectSlugToId = new Map<string, string>();
+    const existingProjects = await projects.list(targetCompany.id);
+    for (const existing of existingProjects) {
+      existingProjectSlugToId.set(existing.urlKey, existing.id);
     }
 
     if (include.agents) {
@@ -1336,6 +2005,83 @@ export function companyPortabilityService(db: Db) {
       }
     }
 
+    if (include.projects) {
+      for (const planProject of plan.preview.plan.projectPlans) {
+        const manifestProject = sourceManifest.projects.find((project) => project.slug === planProject.slug);
+        if (!manifestProject) continue;
+        if (planProject.action === "skip") continue;
+
+        const projectLeadAgentId = manifestProject.leadAgentSlug
+          ? importedSlugToAgentId.get(manifestProject.leadAgentSlug)
+            ?? existingSlugToAgentId.get(manifestProject.leadAgentSlug)
+            ?? null
+          : null;
+        const projectPatch = {
+          name: planProject.plannedName,
+          description: manifestProject.description,
+          leadAgentId: projectLeadAgentId,
+          targetDate: manifestProject.targetDate,
+          color: manifestProject.color,
+          status: manifestProject.status && PROJECT_STATUSES.includes(manifestProject.status as any)
+            ? manifestProject.status as typeof PROJECT_STATUSES[number]
+            : "backlog",
+          executionWorkspacePolicy: manifestProject.executionWorkspacePolicy,
+        };
+
+        if (planProject.action === "update" && planProject.existingProjectId) {
+          const updated = await projects.update(planProject.existingProjectId, projectPatch);
+          if (!updated) {
+            warnings.push(`Skipped update for missing project ${planProject.existingProjectId}.`);
+            continue;
+          }
+          importedSlugToProjectId.set(planProject.slug, updated.id);
+          existingProjectSlugToId.set(updated.urlKey, updated.id);
+          continue;
+        }
+
+        const created = await projects.create(targetCompany.id, projectPatch);
+        importedSlugToProjectId.set(planProject.slug, created.id);
+        existingProjectSlugToId.set(created.urlKey, created.id);
+      }
+    }
+
+    if (include.issues) {
+      for (const manifestIssue of sourceManifest.issues) {
+        const markdownRaw = plan.source.files[manifestIssue.path];
+        const parsed = markdownRaw ? parseFrontmatterMarkdown(markdownRaw) : null;
+        const description = parsed?.body || manifestIssue.description || null;
+        const assigneeAgentId = manifestIssue.assigneeAgentSlug
+          ? importedSlugToAgentId.get(manifestIssue.assigneeAgentSlug)
+            ?? existingSlugToAgentId.get(manifestIssue.assigneeAgentSlug)
+            ?? null
+          : null;
+        const projectId = manifestIssue.projectSlug
+          ? importedSlugToProjectId.get(manifestIssue.projectSlug)
+            ?? existingProjectSlugToId.get(manifestIssue.projectSlug)
+            ?? null
+          : null;
+        await issues.create(targetCompany.id, {
+          projectId,
+          title: manifestIssue.title,
+          description,
+          assigneeAgentId,
+          status: manifestIssue.status && ISSUE_STATUSES.includes(manifestIssue.status as any)
+            ? manifestIssue.status as typeof ISSUE_STATUSES[number]
+            : "backlog",
+          priority: manifestIssue.priority && ISSUE_PRIORITIES.includes(manifestIssue.priority as any)
+            ? manifestIssue.priority as typeof ISSUE_PRIORITIES[number]
+            : "medium",
+          billingCode: manifestIssue.billingCode,
+          assigneeAdapterOverrides: manifestIssue.assigneeAdapterOverrides,
+          executionWorkspaceSettings: manifestIssue.executionWorkspaceSettings,
+          labelIds: [],
+        });
+        if (manifestIssue.recurrence) {
+          warnings.push(`Imported task ${manifestIssue.slug} as a one-time issue; recurrence metadata was not activated.`);
+        }
+      }
+    }
+
     return {
       company: {
         id: targetCompany.id,
@@ -1343,7 +2089,7 @@ export function companyPortabilityService(db: Db) {
         action: companyAction,
       },
       agents: resultAgents,
-      requiredSecrets: sourceManifest.requiredSecrets ?? [],
+      envInputs: sourceManifest.envInputs ?? [],
       warnings,
     };
   }

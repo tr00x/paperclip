@@ -14,7 +14,7 @@ export {
 } from "./adapter-skills.js";
 export {
   portabilityIncludeSchema,
-  portabilitySecretRequirementSchema,
+  portabilityEnvInputSchema,
   portabilityCompanyManifestEntrySchema,
   portabilityAgentManifestEntrySchema,
   portabilityManifestSchema,
