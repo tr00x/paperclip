@@ -1,5 +1,5 @@
 import { readConfigFile } from "./config-file.js";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { resolvePaperclipEnvPath } from "./paths.js";
@@ -29,7 +29,10 @@ if (existsSync(PAPERCLIP_ENV_FILE_PATH)) {
 }
 
 const CWD_ENV_PATH = resolve(process.cwd(), ".env");
-if (CWD_ENV_PATH !== PAPERCLIP_ENV_FILE_PATH && existsSync(CWD_ENV_PATH)) {
+const isSameFile = existsSync(CWD_ENV_PATH) && existsSync(PAPERCLIP_ENV_FILE_PATH)
+  ? realpathSync(CWD_ENV_PATH) === realpathSync(PAPERCLIP_ENV_FILE_PATH)
+  : CWD_ENV_PATH === PAPERCLIP_ENV_FILE_PATH;
+if (!isSameFile && existsSync(CWD_ENV_PATH)) {
   loadDotenv({ path: CWD_ENV_PATH, override: false, quiet: true });
 }
 
