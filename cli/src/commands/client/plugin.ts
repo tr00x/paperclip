@@ -55,6 +55,11 @@ function resolvePackageArg(packageArg: string, isLocal: boolean): string {
   if (!isLocal) return packageArg;
   // Already absolute
   if (path.isAbsolute(packageArg)) return packageArg;
+  // Expand leading ~ to home directory
+  if (packageArg.startsWith("~")) {
+    const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+    return path.resolve(home, packageArg.slice(1).replace(/^[\\/]/, ""));
+  }
   return path.resolve(process.cwd(), packageArg);
 }
 
