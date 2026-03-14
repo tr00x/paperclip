@@ -34,6 +34,9 @@ export function validateInstanceConfig(
   // ajv-formats v3 default export is a FormatsPlugin object; call it as a plugin.
   const applyFormats = (addFormats as any).default ?? addFormats;
   applyFormats(ajv);
+  // Register the secret-ref format used by plugin manifests to mark fields that
+  // hold a Paperclip secret UUID rather than a raw value.
+  ajv.addFormat("secret-ref", /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   const validate = ajv.compile(schema);
   const valid = validate(configJson);
 
