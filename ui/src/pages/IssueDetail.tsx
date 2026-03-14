@@ -606,6 +606,38 @@ export function IssueDetail() {
   };
 
   const isImageAttachment = (attachment: IssueAttachment) => attachment.contentType.startsWith("image/");
+  const attachmentList = attachments ?? [];
+  const hasAttachments = attachmentList.length > 0;
+  const attachmentUploadButton = (
+    <div
+      className={cn(
+        "rounded-md border border-dashed border-border p-1 transition-colors",
+        attachmentDragActive && "border-primary bg-primary/5",
+      )}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf,text/plain,text/markdown,application/json,text/csv,text/html,.md,.markdown"
+        className="hidden"
+        onChange={handleFilePicked}
+        multiple
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploadAttachment.isPending || importMarkdownDocument.isPending}
+        className={cn(
+          "border-transparent bg-transparent shadow-none",
+          attachmentDragActive && "bg-transparent",
+        )}
+      >
+        <Paperclip className="h-3.5 w-3.5 mr-1.5" />
+        {uploadAttachment.isPending || importMarkdownDocument.isPending ? "Uploading..." : "Upload attachment"}
+      </Button>
+    </div>
+  );
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -774,9 +806,11 @@ export function IssueDetail() {
           const attachment = await uploadAttachment.mutateAsync(file);
           return attachment.contentPath;
         }}
+        extraActions={!hasAttachments ? attachmentUploadButton : undefined}
       />
 
-      <div
+      {hasAttachments ? (
+        <div
         className={cn(
           "space-y-3 rounded-lg transition-colors",
         )}
@@ -796,84 +830,54 @@ export function IssueDetail() {
       >
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium text-muted-foreground">Attachments</h3>
-          <div
-            className={cn(
-              "rounded-md border border-dashed border-border p-1 transition-colors",
-              attachmentDragActive && "border-primary bg-primary/5",
-            )}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf,text/plain,text/markdown,application/json,text/csv,text/html,.md,.markdown"
-              className="hidden"
-              onChange={handleFilePicked}
-              multiple
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadAttachment.isPending || importMarkdownDocument.isPending}
-              className={cn(
-                "border-transparent bg-transparent shadow-none",
-                attachmentDragActive && "bg-transparent",
-              )}
-            >
-              <Paperclip className="h-3.5 w-3.5 mr-1.5" />
-              {uploadAttachment.isPending || importMarkdownDocument.isPending ? "Uploading..." : "Upload attachment"}
-            </Button>
-          </div>
+          {attachmentUploadButton}
         </div>
 
         {attachmentError && (
           <p className="text-xs text-destructive">{attachmentError}</p>
         )}
 
-        {(!attachments || attachments.length === 0) ? (
-          <p className="text-xs text-muted-foreground">No attachments yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {attachments.map((attachment) => (
-              <div key={attachment.id} className="border border-border rounded-md p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <a
-                    href={attachment.contentPath}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs hover:underline truncate"
-                    title={attachment.originalFilename ?? attachment.id}
-                  >
-                    {attachment.originalFilename ?? attachment.id}
-                  </a>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-destructive"
-                    onClick={() => deleteAttachment.mutate(attachment.id)}
-                    disabled={deleteAttachment.isPending}
-                    title="Delete attachment"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {attachment.contentType} · {(attachment.byteSize / 1024).toFixed(1)} KB
-                </p>
-                {isImageAttachment(attachment) && (
-                  <a href={attachment.contentPath} target="_blank" rel="noreferrer">
-                    <img
-                      src={attachment.contentPath}
-                      alt={attachment.originalFilename ?? "attachment"}
-                      className="mt-2 max-h-56 rounded border border-border object-contain bg-accent/10"
-                      loading="lazy"
-                    />
-                  </a>
-                )}
+        <div className="space-y-2">
+          {attachmentList.map((attachment) => (
+            <div key={attachment.id} className="border border-border rounded-md p-2">
+              <div className="flex items-center justify-between gap-2">
+                <a
+                  href={attachment.contentPath}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs hover:underline truncate"
+                  title={attachment.originalFilename ?? attachment.id}
+                >
+                  {attachment.originalFilename ?? attachment.id}
+                </a>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => deleteAttachment.mutate(attachment.id)}
+                  disabled={deleteAttachment.isPending}
+                  title="Delete attachment"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <p className="text-[11px] text-muted-foreground">
+                {attachment.contentType} · {(attachment.byteSize / 1024).toFixed(1)} KB
+              </p>
+              {isImageAttachment(attachment) && (
+                <a href={attachment.contentPath} target="_blank" rel="noreferrer">
+                  <img
+                    src={attachment.contentPath}
+                    alt={attachment.originalFilename ?? "attachment"}
+                    className="mt-2 max-h-56 rounded border border-border object-contain bg-accent/10"
+                    loading="lazy"
+                  />
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+        </div>
+      ) : null}
 
       <Separator />
 

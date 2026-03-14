@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Issue } from "@paperclipai/shared";
 import { issuesApi } from "../api/issues";
@@ -46,11 +46,13 @@ export function IssueDocumentsSection({
   canDeleteDocuments,
   mentions,
   imageUploadHandler,
+  extraActions,
 }: {
   issue: Issue;
   canDeleteDocuments: boolean;
   mentions?: MentionOption[];
   imageUploadHandler?: (file: File) => Promise<string>;
+  extraActions?: ReactNode;
 }) {
   const queryClient = useQueryClient();
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
@@ -106,6 +108,7 @@ export function IssueDocumentsSection({
   }, [documents]);
 
   const hasRealPlan = sortedDocuments.some((doc) => doc.key === "plan");
+  const isEmpty = sortedDocuments.length === 0 && !issue.legacyPlanDocument;
   const newDocumentKeyError =
     draft?.isNew && draft.key.trim().length > 0 && !DOCUMENT_KEY_PATTERN.test(draft.key.trim())
       ? "Use lowercase letters, numbers, -, or _, and start with a letter or number."
@@ -302,13 +305,26 @@ export function IssueDocumentsSection({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-muted-foreground">Documents</h3>
-        <Button variant="outline" size="sm" onClick={beginNewDocument}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          New document
-        </Button>
-      </div>
+      {isEmpty && !draft?.isNew ? (
+        <div className="flex items-center justify-end gap-2">
+          {extraActions}
+          <Button variant="outline" size="sm" onClick={beginNewDocument}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            New document
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-medium text-muted-foreground">Documents</h3>
+          <div className="flex items-center gap-2">
+            {extraActions}
+            <Button variant="outline" size="sm" onClick={beginNewDocument}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              New document
+            </Button>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
@@ -366,10 +382,6 @@ export function IssueDocumentsSection({
           </div>
         </div>
       )}
-
-      {sortedDocuments.length === 0 && !issue.legacyPlanDocument ? (
-        <p className="text-xs text-muted-foreground">No documents yet.</p>
-      ) : null}
 
       {!hasRealPlan && issue.legacyPlanDocument ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
