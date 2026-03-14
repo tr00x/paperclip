@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download, FileText, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
 
 type DraftState = {
   key: string;
@@ -71,6 +71,18 @@ function isDocumentConflictError(error: unknown) {
   return error instanceof ApiError && error.status === 409;
 }
 
+function downloadDocumentFile(key: string, body: string) {
+  const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${key}.md`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function IssueDocumentsSection({
   issue,
   canDeleteDocuments,
@@ -92,8 +104,10 @@ export function IssueDocumentsSection({
   const [documentConflict, setDocumentConflict] = useState<DocumentConflictState | null>(null);
   const [foldedDocumentKeys, setFoldedDocumentKeys] = useState<string[]>(() => loadFoldedDocumentKeys(issue.id));
   const [autosaveDocumentKey, setAutosaveDocumentKey] = useState<string | null>(null);
+  const [copiedDocumentKey, setCopiedDocumentKey] = useState<string | null>(null);
   const [highlightDocumentKey, setHighlightDocumentKey] = useState<string | null>(null);
   const autosaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedDocumentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasScrolledToHashRef = useRef(false);
   const {
     state: autosaveState,
@@ -338,6 +352,21 @@ export function IssueDocumentsSection({
     );
   }, [commitDraft, documentConflict, draft]);
 
+  const copyDocumentBody = useCallback(async (key: string, body: string) => {
+    try {
+      await navigator.clipboard.writeText(body);
+      setCopiedDocumentKey(key);
+      if (copiedDocumentTimerRef.current) {
+        clearTimeout(copiedDocumentTimerRef.current);
+      }
+      copiedDocumentTimerRef.current = setTimeout(() => {
+        setCopiedDocumentKey((current) => current === key ? null : current);
+      }, 1400);
+    } catch {
+      setError("Could not copy document");
+    }
+  }, []);
+
   const handleDraftBlur = async (event: React.FocusEvent<HTMLDivElement>) => {
     if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
     if (autosaveDebounceRef.current) {
@@ -416,6 +445,9 @@ export function IssueDocumentsSection({
     return () => {
       if (autosaveDebounceRef.current) {
         clearTimeout(autosaveDebounceRef.current);
+      }
+      if (copiedDocumentTimerRef.current) {
+        clearTimeout(copiedDocumentTimerRef.current);
       }
     };
   }, []);
@@ -600,7 +632,23 @@ export function IssueDocumentsSection({
                   </div>
                   {showTitle && <p className="mt-2 text-sm font-medium">{doc.title}</p>}
                 </div>
-                {canDeleteDocuments && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className={cn(
+                      "text-muted-foreground transition-colors",
+                      copiedDocumentKey === doc.key && "text-foreground",
+                    )}
+                    title={copiedDocumentKey === doc.key ? "Copied" : "Copy document"}
+                    onClick={() => void copyDocumentBody(doc.key, activeDraft?.body ?? doc.body)}
+                  >
+                    {copiedDocumentKey === doc.key ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -613,17 +661,25 @@ export function IssueDocumentsSection({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => setConfirmDeleteKey(doc.key)}
+                        onClick={() => downloadDocumentFile(doc.key, activeDraft?.body ?? doc.body)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete document
+                        <Download className="h-3.5 w-3.5" />
+                        Download document
                       </DropdownMenuItem>
+                      {canDeleteDocuments ? <DropdownMenuSeparator /> : null}
+                      {canDeleteDocuments ? (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => setConfirmDeleteKey(doc.key)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete document
+                        </DropdownMenuItem>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
+                </div>
               </div>
 
               {!isFolded ? (
