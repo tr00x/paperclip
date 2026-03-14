@@ -1,5 +1,17 @@
 export type { Company } from "./company.js";
 export type {
+  CompanySkillSourceType,
+  CompanySkillTrustLevel,
+  CompanySkillCompatibility,
+  CompanySkillFileInventoryEntry,
+  CompanySkill,
+  CompanySkillListItem,
+  CompanySkillUsageAgent,
+  CompanySkillDetail,
+  CompanySkillImportRequest,
+  CompanySkillImportResult,
+} from "./company-skill.js";
+export type {
   AgentSkillSyncMode,
   AgentSkillState,
   AgentSkillEntry,

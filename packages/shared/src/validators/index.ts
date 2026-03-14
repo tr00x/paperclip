@@ -5,6 +5,18 @@ export {
   type UpdateCompany,
 } from "./company.js";
 export {
+  companySkillSourceTypeSchema,
+  companySkillTrustLevelSchema,
+  companySkillCompatibilitySchema,
+  companySkillFileInventoryEntrySchema,
+  companySkillSchema,
+  companySkillListItemSchema,
+  companySkillUsageAgentSchema,
+  companySkillDetailSchema,
+  companySkillImportSchema,
+  type CompanySkillImport,
+} from "./company-skill.js";
+export {
   agentSkillStateSchema,
   agentSkillSyncModeSchema,
   agentSkillEntrySchema,

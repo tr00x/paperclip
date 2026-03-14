@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useNavigate, Link, Navigate, useBeforeUnload } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { agentsApi, type AgentKey, type ClaudeLoginResult } from "../api/agents";
+import { companySkillsApi } from "../api/companySkills";
 import { heartbeatsApi } from "../api/heartbeats";
 import { ApiError } from "../api/client";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
@@ -175,10 +176,11 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "dashboard" | "configuration" | "runs";
+type AgentDetailView = "dashboard" | "configuration" | "skills" | "runs";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
   if (value === "configure" || value === "configuration") return "configuration";
+  if (value === "skills") return "skills";
   if (value === "runs") return value;
   return "dashboard";
 }
@@ -315,6 +317,8 @@ export function AgentDetail() {
     const canonicalTab =
       activeView === "configuration"
         ? "configuration"
+        : activeView === "skills"
+          ? "skills"
         : activeView === "runs"
           ? "runs"
           : "dashboard";
@@ -414,6 +418,8 @@ export function AgentDetail() {
         crumbs.push({ label: `Run ${urlRunId.slice(0, 8)}` });
       } else if (activeView === "configuration") {
         crumbs.push({ label: "Configuration" });
+      } else if (activeView === "skills") {
+        crumbs.push({ label: "Skills" });
       } else if (activeView === "runs") {
         crumbs.push({ label: "Runs" });
       } else {
@@ -571,6 +577,7 @@ export function AgentDetail() {
             items={[
               { value: "dashboard", label: "Dashboard" },
               { value: "configuration", label: "Configuration" },
+              { value: "skills", label: "Skills" },
               { value: "runs", label: "Runs" },
             ]}
             value={activeView}
@@ -664,6 +671,13 @@ export function AgentDetail() {
           onCancelActionChange={setCancelConfigAction}
           onSavingChange={setConfigSaving}
           updatePermissions={updatePermissions}
+        />
+      )}
+
+      {activeView === "skills" && (
+        <AgentSkillsTab
+          agent={agent}
+          companyId={resolvedCompanyId ?? undefined}
         />
       )}
 
@@ -1045,8 +1059,6 @@ function ConfigurationTab({
 }) {
   const queryClient = useQueryClient();
   const [awaitingRefreshAfterSave, setAwaitingRefreshAfterSave] = useState(false);
-  const [skillDraft, setSkillDraft] = useState<string[]>([]);
-  const [skillDirty, setSkillDirty] = useState(false);
   const lastAgentRef = useRef(agent);
 
   const { data: adapterModels } = useQuery({
@@ -1055,12 +1067,6 @@ function ConfigurationTab({
         ? queryKeys.agents.adapterModels(companyId, agent.adapterType)
         : ["agents", "none", "adapter-models", agent.adapterType],
     queryFn: () => agentsApi.adapterModels(companyId!, agent.adapterType),
-    enabled: Boolean(companyId),
-  });
-
-  const { data: skillSnapshot } = useQuery({
-    queryKey: queryKeys.agents.skills(agent.id),
-    queryFn: () => agentsApi.skills(agent.id, companyId),
     enabled: Boolean(companyId),
   });
 
@@ -1079,30 +1085,12 @@ function ConfigurationTab({
     },
   });
 
-  const syncSkills = useMutation({
-    mutationFn: (desiredSkills: string[]) => agentsApi.syncSkills(agent.id, desiredSkills, companyId),
-    onSuccess: (snapshot) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.urlKey) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.agents.skills(agent.id) });
-      setSkillDraft(snapshot.desiredSkills);
-      setSkillDirty(false);
-    },
-  });
-
   useEffect(() => {
     if (awaitingRefreshAfterSave && agent !== lastAgentRef.current) {
       setAwaitingRefreshAfterSave(false);
     }
     lastAgentRef.current = agent;
   }, [agent, awaitingRefreshAfterSave]);
-
-  useEffect(() => {
-    if (!skillSnapshot) return;
-    setSkillDraft(skillSnapshot.desiredSkills);
-    setSkillDirty(false);
-  }, [skillSnapshot]);
-
   const isConfigSaving = updateAgent.isPending || awaitingRefreshAfterSave;
 
   useEffect(() => {
@@ -1143,53 +1131,300 @@ function ConfigurationTab({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div>
-        <h3 className="text-sm font-medium mb-3">Skills</h3>
-        <div className="border border-border rounded-lg p-4 space-y-3">
-          {!skillSnapshot ? (
-            <p className="text-sm text-muted-foreground">Loading skill sync state…</p>
-          ) : !skillSnapshot.supported ? (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                This adapter does not implement skill sync yet.
-              </p>
+function AgentSkillsTab({
+  agent,
+  companyId,
+}: {
+  agent: Agent;
+  companyId?: string;
+}) {
+  const queryClient = useQueryClient();
+  const [skillDraft, setSkillDraft] = useState<string[]>([]);
+  const [skillDirty, setSkillDirty] = useState(false);
+
+  const { data: skillSnapshot, isLoading } = useQuery({
+    queryKey: queryKeys.agents.skills(agent.id),
+    queryFn: () => agentsApi.skills(agent.id, companyId),
+    enabled: Boolean(companyId),
+  });
+
+  const { data: companySkills } = useQuery({
+    queryKey: queryKeys.companySkills.list(companyId ?? ""),
+    queryFn: () => companySkillsApi.list(companyId!),
+    enabled: Boolean(companyId),
+  });
+
+  useEffect(() => {
+    if (!skillSnapshot) return;
+    setSkillDraft(skillSnapshot.desiredSkills);
+    setSkillDirty(false);
+  }, [skillSnapshot]);
+
+  const syncSkills = useMutation({
+    mutationFn: (desiredSkills: string[]) => agentsApi.syncSkills(agent.id, desiredSkills, companyId),
+    onSuccess: async (snapshot) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.urlKey) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.skills(agent.id) }),
+        companyId
+          ? queryClient.invalidateQueries({ queryKey: queryKeys.companySkills.list(companyId) })
+          : Promise.resolve(),
+      ]);
+      setSkillDraft(snapshot.desiredSkills);
+      setSkillDirty(false);
+    },
+  });
+
+  const companySkillBySlug = useMemo(
+    () => new Map((companySkills ?? []).map((skill) => [skill.slug, skill])),
+    [companySkills],
+  );
+  const adapterEntryByName = useMemo(
+    () => new Map((skillSnapshot?.entries ?? []).map((entry) => [entry.name, entry])),
+    [skillSnapshot],
+  );
+  const desiredOnlyMissingSkills = useMemo(
+    () => skillDraft.filter((slug) => !companySkillBySlug.has(slug)),
+    [companySkillBySlug, skillDraft],
+  );
+  const externalEntries = (skillSnapshot?.entries ?? []).filter((entry) => entry.state === "external");
+
+  const modeCopy = useMemo(() => {
+    if (!skillSnapshot) return "Loading skill state...";
+    if (!skillSnapshot.supported) {
+      return "This adapter does not implement direct skill sync yet. Paperclip can still store the desired skill set for this agent.";
+    }
+    if (skillSnapshot.mode === "persistent") {
+      return "Selected skills are synchronized into the adapter's persistent skills home.";
+    }
+    if (skillSnapshot.mode === "ephemeral") {
+      return "Selected skills are mounted for each run instead of being installed globally.";
+    }
+    return "This adapter reports skill state but does not define a persistent install model.";
+  }, [skillSnapshot]);
+
+  const primaryActionLabel = !skillSnapshot || skillSnapshot.supported
+    ? "Sync skills"
+    : "Save desired skills";
+
+  return (
+    <div className="max-w-5xl space-y-6">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="border-b border-border bg-[linear-gradient(135deg,rgba(14,165,233,0.08),transparent_45%),linear-gradient(315deg,rgba(16,185,129,0.08),transparent_45%)] px-5 py-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                Skills
+              </div>
+              <h3 className="text-2xl font-semibold tracking-tight">Attach reusable skills to {agent.name}.</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{modeCopy}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/skills"
+                className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent/40"
+              >
+                Open company library
+                <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+              </Link>
+              <Button
+                size="sm"
+                onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.agents.skills(agent.id) })}
+                disabled={isLoading}
+                variant="outline"
+              >
+                Refresh state
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4 px-5 py-5">
+          {skillSnapshot?.warnings.length ? (
+            <div className="space-y-1 rounded-xl border border-amber-300/60 bg-amber-50/60 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-200">
               {skillSnapshot.warnings.map((warning) => (
-                <p key={warning} className="text-xs text-muted-foreground">
-                  {warning}
-                </p>
+                <div key={warning}>{warning}</div>
               ))}
             </div>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {skillSnapshot.mode === "persistent"
-                  ? "These skills are synced into the adapter's persistent skills home."
-                  : "These skills are mounted ephemerally for each Claude run."}
-              </p>
+          ) : null}
 
-              <div className="space-y-2">
-                {skillSnapshot.entries
-                  .filter((entry) => entry.managed)
-                  .map((entry) => {
-                    const checked = skillDraft.includes(entry.name);
-                    return (
-                      <label
-                        key={entry.name}
-                        className="flex items-start gap-3 rounded-md border border-border/70 px-3 py-2"
+          {isLoading ? (
+            <PageSkeleton variant="list" />
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="space-y-4">
+                <section className="rounded-xl border border-border/70 bg-background px-4 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-medium">Company skills</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Attach skills from the company library by shortname.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {(companySkills ?? []).length} available
+                    </span>
+                  </div>
+
+                  {(companySkills ?? []).length === 0 ? (
+                    <div className="mt-4 rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+                      Import skills into the company library first, then attach them here.
+                    </div>
+                  ) : (
+                    <div className="mt-4 space-y-2">
+                      {(companySkills ?? []).map((skill) => {
+                        const checked = skillDraft.includes(skill.slug);
+                        const adapterEntry = adapterEntryByName.get(skill.slug);
+                        return (
+                          <label
+                            key={skill.id}
+                            className="flex items-start gap-3 rounded-xl border border-border/70 px-3 py-3 transition-colors hover:bg-accent/20"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(event) => {
+                                const next = event.target.checked
+                                  ? Array.from(new Set([...skillDraft, skill.slug]))
+                                  : skillDraft.filter((value) => value !== skill.slug);
+                                setSkillDraft(next);
+                                setSkillDirty(true);
+                              }}
+                              className="mt-1"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">{skill.name}</span>
+                                    <span className="rounded-full border border-border/70 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                      {skill.slug}
+                                    </span>
+                                  </div>
+                                  {skill.description && (
+                                    <p className="mt-1 text-xs text-muted-foreground">{skill.description}</p>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {adapterEntry?.state && (
+                                    <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                      {adapterEntry.state}
+                                    </span>
+                                  )}
+                                  <Link
+                                    to={`/skills/${skill.id}`}
+                                    className="text-xs text-muted-foreground no-underline hover:text-foreground"
+                                  >
+                                    View skill
+                                  </Link>
+                                </div>
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                {desiredOnlyMissingSkills.length > 0 && (
+                  <section className="rounded-xl border border-amber-300/60 bg-amber-50/60 px-4 py-4 dark:border-amber-500/30 dark:bg-amber-950/20">
+                    <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                      Desired skills not found in the company library
+                    </h4>
+                    <div className="mt-3 space-y-2">
+                      {desiredOnlyMissingSkills.map((skillName) => {
+                        const adapterEntry = adapterEntryByName.get(skillName);
+                        return (
+                          <div key={skillName} className="flex items-center justify-between gap-3 rounded-lg border border-amber-300/50 bg-background/70 px-3 py-2 dark:border-amber-500/20">
+                            <div>
+                              <div className="text-sm font-medium">{skillName}</div>
+                              <div className="text-xs text-muted-foreground">
+                                This skill is still requested for the agent, but it is not tracked in the company library.
+                              </div>
+                            </div>
+                            {adapterEntry?.state && (
+                              <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {adapterEntry.state}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <section className="rounded-xl border border-border/70 bg-background px-4 py-4">
+                  <h4 className="text-sm font-medium">Adapter state</h4>
+                  <div className="mt-3 grid gap-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">Adapter</span>
+                      <span className="font-medium">{agent.adapterType}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">Sync mode</span>
+                      <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {skillSnapshot?.mode ?? "unsupported"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">Desired skills</span>
+                      <span>{skillDraft.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground">External skills</span>
+                      <span>{externalEntries.length}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => syncSkills.mutate(skillDraft)}
+                      disabled={syncSkills.isPending || !skillDirty}
+                    >
+                      {syncSkills.isPending ? "Saving..." : primaryActionLabel}
+                    </Button>
+                    {skillDirty && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSkillDraft(skillSnapshot?.desiredSkills ?? []);
+                          setSkillDirty(false);
+                        }}
+                        disabled={syncSkills.isPending}
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            const next = e.target.checked
-                              ? Array.from(new Set([...skillDraft, entry.name]))
-                              : skillDraft.filter((value) => value !== entry.name);
-                            setSkillDraft(next);
-                            setSkillDirty(true);
-                          }}
-                        />
-                        <div className="min-w-0 flex-1">
+                        Reset
+                      </Button>
+                    )}
+                  </div>
+
+                  {syncSkills.isError && (
+                    <p className="mt-3 text-xs text-destructive">
+                      {syncSkills.error instanceof Error ? syncSkills.error.message : "Failed to update skills"}
+                    </p>
+                  )}
+                </section>
+
+                <section className="rounded-xl border border-border/70 bg-background px-4 py-4">
+                  <h4 className="text-sm font-medium">External skills</h4>
+                  {externalEntries.length === 0 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      No external skills were discovered by the adapter.
+                    </p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {externalEntries.map((entry) => (
+                        <div key={entry.name} className="rounded-lg border border-border/70 px-3 py-2">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-sm font-medium">{entry.name}</span>
                             <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -1197,74 +1432,18 @@ function ConfigurationTab({
                             </span>
                           </div>
                           {entry.detail && (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {entry.detail}
-                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">{entry.detail}</p>
                           )}
                         </div>
-                      </label>
-                    );
-                  })}
+                      ))}
+                    </div>
+                  )}
+                </section>
               </div>
-
-              {skillSnapshot.entries.some((entry) => entry.state === "external") && (
-                <div className="space-y-1">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    External skills
-                  </div>
-                  {skillSnapshot.entries
-                    .filter((entry) => entry.state === "external")
-                    .map((entry) => (
-                      <div key={entry.name} className="text-xs text-muted-foreground">
-                        {entry.name}
-                        {entry.detail ? ` - ${entry.detail}` : ""}
-                      </div>
-                    ))}
-                </div>
-              )}
-
-              {skillSnapshot.warnings.length > 0 && (
-                <div className="space-y-1 rounded-md border border-amber-300/60 bg-amber-50/60 px-3 py-2 text-xs text-amber-700">
-                  {skillSnapshot.warnings.map((warning) => (
-                    <div key={warning}>{warning}</div>
-                  ))}
-                </div>
-              )}
-
-              {syncSkills.isError && (
-                <p className="text-xs text-destructive">
-                  {syncSkills.error instanceof Error
-                    ? syncSkills.error.message
-                    : "Failed to sync skills"}
-                </p>
-              )}
-
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => syncSkills.mutate(skillDraft)}
-                  disabled={syncSkills.isPending || !skillDirty}
-                >
-                  {syncSkills.isPending ? "Syncing..." : "Sync skills"}
-                </Button>
-                {skillDirty && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSkillDraft(skillSnapshot.desiredSkills);
-                      setSkillDirty(false);
-                    }}
-                    disabled={syncSkills.isPending}
-                  >
-                    Reset
-                  </Button>
-                )}
-              </div>
-            </>
+            </div>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }
