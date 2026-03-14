@@ -1,10 +1,16 @@
 # Company Packages Specification
 
+Extension of the Agent Skills Specification
+
 Version: `0.1-draft`
 
 ## 1. Purpose
 
 A Company Package is a filesystem- and GitHub-native format for describing a company, team, agent, and associated skills using markdown files with YAML frontmatter.
+
+This specification is an extension of the Agent Skills specification, not a replacement for it.
+
+It defines how company-, team-, and agent-level package structure composes around the existing `SKILL.md` model.
 
 The format is designed to:
 
@@ -12,7 +18,7 @@ The format is designed to:
 - work directly from a local folder or GitHub repository
 - require no central registry
 - support attribution and pinned references to upstream files
-- be compatible with the existing Agent Skills ecosystem
+- extend the existing Agent Skills ecosystem without redefining it
 - be useful outside Paperclip
 
 ## 2. Core Principles
@@ -20,7 +26,7 @@ The format is designed to:
 1. Markdown is canonical.
 2. Git repositories are valid package containers.
 3. Registries are optional discovery layers, not authorities.
-4. `SKILL.md` remains Agent Skills compatible.
+4. `SKILL.md` remains owned by the Agent Skills specification.
 5. External references must be pinnable to immutable Git commits.
 6. Attribution and license metadata must survive import/export.
 7. Slugs and relative paths are the portable identity layer, not database ids.
@@ -32,7 +38,7 @@ A package root is identified by one primary markdown file:
 - `COMPANY.md` for a company package
 - `TEAM.md` for a team package
 - `AGENTS.md` for an agent package
-- `SKILL.md` for a skill package
+- `SKILL.md` for a skill package defined by the Agent Skills specification
 
 A GitHub repo may contain one package at root or many packages in subdirectories.
 
@@ -226,6 +232,8 @@ Rules:
 - Paperclip-specific extensions must live under `metadata.paperclip` or `metadata.sources`
 - a skill directory may include `scripts/`, `references/`, and `assets/` exactly as the Agent Skills ecosystem expects
 
+In other words, this spec extends Agent Skills upward into company/team/agent composition. It does not redefine skill package semantics.
+
 ### Example compatible extension
 
 ```yaml
@@ -396,14 +404,13 @@ Paperclip-specific data should live under:
 
 That keeps the base format broader than Paperclip.
 
-## 17. Backward Compatibility
+## 17. Cutover
 
-Paperclip may continue to support:
+Paperclip should cut over to this markdown-first package model as the primary portability format.
 
-- existing `paperclip.manifest.json` packages
-- current company portability import/export
+`paperclip.manifest.json` does not need to be preserved as a compatibility requirement for the future package system.
 
-But the markdown-first repo layout should become the preferred authoring format.
+For Paperclip, this should be treated as a hard cutover in product direction rather than a long-lived dual-format strategy.
 
 ## 18. Minimal Example
 
@@ -423,6 +430,6 @@ lean-dev-shop/
 This is the direction I would take:
 
 - make this the human-facing spec
-- keep JSON manifests only as optional generated lock/cache artifacts
 - define `SKILL.md` compatibility as non-negotiable
+- treat this spec as an extension of Agent Skills, not a parallel format
 - make `companies.sh` a discovery layer for repos implementing this spec, not a publishing authority
