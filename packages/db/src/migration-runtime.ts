@@ -66,13 +66,17 @@ async function ensureEmbeddedPostgresConnection(
 ): Promise<MigrationConnection> {
   const EmbeddedPostgres = await loadEmbeddedPostgresCtor();
   const postmasterPidFile = path.resolve(dataDir, "postmaster.pid");
+  const pgVersionFile = path.resolve(dataDir, "PG_VERSION");
   const runningPid = readRunningPostmasterPid(postmasterPidFile);
   const runningPort = readPidFilePort(postmasterPidFile);
   const preferredAdminConnectionString = `postgres://paperclip:paperclip@127.0.0.1:${preferredPort}/postgres`;
 
-  if (!runningPid) {
+  if (!runningPid && existsSync(pgVersionFile)) {
     try {
       await ensurePostgresDatabase(preferredAdminConnectionString, "paperclip");
+      process.emitWarning(
+        `Adopting an existing PostgreSQL instance on port ${preferredPort} for embedded data dir ${dataDir} because postmaster.pid is missing.`,
+      );
       return {
         connectionString: `postgres://paperclip:paperclip@127.0.0.1:${preferredPort}/paperclip`,
         source: `embedded-postgres@${preferredPort}`,

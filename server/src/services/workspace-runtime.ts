@@ -644,6 +644,7 @@ function buildTemplateData(input: {
 function resolveServiceScopeId(input: {
   service: Record<string, unknown>;
   workspace: RealizedExecutionWorkspace;
+  executionWorkspaceId?: string | null;
   issue: ExecutionWorkspaceIssueRef | null;
   runId: string;
   agent: ExecutionWorkspaceAgentRef;
@@ -659,7 +660,9 @@ function resolveServiceScopeId(input: {
       ? scopeTypeRaw
       : "run";
   if (scopeType === "project_workspace") return { scopeType, scopeId: input.workspace.workspaceId ?? input.workspace.projectId };
-  if (scopeType === "execution_workspace") return { scopeType, scopeId: input.workspace.cwd };
+  if (scopeType === "execution_workspace") {
+    return { scopeType, scopeId: input.executionWorkspaceId ?? input.workspace.cwd };
+  }
   if (scopeType === "agent") return { scopeType, scopeId: input.agent.id };
   return { scopeType: "run" as const, scopeId: input.runId };
 }
@@ -780,7 +783,7 @@ export function normalizeAdapterManagedRuntimeServices(input: {
       (scopeType === "project_workspace"
         ? input.workspace.workspaceId
         : scopeType === "execution_workspace"
-          ? input.workspace.cwd
+          ? input.executionWorkspaceId ?? input.workspace.cwd
           : scopeType === "agent"
             ? input.agent.id
             : input.runId) ??
@@ -1043,6 +1046,7 @@ export async function ensureRuntimeServicesForRun(input: {
       const { scopeType, scopeId } = resolveServiceScopeId({
         service,
         workspace: input.workspace,
+        executionWorkspaceId: input.executionWorkspaceId,
         issue: input.issue,
         runId: input.runId,
         agent: input.agent,

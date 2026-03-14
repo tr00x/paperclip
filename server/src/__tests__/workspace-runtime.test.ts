@@ -457,6 +457,8 @@ describe("ensureRuntimeServicesForRun", () => {
     expect(captured.customEnv).toBe("from-adapter");
     expect(captured.port).toMatch(/^\d+$/);
     expect(services[0]?.executionWorkspaceId).toBe("execution-workspace-1");
+    expect(services[0]?.scopeType).toBe("execution_workspace");
+    expect(services[0]?.scopeId).toBe("execution-workspace-1");
   });
 
   it("stops execution workspace runtime services by executionWorkspaceId", async () => {
@@ -583,5 +585,34 @@ describe("normalizeAdapterManagedRuntimeServices", () => {
       startedByRunId: "run-1",
     });
     expect(first[0]?.id).toBe(second[0]?.id);
+  });
+
+  it("prefers execution workspace ids over cwd for execution-scoped adapter services", () => {
+    const workspace = buildWorkspace("/tmp/project");
+
+    const refs = normalizeAdapterManagedRuntimeServices({
+      adapterType: "openclaw_gateway",
+      runId: "run-1",
+      agent: {
+        id: "agent-1",
+        name: "Gateway Agent",
+        companyId: "company-1",
+      },
+      issue: null,
+      workspace,
+      executionWorkspaceId: "execution-workspace-1",
+      reports: [
+        {
+          serviceName: "preview",
+          scopeType: "execution_workspace",
+        },
+      ],
+    });
+
+    expect(refs[0]).toMatchObject({
+      scopeType: "execution_workspace",
+      scopeId: "execution-workspace-1",
+      executionWorkspaceId: "execution-workspace-1",
+    });
   });
 });

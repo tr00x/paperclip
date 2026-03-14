@@ -34,6 +34,7 @@ export function parseProjectExecutionWorkspacePolicy(raw: unknown): ProjectExecu
   const parsed = parseObject(raw);
   if (Object.keys(parsed).length === 0) return null;
   const enabled = typeof parsed.enabled === "boolean" ? parsed.enabled : false;
+  const workspaceStrategy = parseExecutionWorkspaceStrategy(parsed.workspaceStrategy);
   const defaultMode = asString(parsed.defaultMode, "");
   const defaultProjectWorkspaceId =
     typeof parsed.defaultProjectWorkspaceId === "string" ? parsed.defaultProjectWorkspaceId : undefined;
@@ -57,9 +58,7 @@ export function parseProjectExecutionWorkspacePolicy(raw: unknown): ProjectExecu
     ...(normalizedDefaultMode ? { defaultMode: normalizedDefaultMode } : {}),
     ...(allowIssueOverride !== undefined ? { allowIssueOverride } : {}),
     ...(defaultProjectWorkspaceId ? { defaultProjectWorkspaceId } : {}),
-    ...(parseExecutionWorkspaceStrategy(parsed.workspaceStrategy)
-      ? { workspaceStrategy: parseExecutionWorkspaceStrategy(parsed.workspaceStrategy) }
-      : {}),
+    ...(workspaceStrategy ? { workspaceStrategy } : {}),
     ...(parsed.workspaceRuntime && typeof parsed.workspaceRuntime === "object" && !Array.isArray(parsed.workspaceRuntime)
       ? { workspaceRuntime: { ...(parsed.workspaceRuntime as Record<string, unknown>) } }
       : {}),
@@ -81,6 +80,7 @@ export function parseProjectExecutionWorkspacePolicy(raw: unknown): ProjectExecu
 export function parseIssueExecutionWorkspaceSettings(raw: unknown): IssueExecutionWorkspaceSettings | null {
   const parsed = parseObject(raw);
   if (Object.keys(parsed).length === 0) return null;
+  const workspaceStrategy = parseExecutionWorkspaceStrategy(parsed.workspaceStrategy);
   const mode = asString(parsed.mode, "");
   const normalizedMode = (() => {
     if (
@@ -101,9 +101,7 @@ export function parseIssueExecutionWorkspaceSettings(raw: unknown): IssueExecuti
     ...(normalizedMode
       ? { mode: normalizedMode as IssueExecutionWorkspaceSettings["mode"] }
       : {}),
-    ...(parseExecutionWorkspaceStrategy(parsed.workspaceStrategy)
-      ? { workspaceStrategy: parseExecutionWorkspaceStrategy(parsed.workspaceStrategy) }
-      : {}),
+    ...(workspaceStrategy ? { workspaceStrategy } : {}),
     ...(parsed.workspaceRuntime && typeof parsed.workspaceRuntime === "object" && !Array.isArray(parsed.workspaceRuntime)
       ? { workspaceRuntime: { ...(parsed.workspaceRuntime as Record<string, unknown>) } }
       : {}),

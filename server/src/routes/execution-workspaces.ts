@@ -54,6 +54,7 @@ export function executionWorkspaceRoutes(db: Db) {
       ...req.body,
       ...(req.body.cleanupEligibleAt ? { cleanupEligibleAt: new Date(req.body.cleanupEligibleAt) } : {}),
     };
+    let workspace = existing;
     let cleanupWarnings: string[] = [];
 
     if (req.body.status === "archived" && existing.status !== "archived") {
@@ -73,52 +74,85 @@ export function executionWorkspaceRoutes(db: Db) {
         return;
       }
 
-      await stopRuntimeServicesForExecutionWorkspace({
-        db,
-        executionWorkspaceId: existing.id,
-        workspaceCwd: existing.cwd,
+      const closedAt = new Date();
+      const archivedWorkspace = await svc.update(id, {
+        ...patch,
+        status: "archived",
+        closedAt,
+        cleanupReason: null,
       });
-      const projectWorkspace = existing.projectWorkspaceId
-        ? await db
-            .select({
-              cwd: projectWorkspaces.cwd,
-              cleanupCommand: projectWorkspaces.cleanupCommand,
-            })
-            .from(projectWorkspaces)
-            .where(
-              and(
-                eq(projectWorkspaces.id, existing.projectWorkspaceId),
-                eq(projectWorkspaces.companyId, existing.companyId),
-              ),
-            )
-            .then((rows) => rows[0] ?? null)
-        : null;
-      const projectPolicy = existing.projectId
-        ? await db
-            .select({
-              executionWorkspacePolicy: projects.executionWorkspacePolicy,
-            })
-            .from(projects)
-            .where(and(eq(projects.id, existing.projectId), eq(projects.companyId, existing.companyId)))
-            .then((rows) => parseProjectExecutionWorkspacePolicy(rows[0]?.executionWorkspacePolicy))
-        : null;
-      const cleanupResult = await cleanupExecutionWorkspaceArtifacts({
-        workspace: existing,
-        projectWorkspace,
-        teardownCommand: projectPolicy?.workspaceStrategy?.teardownCommand ?? null,
-      });
-      cleanupWarnings = cleanupResult.warnings;
-      patch.closedAt = new Date();
-      patch.cleanupReason = cleanupWarnings.length > 0 ? cleanupWarnings.join(" | ") : null;
-      if (!cleanupResult.cleaned) {
-        patch.status = "cleanup_failed";
+      if (!archivedWorkspace) {
+        res.status(404).json({ error: "Execution workspace not found" });
+        return;
       }
-    }
+      workspace = archivedWorkspace;
 
-    const workspace = await svc.update(id, patch);
-    if (!workspace) {
-      res.status(404).json({ error: "Execution workspace not found" });
-      return;
+      try {
+        await stopRuntimeServicesForExecutionWorkspace({
+          db,
+          executionWorkspaceId: existing.id,
+          workspaceCwd: existing.cwd,
+        });
+        const projectWorkspace = existing.projectWorkspaceId
+          ? await db
+              .select({
+                cwd: projectWorkspaces.cwd,
+                cleanupCommand: projectWorkspaces.cleanupCommand,
+              })
+              .from(projectWorkspaces)
+              .where(
+                and(
+                  eq(projectWorkspaces.id, existing.projectWorkspaceId),
+                  eq(projectWorkspaces.companyId, existing.companyId),
+                ),
+              )
+              .then((rows) => rows[0] ?? null)
+          : null;
+        const projectPolicy = existing.projectId
+          ? await db
+              .select({
+                executionWorkspacePolicy: projects.executionWorkspacePolicy,
+              })
+              .from(projects)
+              .where(and(eq(projects.id, existing.projectId), eq(projects.companyId, existing.companyId)))
+              .then((rows) => parseProjectExecutionWorkspacePolicy(rows[0]?.executionWorkspacePolicy))
+          : null;
+        const cleanupResult = await cleanupExecutionWorkspaceArtifacts({
+          workspace: existing,
+          projectWorkspace,
+          teardownCommand: projectPolicy?.workspaceStrategy?.teardownCommand ?? null,
+        });
+        cleanupWarnings = cleanupResult.warnings;
+        const cleanupPatch: Record<string, unknown> = {
+          closedAt,
+          cleanupReason: cleanupWarnings.length > 0 ? cleanupWarnings.join(" | ") : null,
+        };
+        if (!cleanupResult.cleaned) {
+          cleanupPatch.status = "cleanup_failed";
+        }
+        if (cleanupResult.warnings.length > 0 || !cleanupResult.cleaned) {
+          workspace = (await svc.update(id, cleanupPatch)) ?? workspace;
+        }
+      } catch (error) {
+        const failureReason = error instanceof Error ? error.message : String(error);
+        workspace =
+          (await svc.update(id, {
+            status: "cleanup_failed",
+            closedAt,
+            cleanupReason: failureReason,
+          })) ?? workspace;
+        res.status(500).json({
+          error: `Failed to archive execution workspace: ${failureReason}`,
+        });
+        return;
+      }
+    } else {
+      const updatedWorkspace = await svc.update(id, patch);
+      if (!updatedWorkspace) {
+        res.status(404).json({ error: "Execution workspace not found" });
+        return;
+      }
+      workspace = updatedWorkspace;
     }
     const actor = getActorInfo(req);
     await logActivity(db, {
