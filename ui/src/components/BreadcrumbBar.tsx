@@ -13,8 +13,22 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Fragment, useMemo } from "react";
-import { PluginSlotOutlet } from "@/plugins/slots";
-import { PluginLauncherOutlet } from "@/plugins/launchers";
+import { PluginSlotOutlet, usePluginSlots } from "@/plugins/slots";
+import { PluginLauncherOutlet, usePluginLaunchers } from "@/plugins/launchers";
+
+type GlobalToolbarContext = { companyId: string | null; companyPrefix: string | null };
+
+function GlobalToolbarPlugins({ context }: { context: GlobalToolbarContext }) {
+  const { slots } = usePluginSlots({ slotTypes: ["globalToolbarButton"], companyId: context.companyId });
+  const { launchers } = usePluginLaunchers({ placementZones: ["globalToolbarButton"], companyId: context.companyId, enabled: !!context.companyId });
+  if (slots.length === 0 && launchers.length === 0) return null;
+  return (
+    <div className="flex items-center gap-1 ml-auto shrink-0 pl-2">
+      <PluginSlotOutlet slotTypes={["globalToolbarButton"]} context={context} className="flex items-center gap-1" />
+      <PluginLauncherOutlet placementZones={["globalToolbarButton"]} context={context} className="flex items-center gap-1" />
+    </div>
+  );
+}
 
 export function BreadcrumbBar() {
   const { breadcrumbs } = useBreadcrumbs();
@@ -29,20 +43,7 @@ export function BreadcrumbBar() {
     [selectedCompanyId, selectedCompany?.issuePrefix],
   );
 
-  const globalToolbarSlots = (
-    <div className="flex items-center gap-1 ml-auto shrink-0 pl-2">
-      <PluginSlotOutlet
-        slotTypes={["globalToolbarButton"]}
-        context={globalToolbarSlotContext}
-        className="flex items-center gap-1"
-      />
-      <PluginLauncherOutlet
-        placementZones={["globalToolbarButton"]}
-        context={globalToolbarSlotContext}
-        className="flex items-center gap-1"
-      />
-    </div>
-  );
+  const globalToolbarSlots = <GlobalToolbarPlugins context={globalToolbarSlotContext} />;
 
   if (breadcrumbs.length === 0) {
     return (
