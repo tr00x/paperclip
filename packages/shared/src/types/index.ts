@@ -1,5 +1,12 @@
 export type { Company } from "./company.js";
 export type {
+  AgentSkillSyncMode,
+  AgentSkillState,
+  AgentSkillEntry,
+  AgentSkillSnapshot,
+  AgentSkillSyncRequest,
+} from "./adapter-skills.js";
+export type {
   Agent,
   AgentPermissions,
   AgentKeyCreated,

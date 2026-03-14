@@ -1,12 +1,16 @@
 import type { ServerAdapterModule } from "./types.js";
 import {
   execute as claudeExecute,
+  listClaudeSkills,
+  syncClaudeSkills,
   testEnvironment as claudeTestEnvironment,
   sessionCodec as claudeSessionCodec,
 } from "@paperclipai/adapter-claude-local/server";
 import { agentConfigurationDoc as claudeAgentConfigurationDoc, models as claudeModels } from "@paperclipai/adapter-claude-local";
 import {
   execute as codexExecute,
+  listCodexSkills,
+  syncCodexSkills,
   testEnvironment as codexTestEnvironment,
   sessionCodec as codexSessionCodec,
 } from "@paperclipai/adapter-codex-local/server";
@@ -58,6 +62,8 @@ const claudeLocalAdapter: ServerAdapterModule = {
   type: "claude_local",
   execute: claudeExecute,
   testEnvironment: claudeTestEnvironment,
+  listSkills: listClaudeSkills,
+  syncSkills: syncClaudeSkills,
   sessionCodec: claudeSessionCodec,
   models: claudeModels,
   supportsLocalAgentJwt: true,
@@ -68,6 +74,8 @@ const codexLocalAdapter: ServerAdapterModule = {
   type: "codex_local",
   execute: codexExecute,
   testEnvironment: codexTestEnvironment,
+  listSkills: listCodexSkills,
+  syncSkills: syncCodexSkills,
   sessionCodec: codexSessionCodec,
   models: codexModels,
   listModels: listCodexModels,

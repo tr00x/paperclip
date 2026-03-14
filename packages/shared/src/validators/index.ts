@@ -5,6 +5,14 @@ export {
   type UpdateCompany,
 } from "./company.js";
 export {
+  agentSkillStateSchema,
+  agentSkillSyncModeSchema,
+  agentSkillEntrySchema,
+  agentSkillSnapshotSchema,
+  agentSkillSyncSchema,
+  type AgentSkillSync,
+} from "./adapter-skills.js";
+export {
   portabilityIncludeSchema,
   portabilitySecretRequirementSchema,
   portabilityCompanyManifestEntrySchema,
