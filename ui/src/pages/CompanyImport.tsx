@@ -73,7 +73,7 @@ function buildFileTree(files: Record<string, string>, actionMap: Map<string, str
 
   function sortNode(node: FileTreeNode) {
     node.children.sort((a, b) => {
-      if (a.kind !== b.kind) return a.kind === "dir" ? -1 : 1;
+      if (a.kind !== b.kind) return a.kind === "file" ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
     node.children.forEach(sortNode);
@@ -204,6 +204,10 @@ function parseFrontmatter(content: string): { data: FrontmatterData; body: strin
     if (kvMatch) {
       const key = kvMatch[1];
       const val = kvMatch[2].trim().replace(/^["']|["']$/g, "");
+      if (val === "null") {
+        currentKey = null;
+        continue;
+      }
       if (val) {
         data[key] = val;
         currentKey = null;
@@ -918,9 +922,9 @@ export function CompanyImport() {
           )}
 
           {/* Two-column layout */}
-          <div className="grid min-h-[calc(100vh-16rem)] gap-0 xl:grid-cols-[19rem_minmax(0,1fr)]">
-            <aside className="border-r border-border">
-              <div className="border-b border-border px-4 py-3">
+          <div className="grid h-[calc(100vh-16rem)] gap-0 xl:grid-cols-[19rem_minmax(0,1fr)]">
+            <aside className="flex flex-col border-r border-border overflow-hidden">
+              <div className="border-b border-border px-4 py-3 shrink-0">
                 <h2 className="text-base font-semibold">Package files</h2>
                 <p className="text-xs text-muted-foreground">
                   {totalFiles} file{totalFiles === 1 ? "" : "s"} &middot;
@@ -930,17 +934,19 @@ export function CompanyImport() {
                   {" "}{importPreview.plan.issuePlans.length} task{importPreview.plan.issuePlans.length === 1 ? "" : "s"}
                 </p>
               </div>
-              <ImportFileTree
-                nodes={tree}
-                selectedFile={selectedFile}
-                expandedDirs={expandedDirs}
-                checkedFiles={checkedFiles}
-                onToggleDir={handleToggleDir}
-                onSelectFile={setSelectedFile}
-                onToggleCheck={handleToggleCheck}
-              />
+              <div className="flex-1 overflow-y-auto">
+                <ImportFileTree
+                  nodes={tree}
+                  selectedFile={selectedFile}
+                  expandedDirs={expandedDirs}
+                  checkedFiles={checkedFiles}
+                  onToggleDir={handleToggleDir}
+                  onSelectFile={setSelectedFile}
+                  onToggleCheck={handleToggleCheck}
+                />
+              </div>
             </aside>
-            <div className="min-w-0 pl-6">
+            <div className="min-w-0 overflow-y-auto pl-6">
               <ImportPreviewPane
                 selectedFile={selectedFile}
                 content={previewContent}

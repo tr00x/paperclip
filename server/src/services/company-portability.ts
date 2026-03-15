@@ -580,8 +580,9 @@ function renderYamlBlock(value: unknown, indentLevel: number): string[] {
 function renderFrontmatter(frontmatter: Record<string, unknown>) {
   const lines: string[] = ["---"];
   for (const [key, value] of orderedYamlEntries(frontmatter)) {
+    // Skip null/undefined values — don't export empty fields
+    if (value === null || value === undefined) continue;
     const scalar =
-      value === null ||
       typeof value === "string" ||
       typeof value === "boolean" ||
       typeof value === "number" ||
