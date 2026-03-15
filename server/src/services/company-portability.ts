@@ -1758,9 +1758,8 @@ export function companyPortabilityService(db: Db) {
     for (const issue of selectedIssueRows) {
       const taskSlug = taskSlugByIssueId.get(issue.id)!;
       const projectSlug = issue.projectId ? (projectSlugById.get(issue.projectId) ?? null) : null;
-      const taskPath = projectSlug
-        ? `projects/${projectSlug}/tasks/${taskSlug}/TASK.md`
-        : `tasks/${taskSlug}/TASK.md`;
+      // All tasks go in top-level tasks/ folder, never nested under projects/
+      const taskPath = `tasks/${taskSlug}/TASK.md`;
       const assigneeSlug = issue.assigneeAgentId ? (idToSlug.get(issue.assigneeAgentId) ?? null) : null;
       files[taskPath] = buildMarkdown(
         {

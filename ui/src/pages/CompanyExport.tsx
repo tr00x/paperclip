@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { CompanyPortabilityExportResult } from "@paperclipai/shared";
 import { useCompany } from "../context/CompanyContext";
@@ -124,6 +124,27 @@ function filterTree(nodes: FileTreeNode[], query: string): FileTreeNode[] {
         : null;
     })
     .filter((n): n is FileTreeNode => n !== null);
+}
+
+/** Collect all ancestor dir paths for files that match a filter */
+function collectMatchedParentDirs(nodes: FileTreeNode[], query: string): Set<string> {
+  const dirs = new Set<string>();
+  const lower = query.toLowerCase();
+
+  function walk(node: FileTreeNode, ancestors: string[]) {
+    if (node.kind === "file") {
+      if (node.name.toLowerCase().includes(lower) || node.path.toLowerCase().includes(lower)) {
+        for (const a of ancestors) dirs.add(a);
+      }
+    } else {
+      for (const child of node.children) {
+        walk(child, [...ancestors, node.path]);
+      }
+    }
+  }
+
+  for (const node of nodes) walk(node, []);
+  return dirs;
 }
 
 /** Sort tree: checked files first, then unchecked */
@@ -510,6 +531,7 @@ export function CompanyExport() {
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
   const [treeSearch, setTreeSearch] = useState("");
+  const savedExpandedRef = useRef<Set<string> | null>(null);
 
   useEffect(() => {
     setBreadcrumbs([
@@ -634,6 +656,34 @@ export function CompanyExport() {
     });
   }
 
+  function handleSearchChange(query: string) {
+    const wasSearching = treeSearch.length > 0;
+    const isSearching = query.length > 0;
+
+    if (isSearching && !wasSearching) {
+      // Save current expansion state before search
+      savedExpandedRef.current = new Set(expandedDirs);
+    }
+
+    setTreeSearch(query);
+
+    if (isSearching) {
+      // Expand all parent dirs of matched files
+      const matchedParents = collectMatchedParentDirs(tree, query);
+      setExpandedDirs((prev) => {
+        const next = new Set(prev);
+        for (const d of matchedParents) next.add(d);
+        return next;
+      });
+    } else if (wasSearching) {
+      // Restore pre-search expansion state
+      if (savedExpandedRef.current) {
+        setExpandedDirs(savedExpandedRef.current);
+        savedExpandedRef.current = null;
+      }
+    }
+  }
+
   function handleDownload() {
     if (!exportData) return;
     downloadTar(exportData, checkedFiles);
@@ -729,7 +779,7 @@ export function CompanyExport() {
               <input
                 type="text"
                 value={treeSearch}
-                onChange={(e) => setTreeSearch(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search files..."
                 className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
