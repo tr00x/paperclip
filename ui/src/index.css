@@ -448,20 +448,36 @@
 }
 
 /* Rendered markdown code blocks & inline code (prose/MarkdownBody context).
-   Dark theme code blocks with compact sizing. */
-.prose pre {
-  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
-  border-radius: calc(var(--radius) - 3px);
-  background-color: #1e1e2e;
-  color: #cdd6f4;
-  padding: 0.5rem 0.65rem;
-  margin: 0.4rem 0;
-  overflow-x: auto;
+   Dark theme code blocks with compact sizing.
+   Override prose CSS variables so prose-invert can't revert to defaults. */
+.paperclip-markdown {
+  --tw-prose-pre-bg: #1e1e2e;
+  --tw-prose-pre-code: #cdd6f4;
+  --tw-prose-invert-pre-bg: #1e1e2e;
+  --tw-prose-invert-pre-code: #cdd6f4;
 }
 
-.prose code {
+.paperclip-markdown pre {
+  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent) !important;
+  border-radius: calc(var(--radius) - 3px) !important;
+  background-color: #1e1e2e !important;
+  color: #cdd6f4 !important;
+  padding: 0.5rem 0.65rem !important;
+  margin: 0.4rem 0 !important;
+  font-size: 0.78em !important;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.paperclip-markdown code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.78em;
+}
+
+.paperclip-markdown pre code {
+  font-size: inherit;
+  color: inherit;
+  background: none;
 }
 
 /* Remove backtick pseudo-elements from inline code (prose default adds them) */
