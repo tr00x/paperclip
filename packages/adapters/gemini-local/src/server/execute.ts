@@ -16,6 +16,7 @@ import {
   joinPromptSections,
   ensurePathInEnv,
   listPaperclipSkillEntries,
+  readPaperclipSkillSyncPreference,
   removeMaintainerOnlySkillSymlinks,
   parseObject,
   redactEnvForLogs,
@@ -84,8 +85,11 @@ function geminiSkillsHome(): string {
  */
 async function ensureGeminiSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
+  desiredSkillNames?: string[],
 ): Promise<void> {
-  const skillsEntries = await listPaperclipSkillEntries(__moduleDir);
+  const allSkillsEntries = await listPaperclipSkillEntries(__moduleDir);
+  const desiredSet = new Set(desiredSkillNames ?? allSkillsEntries.map((entry) => entry.name));
+  const skillsEntries = allSkillsEntries.filter((entry) => desiredSet.has(entry.name));
   if (skillsEntries.length === 0) return;
 
   const skillsHome = geminiSkillsHome();
@@ -155,7 +159,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const effectiveWorkspaceCwd = useConfiguredInsteadOfAgentHome ? "" : workspaceCwd;
   const cwd = effectiveWorkspaceCwd || configuredCwd || process.cwd();
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
-  await ensureGeminiSkillsInjected(onLog);
+  const geminiSkillEntries = await listPaperclipSkillEntries(__moduleDir);
+  const geminiPreference = readPaperclipSkillSyncPreference(config);
+  const desiredGeminiSkillNames = geminiPreference.explicit
+    ? geminiPreference.desiredSkills
+    : geminiSkillEntries.map((entry) => entry.name);
+  await ensureGeminiSkillsInjected(onLog, desiredGeminiSkillNames);
 
   const envConfig = parseObject(config.env);
   const hasExplicitApiKey =
