@@ -186,6 +186,8 @@ export interface CompanyPortabilityPreviewResult {
     projectPlans: CompanyPortabilityPreviewProjectPlan[];
     issuePlans: CompanyPortabilityPreviewIssuePlan[];
   };
+  manifest: CompanyPortabilityManifest;
+  files: Record<string, string>;
   envInputs: CompanyPortabilityEnvInput[];
   warnings: string[];
   errors: string[];

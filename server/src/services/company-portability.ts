@@ -2064,6 +2064,8 @@ export function companyPortabilityService(db: Db) {
         projectPlans,
         issuePlans,
       },
+      manifest,
+      files: source.files,
       envInputs: manifest.envInputs ?? [],
       warnings,
       errors,

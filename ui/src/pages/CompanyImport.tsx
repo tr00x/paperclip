@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   CompanyPortabilityCollisionStrategy,
@@ -10,6 +10,7 @@ import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToast } from "../context/ToastContext";
 import { companiesApi } from "../api/companies";
 import { queryKeys } from "../lib/queryKeys";
+import { MarkdownBody } from "../components/MarkdownBody";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "../components/EmptyState";
 import { cn } from "../lib/utils";
@@ -17,169 +18,338 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  FileCode2,
+  FileText,
+  Folder,
+  FolderOpen,
   Github,
   Link2,
+  Package,
   Upload,
 } from "lucide-react";
 import { Field } from "../components/agent-config-primitives";
 
-// ── Preview tree types ────────────────────────────────────────────────
+// ── Tree types ────────────────────────────────────────────────────────
 
-type PreviewTreeNode = {
+type FileTreeNode = {
   name: string;
-  kind: "section" | "item";
-  action?: string;
-  reason?: string | null;
-  detail?: string;
-  children: PreviewTreeNode[];
+  path: string;
+  kind: "dir" | "file";
+  children: FileTreeNode[];
+  action?: string | null;
 };
 
 const TREE_BASE_INDENT = 16;
 const TREE_STEP_INDENT = 24;
 const TREE_ROW_HEIGHT_CLASS = "min-h-9";
 
-// ── Build preview tree from preview result ────────────────────────────
+// ── Tree helpers ──────────────────────────────────────────────────────
 
-function buildPreviewTree(preview: CompanyPortabilityPreviewResult): PreviewTreeNode[] {
-  const sections: PreviewTreeNode[] = [];
+function buildFileTree(files: Record<string, string>, actionMap: Map<string, string>): FileTreeNode[] {
+  const root: FileTreeNode = { name: "", path: "", kind: "dir", children: [] };
 
-  // Company section
-  if (preview.plan.companyAction !== "none") {
-    sections.push({
-      name: "Company",
-      kind: "section",
-      children: [
-        {
-          name: preview.targetCompanyName ?? "New company",
-          kind: "item",
-          action: preview.plan.companyAction,
-          detail: `Target: ${preview.targetCompanyName ?? "new"}`,
+  for (const filePath of Object.keys(files)) {
+    const segments = filePath.split("/").filter(Boolean);
+    let current = root;
+    let currentPath = "";
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      const isLeaf = i === segments.length - 1;
+      let next = current.children.find((c) => c.name === segment);
+      if (!next) {
+        next = {
+          name: segment,
+          path: currentPath,
+          kind: isLeaf ? "file" : "dir",
           children: [],
-        },
-      ],
-    });
+          action: isLeaf ? (actionMap.get(filePath) ?? null) : null,
+        };
+        current.children.push(next);
+      }
+      current = next;
+    }
   }
 
-  // Agents section
-  if (preview.plan.agentPlans.length > 0) {
-    sections.push({
-      name: `Agents (${preview.plan.agentPlans.length})`,
-      kind: "section",
-      children: preview.plan.agentPlans.map((ap) => ({
-        name: `${ap.slug} → ${ap.plannedName}`,
-        kind: "item" as const,
-        action: ap.action,
-        reason: ap.reason,
-        children: [],
-      })),
+  function sortNode(node: FileTreeNode) {
+    node.children.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === "dir" ? -1 : 1;
+      return a.name.localeCompare(b.name);
     });
+    node.children.forEach(sortNode);
   }
 
-  // Projects section
-  if (preview.plan.projectPlans.length > 0) {
-    sections.push({
-      name: `Projects (${preview.plan.projectPlans.length})`,
-      kind: "section",
-      children: preview.plan.projectPlans.map((pp) => ({
-        name: `${pp.slug} → ${pp.plannedName}`,
-        kind: "item" as const,
-        action: pp.action,
-        reason: pp.reason,
-        children: [],
-      })),
-    });
-  }
-
-  // Issues section
-  if (preview.plan.issuePlans.length > 0) {
-    sections.push({
-      name: `Tasks (${preview.plan.issuePlans.length})`,
-      kind: "section",
-      children: preview.plan.issuePlans.map((ip) => ({
-        name: `${ip.slug} → ${ip.plannedTitle}`,
-        kind: "item" as const,
-        action: ip.action,
-        reason: ip.reason,
-        children: [],
-      })),
-    });
-  }
-
-  // Env inputs section
-  if (preview.envInputs.length > 0) {
-    sections.push({
-      name: `Environment inputs (${preview.envInputs.length})`,
-      kind: "section",
-      children: preview.envInputs.map((ei) => ({
-        name: ei.key + (ei.agentSlug ? ` (${ei.agentSlug})` : ""),
-        kind: "item" as const,
-        action: ei.requirement,
-        detail: [
-          ei.kind,
-          ei.requirement,
-          ei.defaultValue !== null ? `default: ${JSON.stringify(ei.defaultValue)}` : null,
-          ei.portability === "system_dependent" ? "system-dependent" : null,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-        reason: ei.description,
-        children: [],
-      })),
-    });
-  }
-
-  return sections;
+  sortNode(root);
+  return root.children;
 }
 
-// ── Preview tree component ────────────────────────────────────────────
+function countFiles(nodes: FileTreeNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    if (node.kind === "file") count++;
+    else count += countFiles(node.children);
+  }
+  return count;
+}
 
-function ImportPreviewTree({
+function collectAllPaths(
+  nodes: FileTreeNode[],
+  type: "file" | "dir" | "all" = "all",
+): Set<string> {
+  const paths = new Set<string>();
+  for (const node of nodes) {
+    if (type === "all" || node.kind === type) paths.add(node.path);
+    for (const p of collectAllPaths(node.children, type)) paths.add(p);
+  }
+  return paths;
+}
+
+function fileIcon(name: string) {
+  if (name.endsWith(".yaml") || name.endsWith(".yml")) return FileCode2;
+  return FileText;
+}
+
+/** Build a map from file path → planned action (create/update/skip) using the manifest + plan */
+function buildActionMap(preview: CompanyPortabilityPreviewResult): Map<string, string> {
+  const map = new Map<string, string>();
+  const manifest = preview.manifest;
+
+  for (const ap of preview.plan.agentPlans) {
+    const agent = manifest.agents.find((a) => a.slug === ap.slug);
+    if (agent) {
+      const path = ensureMarkdownPath(agent.path);
+      map.set(path, ap.action);
+    }
+  }
+
+  for (const pp of preview.plan.projectPlans) {
+    const project = manifest.projects.find((p) => p.slug === pp.slug);
+    if (project) {
+      const path = ensureMarkdownPath(project.path);
+      map.set(path, pp.action);
+    }
+  }
+
+  for (const ip of preview.plan.issuePlans) {
+    const issue = manifest.issues.find((i) => i.slug === ip.slug);
+    if (issue) {
+      const path = ensureMarkdownPath(issue.path);
+      map.set(path, ip.action);
+    }
+  }
+
+  for (const skill of manifest.skills) {
+    const path = ensureMarkdownPath(skill.path);
+    map.set(path, "create");
+    // Also mark skill file inventory
+    for (const file of skill.fileInventory) {
+      if (preview.files[file.path]) {
+        map.set(file.path, "create");
+      }
+    }
+  }
+
+  // Company file
+  if (manifest.company) {
+    const path = ensureMarkdownPath(manifest.company.path);
+    map.set(path, preview.plan.companyAction === "none" ? "skip" : preview.plan.companyAction);
+  }
+
+  return map;
+}
+
+function ensureMarkdownPath(p: string): string {
+  return p.endsWith(".md") ? p : `${p}.md`;
+}
+
+const ACTION_COLORS: Record<string, string> = {
+  create: "text-emerald-500 border-emerald-500/30",
+  update: "text-blue-500 border-blue-500/30",
+  skip: "text-muted-foreground border-border",
+  none: "text-muted-foreground border-border",
+};
+
+// ── Frontmatter helpers ───────────────────────────────────────────────
+
+type FrontmatterData = Record<string, string | string[]>;
+
+function parseFrontmatter(content: string): { data: FrontmatterData; body: string } | null {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return null;
+
+  const data: FrontmatterData = {};
+  const rawYaml = match[1];
+  const body = match[2];
+
+  let currentKey: string | null = null;
+  let currentList: string[] | null = null;
+
+  for (const line of rawYaml.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    if (trimmed.startsWith("- ") && currentKey) {
+      if (!currentList) currentList = [];
+      currentList.push(trimmed.slice(2).trim().replace(/^["']|["']$/g, ""));
+      continue;
+    }
+
+    if (currentKey && currentList) {
+      data[currentKey] = currentList;
+      currentList = null;
+      currentKey = null;
+    }
+
+    const kvMatch = trimmed.match(/^([a-zA-Z_][\w-]*)\s*:\s*(.*)$/);
+    if (kvMatch) {
+      const key = kvMatch[1];
+      const val = kvMatch[2].trim().replace(/^["']|["']$/g, "");
+      if (val) {
+        data[key] = val;
+        currentKey = null;
+      } else {
+        currentKey = key;
+      }
+    }
+  }
+
+  if (currentKey && currentList) {
+    data[currentKey] = currentList;
+  }
+
+  return Object.keys(data).length > 0 ? { data, body } : null;
+}
+
+const FRONTMATTER_FIELD_LABELS: Record<string, string> = {
+  name: "Name",
+  title: "Title",
+  kind: "Kind",
+  reportsTo: "Reports to",
+  skills: "Skills",
+  status: "Status",
+  description: "Description",
+  priority: "Priority",
+  assignee: "Assignee",
+  project: "Project",
+  targetDate: "Target date",
+};
+
+function FrontmatterCard({ data }: { data: FrontmatterData }) {
+  return (
+    <div className="rounded-md border border-border bg-accent/20 px-4 py-3 mb-4">
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm">
+        {Object.entries(data).map(([key, value]) => (
+          <div key={key} className="contents">
+            <dt className="text-muted-foreground whitespace-nowrap py-0.5">
+              {FRONTMATTER_FIELD_LABELS[key] ?? key}
+            </dt>
+            <dd className="py-0.5">
+              {Array.isArray(value) ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {value.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span>{value}</span>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+// ── File tree component ───────────────────────────────────────────────
+
+function ImportFileTree({
   nodes,
-  selectedItem,
-  expandedSections,
-  onToggleSection,
-  onSelectItem,
+  selectedFile,
+  expandedDirs,
+  checkedFiles,
+  onToggleDir,
+  onSelectFile,
+  onToggleCheck,
   depth = 0,
 }: {
-  nodes: PreviewTreeNode[];
-  selectedItem: string | null;
-  expandedSections: Set<string>;
-  onToggleSection: (name: string) => void;
-  onSelectItem: (name: string) => void;
+  nodes: FileTreeNode[];
+  selectedFile: string | null;
+  expandedDirs: Set<string>;
+  checkedFiles: Set<string>;
+  onToggleDir: (path: string) => void;
+  onSelectFile: (path: string) => void;
+  onToggleCheck: (path: string, kind: "file" | "dir") => void;
   depth?: number;
 }) {
   return (
     <div>
       {nodes.map((node) => {
-        if (node.kind === "section") {
-          const expanded = expandedSections.has(node.name);
+        const expanded = node.kind === "dir" && expandedDirs.has(node.path);
+        if (node.kind === "dir") {
+          const childFiles = collectAllPaths(node.children, "file");
+          const allChecked = [...childFiles].every((p) => checkedFiles.has(p));
+          const someChecked = [...childFiles].some((p) => checkedFiles.has(p));
           return (
-            <div key={node.name}>
-              <button
-                type="button"
+            <div key={node.path}>
+              <div
                 className={cn(
-                  "group flex w-full items-center gap-2 pr-3 text-left text-sm font-medium text-muted-foreground hover:bg-accent/30 hover:text-foreground",
+                  "group grid w-full grid-cols-[auto_minmax(0,1fr)_2.25rem] items-center gap-x-1 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground",
                   TREE_ROW_HEIGHT_CLASS,
                 )}
-                style={{ paddingLeft: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT}px` }}
-                onClick={() => onToggleSection(node.name)}
               >
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                <label
+                  className="flex items-center pl-2"
+                  style={{ paddingLeft: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT - 8}px` }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    ref={(el) => { if (el) el.indeterminate = someChecked && !allChecked; }}
+                    onChange={() => onToggleCheck(node.path, "dir")}
+                    className="mr-2 accent-foreground"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="flex min-w-0 items-center gap-2 py-1 text-left"
+                  onClick={() => onToggleDir(node.path)}
+                >
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                    {expanded ? (
+                      <FolderOpen className="h-3.5 w-3.5" />
+                    ) : (
+                      <Folder className="h-3.5 w-3.5" />
+                    )}
+                  </span>
+                  <span className="truncate">{node.name}</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center self-center rounded-sm text-muted-foreground opacity-70 transition-[background-color,color,opacity] hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                  onClick={() => onToggleDir(node.path)}
+                >
                   {expanded ? (
                     <ChevronDown className="h-3.5 w-3.5" />
                   ) : (
                     <ChevronRight className="h-3.5 w-3.5" />
                   )}
-                </span>
-                <span className="truncate">{node.name}</span>
-              </button>
+                </button>
+              </div>
               {expanded && (
-                <ImportPreviewTree
+                <ImportFileTree
                   nodes={node.children}
-                  selectedItem={selectedItem}
-                  expandedSections={expandedSections}
-                  onToggleSection={onToggleSection}
-                  onSelectItem={onSelectItem}
+                  selectedFile={selectedFile}
+                  expandedDirs={expandedDirs}
+                  checkedFiles={checkedFiles}
+                  onToggleDir={onToggleDir}
+                  onSelectFile={onSelectFile}
+                  onToggleCheck={onToggleCheck}
                   depth={depth + 1}
                 />
               )}
@@ -187,84 +357,103 @@ function ImportPreviewTree({
           );
         }
 
+        const FileIcon = fileIcon(node.name);
+        const checked = checkedFiles.has(node.path);
+        const actionColor = node.action ? (ACTION_COLORS[node.action] ?? ACTION_COLORS.skip) : "";
         return (
-          <button
-            key={node.name}
-            type="button"
+          <div
+            key={node.path}
             className={cn(
-              "flex w-full items-center gap-2 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground",
+              "flex w-full items-center gap-2 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground cursor-pointer",
               TREE_ROW_HEIGHT_CLASS,
-              node.name === selectedItem && "text-foreground bg-accent/20",
+              node.path === selectedFile && "text-foreground bg-accent/20",
+              !checked && "opacity-50",
             )}
-            style={{ paddingLeft: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT}px` }}
-            onClick={() => onSelectItem(node.name)}
+            style={{
+              paddingInlineStart: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT - 8}px`,
+            }}
           >
-            <span className="flex-1 truncate">{node.name}</span>
+            <label className="flex items-center pl-2">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => onToggleCheck(node.path, "file")}
+                className="mr-2 accent-foreground"
+              />
+            </label>
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left"
+              onClick={() => onSelectFile(node.path)}
+            >
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                <FileIcon className="h-3.5 w-3.5" />
+              </span>
+              <span className="truncate">{node.name}</span>
+            </button>
             {node.action && (
-              <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs uppercase tracking-wide text-muted-foreground">
-                {node.action}
+              <span className={cn(
+                "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                actionColor,
+              )}>
+                {checked ? node.action : "skip"}
               </span>
             )}
-          </button>
+          </div>
         );
       })}
     </div>
   );
 }
 
-// ── Import detail pane ────────────────────────────────────────────────
+// ── Preview pane ──────────────────────────────────────────────────────
 
-function ImportDetailPane({
-  selectedItem,
-  previewTree,
+function ImportPreviewPane({
+  selectedFile,
+  content,
+  action,
 }: {
-  selectedItem: string | null;
-  previewTree: PreviewTreeNode[];
+  selectedFile: string | null;
+  content: string | null;
+  action: string | null;
 }) {
-  if (!selectedItem) {
+  if (!selectedFile || content === null) {
     return (
-      <EmptyState icon={Download} message="Select an item to see its details." />
+      <EmptyState icon={Package} message="Select a file to preview its contents." />
     );
   }
 
-  // Find the selected node
-  let found: PreviewTreeNode | null = null;
-  for (const section of previewTree) {
-    for (const child of section.children) {
-      if (child.name === selectedItem) {
-        found = child;
-        break;
-      }
-    }
-    if (found) break;
-  }
-
-  if (!found) {
-    return (
-      <EmptyState icon={Download} message="Item not found." />
-    );
-  }
+  const isMarkdown = selectedFile.endsWith(".md");
+  const parsed = isMarkdown ? parseFrontmatter(content) : null;
+  const actionColor = action ? (ACTION_COLORS[action] ?? ACTION_COLORS.skip) : "";
 
   return (
     <div className="min-w-0">
-      <div className="border-b border-border px-5 py-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold">{found.name}</h2>
-          </div>
-          {found.action && (
-            <span className="shrink-0 rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
-              {found.action}
+      <div className="border-b border-border px-5 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="truncate font-mono text-sm">{selectedFile}</div>
+          {action && (
+            <span className={cn(
+              "shrink-0 rounded-full border px-2 py-0.5 text-xs uppercase tracking-wide",
+              actionColor,
+            )}>
+              {action}
             </span>
           )}
         </div>
       </div>
-      <div className="px-5 py-5 space-y-3">
-        {found.detail && (
-          <div className="text-sm text-muted-foreground">{found.detail}</div>
-        )}
-        {found.reason && (
-          <div className="text-sm">{found.reason}</div>
+      <div className="min-h-[560px] px-5 py-5">
+        {parsed ? (
+          <>
+            <FrontmatterCard data={parsed.data} />
+            {parsed.body.trim() && <MarkdownBody>{parsed.body}</MarkdownBody>}
+          </>
+        ) : isMarkdown ? (
+          <MarkdownBody>{content}</MarkdownBody>
+        ) : (
+          <pre className="overflow-x-auto whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-mono text-sm text-foreground">
+            <code>{content}</code>
+          </pre>
         )}
       </div>
     </div>
@@ -329,8 +518,9 @@ export function CompanyImport() {
   // Preview state
   const [importPreview, setImportPreview] =
     useState<CompanyPortabilityPreviewResult | null>(null);
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
+  const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setBreadcrumbs([
@@ -367,10 +557,19 @@ export function CompanyImport() {
     },
     onSuccess: (result) => {
       setImportPreview(result);
-      // Expand all sections by default
-      const sections = buildPreviewTree(result).map((s) => s.name);
-      setExpandedSections(new Set(sections));
-      setSelectedItem(null);
+      // Check all files by default
+      const allFiles = new Set(Object.keys(result.files));
+      setCheckedFiles(allFiles);
+      // Expand top-level dirs
+      const tree = buildFileTree(result.files, buildActionMap(result));
+      const topDirs = new Set<string>();
+      for (const node of tree) {
+        if (node.kind === "dir") topDirs.add(node.path);
+      }
+      setExpandedDirs(topDirs);
+      // Select first file
+      const firstFile = Object.keys(result.files)[0];
+      if (firstFile) setSelectedFile(firstFile);
     },
     onError: (err) => {
       pushToast({
@@ -436,10 +635,69 @@ export function CompanyImport() {
     }
   }
 
-  const previewTree = importPreview ? buildPreviewTree(importPreview) : [];
+  const actionMap = useMemo(
+    () => (importPreview ? buildActionMap(importPreview) : new Map<string, string>()),
+    [importPreview],
+  );
+
+  const tree = useMemo(
+    () => (importPreview ? buildFileTree(importPreview.files, actionMap) : []),
+    [importPreview, actionMap],
+  );
+
+  const totalFiles = useMemo(() => countFiles(tree), [tree]);
+  const selectedCount = checkedFiles.size;
+
+  function handleToggleDir(path: string) {
+    setExpandedDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }
+
+  function handleToggleCheck(path: string, kind: "file" | "dir") {
+    if (!importPreview) return;
+    setCheckedFiles((prev) => {
+      const next = new Set(prev);
+      if (kind === "file") {
+        if (next.has(path)) next.delete(path);
+        else next.add(path);
+      } else {
+        const findNode = (nodes: FileTreeNode[], target: string): FileTreeNode | null => {
+          for (const n of nodes) {
+            if (n.path === target) return n;
+            const found = findNode(n.children, target);
+            if (found) return found;
+          }
+          return null;
+        };
+        const dirNode = findNode(tree, path);
+        if (dirNode) {
+          const childFiles = collectAllPaths(dirNode.children, "file");
+          for (const child of dirNode.children) {
+            if (child.kind === "file") childFiles.add(child.path);
+          }
+          const allChecked = [...childFiles].every((p) => next.has(p));
+          for (const f of childFiles) {
+            if (allChecked) next.delete(f);
+            else next.add(f);
+          }
+        }
+      }
+      return next;
+    });
+  }
+
   const hasSource =
     sourceMode === "local" ? !!localPackage : importUrl.trim().length > 0;
   const hasErrors = importPreview ? importPreview.errors.length > 0 : false;
+
+  const previewContent = selectedFile && importPreview
+    ? (importPreview.files[selectedFile] ?? null)
+    : null;
+  const selectedAction = selectedFile ? (actionMap.get(selectedFile) ?? null) : null;
 
   if (!selectedCompanyId) {
     return <EmptyState icon={Download} message="Select a company to import into." />;
@@ -521,7 +779,7 @@ export function CompanyImport() {
             label={sourceMode === "github" ? "GitHub URL" : "Package URL"}
             hint={
               sourceMode === "github"
-                ? "Repo root, tree path, or blob URL to COMPANY.md."
+                ? "Repo tree path or blob URL to COMPANY.md (e.g. github.com/owner/repo/tree/main/company)."
                 : "Point directly at COMPANY.md or a directory that contains it."
             }
           >
@@ -559,8 +817,8 @@ export function CompanyImport() {
             </select>
           </Field>
           <Field
-            label="Collision strategy"
-            hint="Controls what happens when imported agent slugs already exist."
+            label="Default collision strategy"
+            hint="Controls what happens when imported slugs already exist."
           >
             <select
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
@@ -615,13 +873,10 @@ export function CompanyImport() {
                   Import preview
                 </span>
                 <span className="text-muted-foreground">
-                  Target: {importPreview.targetCompanyName ?? "new company"}
-                </span>
-                <span className="text-muted-foreground">
-                  Strategy: {importPreview.collisionStrategy}
+                  {selectedCount} / {totalFiles} file{totalFiles === 1 ? "" : "s"} selected
                 </span>
                 {importPreview.warnings.length > 0 && (
-                  <span className="text-amber-600">
+                  <span className="text-amber-500">
                     {importPreview.warnings.length} warning{importPreview.warnings.length === 1 ? "" : "s"}
                   </span>
                 )}
@@ -634,10 +889,12 @@ export function CompanyImport() {
               <Button
                 size="sm"
                 onClick={() => importMutation.mutate()}
-                disabled={importMutation.isPending || hasErrors}
+                disabled={importMutation.isPending || hasErrors || selectedCount === 0}
               >
                 <Download className="mr-1.5 h-3.5 w-3.5" />
-                {importMutation.isPending ? "Importing..." : "Apply import"}
+                {importMutation.isPending
+                  ? "Importing..."
+                  : `Import ${selectedCount} file${selectedCount === 1 ? "" : "s"}`}
               </Button>
             </div>
           </div>
@@ -664,32 +921,30 @@ export function CompanyImport() {
           <div className="grid min-h-[calc(100vh-16rem)] gap-0 xl:grid-cols-[19rem_minmax(0,1fr)]">
             <aside className="border-r border-border">
               <div className="border-b border-border px-4 py-3">
-                <h2 className="text-base font-semibold">Import plan</h2>
+                <h2 className="text-base font-semibold">Package files</h2>
                 <p className="text-xs text-muted-foreground">
-                  {importPreview.plan.agentPlans.length} agent{importPreview.plan.agentPlans.length === 1 ? "" : "s"},
+                  {totalFiles} file{totalFiles === 1 ? "" : "s"} &middot;
+                  {" "}{importPreview.plan.agentPlans.length} agent{importPreview.plan.agentPlans.length === 1 ? "" : "s"},
+                  {" "}{importPreview.manifest.skills.length} skill{importPreview.manifest.skills.length === 1 ? "" : "s"},
                   {" "}{importPreview.plan.projectPlans.length} project{importPreview.plan.projectPlans.length === 1 ? "" : "s"},
                   {" "}{importPreview.plan.issuePlans.length} task{importPreview.plan.issuePlans.length === 1 ? "" : "s"}
                 </p>
               </div>
-              <ImportPreviewTree
-                nodes={previewTree}
-                selectedItem={selectedItem}
-                expandedSections={expandedSections}
-                onToggleSection={(name) => {
-                  setExpandedSections((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(name)) next.delete(name);
-                    else next.add(name);
-                    return next;
-                  });
-                }}
-                onSelectItem={setSelectedItem}
+              <ImportFileTree
+                nodes={tree}
+                selectedFile={selectedFile}
+                expandedDirs={expandedDirs}
+                checkedFiles={checkedFiles}
+                onToggleDir={handleToggleDir}
+                onSelectFile={setSelectedFile}
+                onToggleCheck={handleToggleCheck}
               />
             </aside>
             <div className="min-w-0 pl-6">
-              <ImportDetailPane
-                selectedItem={selectedItem}
-                previewTree={previewTree}
+              <ImportPreviewPane
+                selectedFile={selectedFile}
+                content={previewContent}
+                action={selectedAction}
               />
             </div>
           </div>
