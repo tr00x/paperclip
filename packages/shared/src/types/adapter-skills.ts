@@ -12,6 +12,8 @@ export interface AgentSkillEntry {
   name: string;
   desired: boolean;
   managed: boolean;
+  required?: boolean;
+  requiredReason?: string | null;
   state: AgentSkillState;
   sourcePath?: string | null;
   targetPath?: string | null;

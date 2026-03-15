@@ -15,8 +15,8 @@ import {
   ensurePaperclipSkillSymlink,
   joinPromptSections,
   ensurePathInEnv,
-  listPaperclipSkillEntries,
-  readPaperclipSkillSyncPreference,
+  readPaperclipRuntimeSkillEntries,
+  resolvePaperclipDesiredSkillNames,
   removeMaintainerOnlySkillSymlinks,
   parseObject,
   redactEnvForLogs,
@@ -85,12 +85,12 @@ function geminiSkillsHome(): string {
  */
 async function ensureGeminiSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
+  skillsEntries: Array<{ name: string; source: string }>,
   desiredSkillNames?: string[],
 ): Promise<void> {
-  const allSkillsEntries = await listPaperclipSkillEntries(__moduleDir);
-  const desiredSet = new Set(desiredSkillNames ?? allSkillsEntries.map((entry) => entry.name));
-  const skillsEntries = allSkillsEntries.filter((entry) => desiredSet.has(entry.name));
-  if (skillsEntries.length === 0) return;
+  const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.name));
+  const selectedEntries = skillsEntries.filter((entry) => desiredSet.has(entry.name));
+  if (selectedEntries.length === 0) return;
 
   const skillsHome = geminiSkillsHome();
   try {
@@ -104,7 +104,7 @@ async function ensureGeminiSkillsInjected(
   }
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
     skillsHome,
-    skillsEntries.map((entry) => entry.name),
+    selectedEntries.map((entry) => entry.name),
   );
   for (const skillName of removedSkills) {
     await onLog(
@@ -113,7 +113,7 @@ async function ensureGeminiSkillsInjected(
     );
   }
 
-  for (const entry of skillsEntries) {
+  for (const entry of selectedEntries) {
     const target = path.join(skillsHome, entry.name);
 
     try {
@@ -160,12 +160,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const effectiveWorkspaceCwd = useConfiguredInsteadOfAgentHome ? "" : workspaceCwd;
   const cwd = effectiveWorkspaceCwd || configuredCwd || process.cwd();
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
-  const geminiSkillEntries = await listPaperclipSkillEntries(__moduleDir);
-  const geminiPreference = readPaperclipSkillSyncPreference(config);
-  const desiredGeminiSkillNames = geminiPreference.explicit
-    ? geminiPreference.desiredSkills
-    : geminiSkillEntries.map((entry) => entry.name);
-  await ensureGeminiSkillsInjected(onLog, desiredGeminiSkillNames);
+  const geminiSkillEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
+  const desiredGeminiSkillNames = resolvePaperclipDesiredSkillNames(config, geminiSkillEntries);
+  await ensureGeminiSkillsInjected(onLog, geminiSkillEntries, desiredGeminiSkillNames);
 
   const envConfig = parseObject(config.env);
   const hasExplicitApiKey =

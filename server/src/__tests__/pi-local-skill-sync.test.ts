@@ -39,7 +39,8 @@ describe("pi local skill sync", () => {
 
     const before = await listPiSkills(ctx);
     expect(before.mode).toBe("persistent");
-    expect(before.desiredSkills).toEqual(["paperclip"]);
+    expect(before.desiredSkills).toContain("paperclip");
+    expect(before.entries.find((entry) => entry.name === "paperclip")?.required).toBe(true);
     expect(before.entries.find((entry) => entry.name === "paperclip")?.state).toBe("missing");
 
     const after = await syncPiSkills(ctx, ["paperclip"]);
@@ -47,7 +48,7 @@ describe("pi local skill sync", () => {
     expect((await fs.lstat(path.join(home, ".pi", "agent", "skills", "paperclip"))).isSymbolicLink()).toBe(true);
   });
 
-  it("removes stale managed Paperclip skills when the desired set is emptied", async () => {
+  it("keeps required bundled Paperclip skills installed even when the desired set is emptied", async () => {
     const home = await makeTempDir("paperclip-pi-skill-prune-");
     cleanupDirs.add(home);
 
@@ -80,8 +81,8 @@ describe("pi local skill sync", () => {
     } as const;
 
     const after = await syncPiSkills(clearedCtx, []);
-    expect(after.desiredSkills).toEqual([]);
-    expect(after.entries.find((entry) => entry.name === "paperclip")?.state).toBe("available");
-    await expect(fs.lstat(path.join(home, ".pi", "agent", "skills", "paperclip"))).rejects.toThrow();
+    expect(after.desiredSkills).toContain("paperclip");
+    expect(after.entries.find((entry) => entry.name === "paperclip")?.state).toBe("installed");
+    expect((await fs.lstat(path.join(home, ".pi", "agent", "skills", "paperclip"))).isSymbolicLink()).toBe(true);
   });
 });

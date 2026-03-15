@@ -8,8 +8,8 @@ import type {
 } from "@paperclipai/adapter-utils";
 import {
   ensurePaperclipSkillSymlink,
-  listPaperclipSkillEntries,
-  readPaperclipSkillSyncPreference,
+  readPaperclipRuntimeSkillEntries,
+  resolvePaperclipDesiredSkillNames,
 } from "@paperclipai/adapter-utils/server-utils";
 import { resolveCodexHomeDir } from "./codex-home.js";
 
@@ -27,11 +27,6 @@ function resolveCodexSkillsHome(config: Record<string, unknown>) {
   const configuredCodexHome = asString(env.CODEX_HOME);
   const home = configuredCodexHome ? path.resolve(configuredCodexHome) : resolveCodexHomeDir(process.env);
   return path.join(home, "skills");
-}
-
-function resolveDesiredSkillNames(config: Record<string, unknown>, availableSkillNames: string[]) {
-  const preference = readPaperclipSkillSyncPreference(config);
-  return preference.explicit ? preference.desiredSkills : availableSkillNames;
 }
 
 async function readInstalledSkillTargets(skillsHome: string) {
@@ -57,12 +52,9 @@ async function readInstalledSkillTargets(skillsHome: string) {
 }
 
 async function buildCodexSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await listPaperclipSkillEntries(__moduleDir);
+  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
   const availableByName = new Map(availableEntries.map((entry) => [entry.name, entry]));
-  const desiredSkills = resolveDesiredSkillNames(
-    config,
-    availableEntries.map((entry) => entry.name),
-  );
+  const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
   const desiredSet = new Set(desiredSkills);
   const skillsHome = resolveCodexSkillsHome(config);
   const installed = await readInstalledSkillTargets(skillsHome);
@@ -97,6 +89,8 @@ async function buildCodexSkillSnapshot(config: Record<string, unknown>): Promise
       sourcePath: available.source,
       targetPath: path.join(skillsHome, available.name),
       detail,
+      required: Boolean(available.required),
+      requiredReason: available.requiredReason ?? null,
     });
   }
 
@@ -147,8 +141,11 @@ export async function syncCodexSkills(
   ctx: AdapterSkillContext,
   desiredSkills: string[],
 ): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await listPaperclipSkillEntries(__moduleDir);
-  const desiredSet = new Set(desiredSkills);
+  const availableEntries = await readPaperclipRuntimeSkillEntries(ctx.config, __moduleDir);
+  const desiredSet = new Set([
+    ...desiredSkills,
+    ...availableEntries.filter((entry) => entry.required).map((entry) => entry.name),
+  ]);
   const skillsHome = resolveCodexSkillsHome(ctx.config);
   await fs.mkdir(skillsHome, { recursive: true });
   const installed = await readInstalledSkillTargets(skillsHome);
@@ -173,7 +170,7 @@ export async function syncCodexSkills(
 
 export function resolveCodexDesiredSkillNames(
   config: Record<string, unknown>,
-  availableSkillNames: string[],
+  availableEntries: Array<{ name: string; required?: boolean }>,
 ) {
-  return resolveDesiredSkillNames(config, availableSkillNames);
+  return resolvePaperclipDesiredSkillNames(config, availableEntries);
 }

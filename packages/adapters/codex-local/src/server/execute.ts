@@ -14,7 +14,8 @@ import {
   ensureCommandResolvable,
   ensurePaperclipSkillSymlink,
   ensurePathInEnv,
-  listPaperclipSkillEntries,
+  readPaperclipRuntimeSkillEntries,
+  resolvePaperclipDesiredSkillNames,
   removeMaintainerOnlySkillSymlinks,
   renderTemplate,
   joinPromptSections,
@@ -92,7 +93,7 @@ async function isLikelyPaperclipRuntimeSkillSource(candidate: string, skillName:
 
 type EnsureCodexSkillsInjectedOptions = {
   skillsHome?: string;
-  skillsEntries?: Awaited<ReturnType<typeof listPaperclipSkillEntries>>;
+  skillsEntries?: Array<{ name: string; source: string }>;
   desiredSkillNames?: string[];
   linkSkill?: (source: string, target: string) => Promise<void>;
 };
@@ -101,7 +102,7 @@ export async function ensureCodexSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
   options: EnsureCodexSkillsInjectedOptions = {},
 ) {
-  const allSkillsEntries = options.skillsEntries ?? await listPaperclipSkillEntries(__moduleDir);
+  const allSkillsEntries = options.skillsEntries ?? await readPaperclipRuntimeSkillEntries({}, __moduleDir);
   const desiredSkillNames =
     options.desiredSkillNames ?? allSkillsEntries.map((entry) => entry.name);
   const desiredSet = new Set(desiredSkillNames);
@@ -220,10 +221,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     typeof envConfig.CODEX_HOME === "string" && envConfig.CODEX_HOME.trim().length > 0
       ? path.resolve(envConfig.CODEX_HOME.trim())
       : null;
-  const desiredSkillNames = resolveCodexDesiredSkillNames(
-    config,
-    (await listPaperclipSkillEntries(__moduleDir)).map((entry) => entry.name),
-  );
+  const codexSkillEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
+  const desiredSkillNames = resolveCodexDesiredSkillNames(config, codexSkillEntries);
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
   const preparedWorktreeCodexHome =
     configuredCodexHome ? null : await prepareWorktreeCodexHome(process.env, onLog);
@@ -231,11 +230,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   await ensureCodexSkillsInjected(
     onLog,
     effectiveCodexHome
-      ? {
+        ? {
           skillsHome: path.join(effectiveCodexHome, "skills"),
+          skillsEntries: codexSkillEntries,
           desiredSkillNames,
         }
-      : { desiredSkillNames },
+      : { skillsEntries: codexSkillEntries, desiredSkillNames },
   );
   const hasExplicitApiKey =
     typeof envConfig.PAPERCLIP_API_KEY === "string" && envConfig.PAPERCLIP_API_KEY.trim().length > 0;

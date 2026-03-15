@@ -30,6 +30,7 @@ import { formatCents, formatDate, relativeTime, formatTokens } from "../lib/util
 import { cn } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Popover,
   PopoverContent,
@@ -1225,12 +1226,19 @@ function AgentSkillsTab({
         return "Unknown";
     }
   }, [skillSnapshot?.mode]);
+  const unsupportedSkillMessage = useMemo(() => {
+    if (skillSnapshot?.mode !== "unsupported") return null;
+    if (agent.adapterType === "openclaw_gateway") {
+      return "Paperclip cannot manage OpenClaw skills here. Visit your OpenClaw instance to manage this agent's skills.";
+    }
+    return "Paperclip cannot manage skills for this adapter yet. Manage them in the adapter directly.";
+  }, [agent.adapterType, skillSnapshot?.mode]);
   const hasUnsavedChanges = !arraysEqual(skillDraft, lastSavedSkills);
   const saveStatusLabel = syncSkills.isPending
     ? "Saving changes..."
     : hasUnsavedChanges
       ? "Saving soon..."
-      : "Changes save automatically";
+      : null;
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -1239,12 +1247,14 @@ function AgentSkillsTab({
           to="/skills"
           className="text-sm font-medium text-foreground underline-offset-4 no-underline transition-colors hover:text-foreground/70 hover:underline"
         >
-          View company library
+          View company skills library
         </Link>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {syncSkills.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-          <span>{saveStatusLabel}</span>
-        </div>
+        {saveStatusLabel ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {syncSkills.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            <span>{saveStatusLabel}</span>
+          </div>
+        ) : null}
       </div>
 
       {skillSnapshot?.warnings.length ? (
@@ -1252,6 +1262,12 @@ function AgentSkillsTab({
           {skillSnapshot.warnings.map((warning) => (
             <div key={warning}>{warning}</div>
           ))}
+        </div>
+      ) : null}
+
+      {unsupportedSkillMessage ? (
+        <div className="rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
+          {unsupportedSkillMessage}
         </div>
       ) : null}
 
@@ -1268,22 +1284,46 @@ function AgentSkillsTab({
               (companySkills ?? []).map((skill) => {
                 const checked = skillDraft.includes(skill.slug);
                 const adapterEntry = adapterEntryByName.get(skill.slug);
+                const required = Boolean(adapterEntry?.required);
+                const disabled = required || skillSnapshot?.mode === "unsupported";
+                const checkbox = (
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      const next = event.target.checked
+                        ? Array.from(new Set([...skillDraft, skill.slug]))
+                        : skillDraft.filter((value) => value !== skill.slug);
+                      setSkillDraft(next);
+                    }}
+                    className="mt-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                );
                 return (
                   <label
                     key={skill.id}
                     className="flex items-start gap-3 border-b border-border px-3 py-3 text-sm last:border-b-0 hover:bg-accent/20"
                   >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(event) => {
-                        const next = event.target.checked
-                          ? Array.from(new Set([...skillDraft, skill.slug]))
-                          : skillDraft.filter((value) => value !== skill.slug);
-                        setSkillDraft(next);
-                      }}
-                      className="mt-0.5"
-                    />
+                    {required && adapterEntry?.requiredReason ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>{checkbox}</span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">{adapterEntry.requiredReason}</TooltipContent>
+                      </Tooltip>
+                    ) : skillSnapshot?.mode === "unsupported" ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>{checkbox}</span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          {unsupportedSkillMessage ?? "Manage skills in the adapter directly."}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      checkbox
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate font-medium">{skill.name}</span>

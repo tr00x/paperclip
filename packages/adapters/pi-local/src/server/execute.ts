@@ -15,8 +15,8 @@ import {
   ensureCommandResolvable,
   ensurePaperclipSkillSymlink,
   ensurePathInEnv,
-  listPaperclipSkillEntries,
-  readPaperclipSkillSyncPreference,
+  readPaperclipRuntimeSkillEntries,
+  resolvePaperclipDesiredSkillNames,
   removeMaintainerOnlySkillSymlinks,
   renderTemplate,
   runChildProcess,
@@ -53,18 +53,18 @@ function parseModelId(model: string | null): string | null {
 
 async function ensurePiSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
+  skillsEntries: Array<{ name: string; source: string }>,
   desiredSkillNames?: string[],
 ) {
-  const allSkillsEntries = await listPaperclipSkillEntries(__moduleDir);
-  const desiredSet = new Set(desiredSkillNames ?? allSkillsEntries.map((entry) => entry.name));
-  const skillsEntries = allSkillsEntries.filter((entry) => desiredSet.has(entry.name));
-  if (skillsEntries.length === 0) return;
+  const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.name));
+  const selectedEntries = skillsEntries.filter((entry) => desiredSet.has(entry.name));
+  if (selectedEntries.length === 0) return;
 
   const piSkillsHome = path.join(os.homedir(), ".pi", "agent", "skills");
   await fs.mkdir(piSkillsHome, { recursive: true });
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
     piSkillsHome,
-    skillsEntries.map((entry) => entry.name),
+    selectedEntries.map((entry) => entry.name),
   );
   for (const skillName of removedSkills) {
     await onLog(
@@ -73,7 +73,7 @@ async function ensurePiSkillsInjected(
     );
   }
 
-  for (const entry of skillsEntries) {
+  for (const entry of selectedEntries) {
     const target = path.join(piSkillsHome, entry.name);
 
     try {
@@ -139,12 +139,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   await ensureSessionsDir();
   
   // Inject skills
-  const piSkillEntries = await listPaperclipSkillEntries(__moduleDir);
-  const piPreference = readPaperclipSkillSyncPreference(config);
-  const desiredPiSkillNames = piPreference.explicit
-    ? piPreference.desiredSkills
-    : piSkillEntries.map((entry) => entry.name);
-  await ensurePiSkillsInjected(onLog, desiredPiSkillNames);
+  const piSkillEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
+  const desiredPiSkillNames = resolvePaperclipDesiredSkillNames(config, piSkillEntries);
+  await ensurePiSkillsInjected(onLog, piSkillEntries, desiredPiSkillNames);
 
   // Build environment
   const envConfig = parseObject(config.env);

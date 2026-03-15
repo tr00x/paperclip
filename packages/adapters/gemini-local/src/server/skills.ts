@@ -9,8 +9,8 @@ import type {
 } from "@paperclipai/adapter-utils";
 import {
   ensurePaperclipSkillSymlink,
-  listPaperclipSkillEntries,
-  readPaperclipSkillSyncPreference,
+  readPaperclipRuntimeSkillEntries,
+  resolvePaperclipDesiredSkillNames,
 } from "@paperclipai/adapter-utils/server-utils";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -27,11 +27,6 @@ function resolveGeminiSkillsHome(config: Record<string, unknown>) {
   const configuredHome = asString(env.HOME);
   const home = configuredHome ? path.resolve(configuredHome) : os.homedir();
   return path.join(home, ".gemini", "skills");
-}
-
-function resolveDesiredSkillNames(config: Record<string, unknown>, availableSkillNames: string[]) {
-  const preference = readPaperclipSkillSyncPreference(config);
-  return preference.explicit ? preference.desiredSkills : availableSkillNames;
 }
 
 async function readInstalledSkillTargets(skillsHome: string) {
@@ -57,12 +52,9 @@ async function readInstalledSkillTargets(skillsHome: string) {
 }
 
 async function buildGeminiSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await listPaperclipSkillEntries(__moduleDir);
+  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
   const availableByName = new Map(availableEntries.map((entry) => [entry.name, entry]));
-  const desiredSkills = resolveDesiredSkillNames(
-    config,
-    availableEntries.map((entry) => entry.name),
-  );
+  const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
   const desiredSet = new Set(desiredSkills);
   const skillsHome = resolveGeminiSkillsHome(config);
   const installed = await readInstalledSkillTargets(skillsHome);
@@ -97,6 +89,8 @@ async function buildGeminiSkillSnapshot(config: Record<string, unknown>): Promis
       sourcePath: available.source,
       targetPath: path.join(skillsHome, available.name),
       detail,
+      required: Boolean(available.required),
+      requiredReason: available.requiredReason ?? null,
     });
   }
 
@@ -147,8 +141,11 @@ export async function syncGeminiSkills(
   ctx: AdapterSkillContext,
   desiredSkills: string[],
 ): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await listPaperclipSkillEntries(__moduleDir);
-  const desiredSet = new Set(desiredSkills);
+  const availableEntries = await readPaperclipRuntimeSkillEntries(ctx.config, __moduleDir);
+  const desiredSet = new Set([
+    ...desiredSkills,
+    ...availableEntries.filter((entry) => entry.required).map((entry) => entry.name),
+  ]);
   const skillsHome = resolveGeminiSkillsHome(ctx.config);
   await fs.mkdir(skillsHome, { recursive: true });
   const installed = await readInstalledSkillTargets(skillsHome);
@@ -173,7 +170,7 @@ export async function syncGeminiSkills(
 
 export function resolveGeminiDesiredSkillNames(
   config: Record<string, unknown>,
-  availableSkillNames: string[],
+  availableEntries: Array<{ name: string; required?: boolean }>,
 ) {
-  return resolveDesiredSkillNames(config, availableSkillNames);
+  return resolvePaperclipDesiredSkillNames(config, availableEntries);
 }

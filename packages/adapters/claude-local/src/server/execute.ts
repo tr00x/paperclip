@@ -12,7 +12,7 @@ import {
   parseObject,
   parseJson,
   buildPaperclipEnv,
-  listPaperclipSkillEntries,
+  readPaperclipRuntimeSkillEntries,
   joinPromptSections,
   redactEnvForLogs,
   ensureAbsoluteDirectory,
@@ -41,11 +41,11 @@ async function buildSkillsDir(config: Record<string, unknown>): Promise<string> 
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-skills-"));
   const target = path.join(tmp, ".claude", "skills");
   await fs.mkdir(target, { recursive: true });
-  const availableEntries = await listPaperclipSkillEntries(__moduleDir);
+  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
   const desiredNames = new Set(
     resolveClaudeDesiredSkillNames(
       config,
-      availableEntries.map((entry) => entry.name),
+      availableEntries,
     ),
   );
   for (const entry of availableEntries) {

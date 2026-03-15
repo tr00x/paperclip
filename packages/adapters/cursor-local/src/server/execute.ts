@@ -14,8 +14,8 @@ import {
   ensureCommandResolvable,
   ensurePaperclipSkillSymlink,
   ensurePathInEnv,
-  listPaperclipSkillEntries,
-  readPaperclipSkillSyncPreference,
+  readPaperclipRuntimeSkillEntries,
+  resolvePaperclipDesiredSkillNames,
   removeMaintainerOnlySkillSymlinks,
   renderTemplate,
   joinPromptSections,
@@ -98,7 +98,7 @@ export async function ensureCursorSkillsInjected(
       ? (await fs.readdir(options.skillsDir, { withFileTypes: true }))
           .filter((entry) => entry.isDirectory())
           .map((entry) => ({ name: entry.name, source: path.join(options.skillsDir!, entry.name) }))
-      : await listPaperclipSkillEntries(__moduleDir));
+      : await readPaperclipRuntimeSkillEntries({}, __moduleDir));
   if (skillsEntries.length === 0) return;
 
   const skillsHome = options.skillsHome ?? cursorSkillsHome();
@@ -169,11 +169,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const effectiveWorkspaceCwd = useConfiguredInsteadOfAgentHome ? "" : workspaceCwd;
   const cwd = effectiveWorkspaceCwd || configuredCwd || process.cwd();
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
-  const cursorSkillEntries = await listPaperclipSkillEntries(__moduleDir);
-  const cursorPreference = readPaperclipSkillSyncPreference(config);
-  const desiredCursorSkillNames = cursorPreference.explicit
-    ? cursorPreference.desiredSkills
-    : cursorSkillEntries.map((entry) => entry.name);
+  const cursorSkillEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
+  const desiredCursorSkillNames = resolvePaperclipDesiredSkillNames(config, cursorSkillEntries);
   await ensureCursorSkillsInjected(onLog, {
     skillsEntries: cursorSkillEntries.filter((entry) => desiredCursorSkillNames.includes(entry.name)),
   });

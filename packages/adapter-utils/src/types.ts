@@ -152,6 +152,8 @@ export interface AdapterSkillEntry {
   name: string;
   desired: boolean;
   managed: boolean;
+  required?: boolean;
+  requiredReason?: string | null;
   state: AdapterSkillState;
   sourcePath?: string | null;
   targetPath?: string | null;

@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { and, asc, eq } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { companySkills } from "@paperclipai/db";
+import { readPaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+import type { PaperclipSkillEntry } from "@paperclipai/adapter-utils/server-utils";
 import type {
   CompanySkill,
   CompanySkillCreateRequest,
@@ -20,7 +22,6 @@ import type {
   CompanySkillUsageAgent,
 } from "@paperclipai/shared";
 import { normalizeAgentUrlKey } from "@paperclipai/shared";
-import { readPaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
 import { findServerAdapter } from "../adapters/index.js";
 import { resolvePaperclipInstanceRoot } from "../home-paths.js";
 import { notFound, unprocessable } from "../errors.js";
@@ -959,11 +960,15 @@ export function companySkillService(db: Db) {
               agent.companyId,
               agent.adapterConfig as Record<string, unknown>,
             );
+            const runtimeSkillEntries = await listRuntimeSkillEntries(agent.companyId);
             const snapshot = await adapter.listSkills({
               agentId: agent.id,
               companyId: agent.companyId,
               adapterType: agent.adapterType,
-              config: runtimeConfig,
+              config: {
+                ...runtimeConfig,
+                paperclipRuntimeSkills: runtimeSkillEntries,
+              },
             });
             actualState = snapshot.entries.find((entry) => entry.name === slug)?.state
               ?? (snapshot.supported ? "missing" : "unsupported");
@@ -1219,6 +1224,56 @@ export function companySkillService(db: Db) {
     return skillDir;
   }
 
+  async function materializeRuntimeSkillFiles(companyId: string, skill: CompanySkill) {
+    const runtimeRoot = path.resolve(resolveManagedSkillsRoot(companyId), "__runtime__");
+    const skillDir = path.resolve(runtimeRoot, skill.slug);
+    await fs.rm(skillDir, { recursive: true, force: true });
+    await fs.mkdir(skillDir, { recursive: true });
+
+    for (const entry of skill.fileInventory) {
+      const detail = await readFile(companyId, skill.id, entry.path).catch(() => null);
+      if (!detail) continue;
+      const targetPath = path.resolve(skillDir, entry.path);
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.writeFile(targetPath, detail.content, "utf8");
+    }
+
+    return skillDir;
+  }
+
+  async function listRuntimeSkillEntries(companyId: string): Promise<PaperclipSkillEntry[]> {
+    await ensureBundledSkills(companyId);
+    const rows = await db
+      .select()
+      .from(companySkills)
+      .where(eq(companySkills.companyId, companyId))
+      .orderBy(asc(companySkills.name), asc(companySkills.slug));
+
+    const out: PaperclipSkillEntry[] = [];
+    for (const row of rows) {
+      const skill = toCompanySkill(row);
+      const sourceKind = asString(getSkillMeta(skill).sourceKind);
+      let source = normalizeSkillDirectory(skill);
+      if (!source) {
+        source = await materializeRuntimeSkillFiles(companyId, skill).catch(() => null);
+      }
+      if (!source) continue;
+
+      const required = sourceKind === "paperclip_bundled";
+      out.push({
+        name: skill.slug,
+        source,
+        required,
+        requiredReason: required
+          ? "Bundled Paperclip skills are always available for local adapters."
+          : null,
+      });
+    }
+
+    out.sort((left, right) => left.name.localeCompare(right.name));
+    return out;
+  }
+
   async function importPackageFiles(companyId: string, files: Record<string, string>): Promise<CompanySkill[]> {
     await ensureBundledSkills(companyId);
     const normalizedFiles = normalizePackageFileMap(files);
@@ -1330,5 +1385,6 @@ export function companySkillService(db: Db) {
     importFromSource,
     importPackageFiles,
     installUpdate,
+    listRuntimeSkillEntries,
   };
 }

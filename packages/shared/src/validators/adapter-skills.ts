@@ -19,6 +19,8 @@ export const agentSkillEntrySchema = z.object({
   name: z.string().min(1),
   desired: z.boolean(),
   managed: z.boolean(),
+  required: z.boolean().optional(),
+  requiredReason: z.string().nullable().optional(),
   state: agentSkillStateSchema,
   sourcePath: z.string().nullable().optional(),
   targetPath: z.string().nullable().optional(),

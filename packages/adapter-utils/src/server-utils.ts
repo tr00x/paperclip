@@ -40,6 +40,8 @@ const PAPERCLIP_SKILL_ROOT_RELATIVE_CANDIDATES = [
 export interface PaperclipSkillEntry {
   name: string;
   source: string;
+  required?: boolean;
+  requiredReason?: string | null;
 }
 
 function normalizePathSlashes(value: string): string {
@@ -306,10 +308,43 @@ export async function listPaperclipSkillEntries(
       .map((entry) => ({
         name: entry.name,
         source: path.join(root, entry.name),
+        required: true,
+        requiredReason: "Bundled Paperclip skills are always available for local adapters.",
       }));
   } catch {
     return [];
   }
+}
+
+function normalizeConfiguredPaperclipRuntimeSkills(value: unknown): PaperclipSkillEntry[] {
+  if (!Array.isArray(value)) return [];
+  const out: PaperclipSkillEntry[] = [];
+  for (const rawEntry of value) {
+    const entry = parseObject(rawEntry);
+    const name = asString(entry.name, "").trim();
+    const source = asString(entry.source, "").trim();
+    if (!name || !source) continue;
+    out.push({
+      name,
+      source,
+      required: asBoolean(entry.required, false),
+      requiredReason:
+        typeof entry.requiredReason === "string" && entry.requiredReason.trim().length > 0
+          ? entry.requiredReason.trim()
+          : null,
+    });
+  }
+  return out;
+}
+
+export async function readPaperclipRuntimeSkillEntries(
+  config: Record<string, unknown>,
+  moduleDir: string,
+  additionalCandidates: string[] = [],
+): Promise<PaperclipSkillEntry[]> {
+  const configuredEntries = normalizeConfiguredPaperclipRuntimeSkills(config.paperclipRuntimeSkills);
+  if (configuredEntries.length > 0) return configuredEntries;
+  return listPaperclipSkillEntries(moduleDir, additionalCandidates);
 }
 
 export async function readPaperclipSkillMarkdown(
@@ -350,6 +385,20 @@ export function readPaperclipSkillSyncPreference(config: Record<string, unknown>
     explicit: Object.prototype.hasOwnProperty.call(raw, "desiredSkills"),
     desiredSkills: Array.from(new Set(desired)),
   };
+}
+
+export function resolvePaperclipDesiredSkillNames(
+  config: Record<string, unknown>,
+  availableEntries: Array<{ name: string; required?: boolean }>,
+): string[] {
+  const preference = readPaperclipSkillSyncPreference(config);
+  const requiredSkills = availableEntries
+    .filter((entry) => entry.required)
+    .map((entry) => entry.name);
+  if (!preference.explicit) {
+    return Array.from(new Set(requiredSkills));
+  }
+  return Array.from(new Set([...requiredSkills, ...preference.desiredSkills]));
 }
 
 export function writePaperclipSkillSyncPreference(

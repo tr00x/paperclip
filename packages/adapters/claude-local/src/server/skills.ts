@@ -6,24 +6,16 @@ import type {
   AdapterSkillSnapshot,
 } from "@paperclipai/adapter-utils";
 import {
-  listPaperclipSkillEntries,
-  readPaperclipSkillSyncPreference,
+  readPaperclipRuntimeSkillEntries,
+  resolvePaperclipDesiredSkillNames,
 } from "@paperclipai/adapter-utils/server-utils";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
-function resolveDesiredSkillNames(config: Record<string, unknown>, availableSkillNames: string[]) {
-  const preference = readPaperclipSkillSyncPreference(config);
-  return preference.explicit ? preference.desiredSkills : availableSkillNames;
-}
-
 async function buildClaudeSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
-  const availableEntries = await listPaperclipSkillEntries(__moduleDir);
+  const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
   const availableByName = new Map(availableEntries.map((entry) => [entry.name, entry]));
-  const desiredSkills = resolveDesiredSkillNames(
-    config,
-    availableEntries.map((entry) => entry.name),
-  );
+  const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
   const desiredSet = new Set(desiredSkills);
   const entries: AdapterSkillEntry[] = availableEntries.map((entry) => ({
     name: entry.name,
@@ -35,6 +27,8 @@ async function buildClaudeSkillSnapshot(config: Record<string, unknown>): Promis
     detail: desiredSet.has(entry.name)
       ? "Will be mounted into the ephemeral Claude skill directory on the next run."
       : null,
+    required: Boolean(entry.required),
+    requiredReason: entry.requiredReason ?? null,
   }));
   const warnings: string[] = [];
 
@@ -77,7 +71,7 @@ export async function syncClaudeSkills(
 
 export function resolveClaudeDesiredSkillNames(
   config: Record<string, unknown>,
-  availableSkillNames: string[],
+  availableEntries: Array<{ name: string; required?: boolean }>,
 ) {
-  return resolveDesiredSkillNames(config, availableSkillNames);
+  return resolvePaperclipDesiredSkillNames(config, availableEntries);
 }

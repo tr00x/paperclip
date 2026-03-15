@@ -16,6 +16,7 @@ describe("claude local skill sync", () => {
     expect(snapshot.mode).toBe("ephemeral");
     expect(snapshot.supported).toBe(true);
     expect(snapshot.desiredSkills).toContain("paperclip");
+    expect(snapshot.entries.find((entry) => entry.name === "paperclip")?.required).toBe(true);
     expect(snapshot.entries.find((entry) => entry.name === "paperclip")?.state).toBe("configured");
   });
 
@@ -31,8 +32,8 @@ describe("claude local skill sync", () => {
       },
     }, ["paperclip"]);
 
-    expect(snapshot.desiredSkills).toEqual(["paperclip"]);
+    expect(snapshot.desiredSkills).toContain("paperclip");
     expect(snapshot.entries.find((entry) => entry.name === "paperclip")?.state).toBe("configured");
-    expect(snapshot.entries.find((entry) => entry.name === "paperclip-create-agent")?.state).toBe("available");
+    expect(snapshot.entries.find((entry) => entry.name === "paperclip-create-agent")?.state).toBe("configured");
   });
 });
