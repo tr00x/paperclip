@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent, type DragEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
@@ -10,6 +10,7 @@ import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
 import { useProjectOrder } from "../hooks/useProjectOrder";
 import { getRecentAssigneeIds, sortAgentsByRecency, trackRecentAssignee } from "../lib/recent-assignees";
+import { useToast } from "../context/ToastContext";
 import {
   assigneeValueFromSelection,
   currentUserAssigneeOption,
@@ -39,7 +40,9 @@ import {
   Tag,
   Calendar,
   Paperclip,
+  FileText,
   Loader2,
+  X,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { extractProviderIdWithFallback } from "../lib/model-utils";
@@ -77,7 +80,16 @@ interface IssueDraft {
   useIsolatedExecutionWorkspace: boolean;
 }
 
+type StagedIssueFile = {
+  id: string;
+  file: File;
+  kind: "document" | "attachment";
+  documentKey?: string;
+  title?: string | null;
+};
+
 const ISSUE_OVERRIDE_ADAPTER_TYPES = new Set(["claude_local", "codex_local", "opencode_local"]);
+const STAGED_FILE_ACCEPT = "image/*,application/pdf,text/plain,text/markdown,application/json,text/csv,text/html,.md,.markdown";
 
 const ISSUE_THINKING_EFFORT_OPTIONS = {
   claude_local: [
@@ -156,6 +168,59 @@ function clearDraft() {
   localStorage.removeItem(DRAFT_KEY);
 }
 
+function isTextDocumentFile(file: File) {
+  const name = file.name.toLowerCase();
+  return (
+    name.endsWith(".md") ||
+    name.endsWith(".markdown") ||
+    name.endsWith(".txt") ||
+    file.type === "text/markdown" ||
+    file.type === "text/plain"
+  );
+}
+
+function fileBaseName(filename: string) {
+  return filename.replace(/\.[^.]+$/, "");
+}
+
+function slugifyDocumentKey(input: string) {
+  const slug = input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "document";
+}
+
+function titleizeFilename(input: string) {
+  return input
+    .split(/[-_ ]+/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function createUniqueDocumentKey(baseKey: string, stagedFiles: StagedIssueFile[]) {
+  const existingKeys = new Set(
+    stagedFiles
+      .filter((file) => file.kind === "document")
+      .map((file) => file.documentKey)
+      .filter((key): key is string => Boolean(key)),
+  );
+  if (!existingKeys.has(baseKey)) return baseKey;
+  let suffix = 2;
+  while (existingKeys.has(`${baseKey}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${baseKey}-${suffix}`;
+}
+
+function formatFileSize(file: File) {
+  if (file.size < 1024) return `${file.size} B`;
+  if (file.size < 1024 * 1024) return `${(file.size / 1024).toFixed(1)} KB`;
+  return `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 const statuses = [
   { value: "backlog", label: "Backlog", color: issueStatusText.backlog ?? issueStatusTextDefault },
   { value: "todo", label: "Todo", color: issueStatusText.todo ?? issueStatusTextDefault },
@@ -175,6 +240,7 @@ export function NewIssueDialog() {
   const { newIssueOpen, newIssueDefaults, closeNewIssue } = useDialog();
   const { companies, selectedCompanyId, selectedCompany } = useCompany();
   const queryClient = useQueryClient();
+  const { pushToast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("todo");
@@ -188,6 +254,8 @@ export function NewIssueDialog() {
   const [useIsolatedExecutionWorkspace, setUseIsolatedExecutionWorkspace] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [dialogCompanyId, setDialogCompanyId] = useState<string | null>(null);
+  const [stagedFiles, setStagedFiles] = useState<StagedIssueFile[]>([]);
+  const [isFileDragOver, setIsFileDragOver] = useState(false);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const executionWorkspaceDefaultProjectId = useRef<string | null>(null);
 
@@ -200,7 +268,7 @@ export function NewIssueDialog() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [companyOpen, setCompanyOpen] = useState(false);
   const descriptionEditorRef = useRef<MarkdownEditorRef>(null);
-  const attachInputRef = useRef<HTMLInputElement | null>(null);
+  const stageFileInputRef = useRef<HTMLInputElement | null>(null);
   const assigneeSelectorRef = useRef<HTMLButtonElement | null>(null);
   const projectSelectorRef = useRef<HTMLButtonElement | null>(null);
 
@@ -268,11 +336,49 @@ export function NewIssueDialog() {
   });
 
   const createIssue = useMutation({
-    mutationFn: ({ companyId, ...data }: { companyId: string } & Record<string, unknown>) =>
-      issuesApi.create(companyId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.issues.list(effectiveCompanyId!) });
+    mutationFn: async ({
+      companyId,
+      stagedFiles: pendingStagedFiles,
+      ...data
+    }: { companyId: string; stagedFiles: StagedIssueFile[] } & Record<string, unknown>) => {
+      const issue = await issuesApi.create(companyId, data);
+      const failures: string[] = [];
+
+      for (const stagedFile of pendingStagedFiles) {
+        try {
+          if (stagedFile.kind === "document") {
+            const body = await stagedFile.file.text();
+            await issuesApi.upsertDocument(issue.id, stagedFile.documentKey ?? "document", {
+              title: stagedFile.documentKey === "plan" ? null : stagedFile.title ?? null,
+              format: "markdown",
+              body,
+              baseRevisionId: null,
+            });
+          } else {
+            await issuesApi.uploadAttachment(companyId, issue.id, stagedFile.file);
+          }
+        } catch {
+          failures.push(stagedFile.file.name);
+        }
+      }
+
+      return { issue, companyId, failures };
+    },
+    onSuccess: ({ issue, companyId, failures }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues.list(companyId) });
       if (draftTimer.current) clearTimeout(draftTimer.current);
+      if (failures.length > 0) {
+        const prefix = (companies.find((company) => company.id === companyId)?.issuePrefix ?? "").trim();
+        const issueRef = issue.identifier ?? issue.id;
+        pushToast({
+          title: `Created ${issueRef} with upload warnings`,
+          body: `${failures.length} staged ${failures.length === 1 ? "file" : "files"} could not be added.`,
+          tone: "warn",
+          action: prefix
+            ? { label: `Open ${issueRef}`, href: `/${prefix}/issues/${issueRef}` }
+            : undefined,
+        });
+      }
       clearDraft();
       reset();
       closeNewIssue();
@@ -413,6 +519,8 @@ export function NewIssueDialog() {
     setUseIsolatedExecutionWorkspace(false);
     setExpanded(false);
     setDialogCompanyId(null);
+    setStagedFiles([]);
+    setIsFileDragOver(false);
     setCompanyOpen(false);
     executionWorkspaceDefaultProjectId.current = null;
   }
@@ -453,6 +561,7 @@ export function NewIssueDialog() {
       : null;
     createIssue.mutate({
       companyId: effectiveCompanyId,
+      stagedFiles,
       title: title.trim(),
       description: description.trim() || undefined,
       status,
@@ -472,22 +581,70 @@ export function NewIssueDialog() {
     }
   }
 
-  async function handleAttachImage(evt: ChangeEvent<HTMLInputElement>) {
-    const file = evt.target.files?.[0];
-    if (!file) return;
-    try {
-      const asset = await uploadDescriptionImage.mutateAsync(file);
-      const name = file.name || "image";
-      setDescription((prev) => {
-        const suffix = `![${name}](${asset.contentPath})`;
-        return prev ? `${prev}\n\n${suffix}` : suffix;
-      });
-    } finally {
-      if (attachInputRef.current) attachInputRef.current.value = "";
+  function stageFiles(files: File[]) {
+    if (files.length === 0) return;
+    setStagedFiles((current) => {
+      const next = [...current];
+      for (const file of files) {
+        if (isTextDocumentFile(file)) {
+          const baseName = fileBaseName(file.name);
+          const documentKey = createUniqueDocumentKey(slugifyDocumentKey(baseName), next);
+          next.push({
+            id: `${file.name}:${file.size}:${file.lastModified}:${documentKey}`,
+            file,
+            kind: "document",
+            documentKey,
+            title: titleizeFilename(baseName),
+          });
+          continue;
+        }
+        next.push({
+          id: `${file.name}:${file.size}:${file.lastModified}`,
+          file,
+          kind: "attachment",
+        });
+      }
+      return next;
+    });
+  }
+
+  function handleStageFilesPicked(evt: ChangeEvent<HTMLInputElement>) {
+    stageFiles(Array.from(evt.target.files ?? []));
+    if (stageFileInputRef.current) {
+      stageFileInputRef.current.value = "";
     }
   }
 
-  const hasDraft = title.trim().length > 0 || description.trim().length > 0;
+  function handleFileDragEnter(evt: DragEvent<HTMLDivElement>) {
+    if (!evt.dataTransfer.types.includes("Files")) return;
+    evt.preventDefault();
+    setIsFileDragOver(true);
+  }
+
+  function handleFileDragOver(evt: DragEvent<HTMLDivElement>) {
+    if (!evt.dataTransfer.types.includes("Files")) return;
+    evt.preventDefault();
+    evt.dataTransfer.dropEffect = "copy";
+    setIsFileDragOver(true);
+  }
+
+  function handleFileDragLeave(evt: DragEvent<HTMLDivElement>) {
+    if (evt.currentTarget.contains(evt.relatedTarget as Node | null)) return;
+    setIsFileDragOver(false);
+  }
+
+  function handleFileDrop(evt: DragEvent<HTMLDivElement>) {
+    if (!evt.dataTransfer.files.length) return;
+    evt.preventDefault();
+    setIsFileDragOver(false);
+    stageFiles(Array.from(evt.dataTransfer.files));
+  }
+
+  function removeStagedFile(id: string) {
+    setStagedFiles((current) => current.filter((file) => file.id !== id));
+  }
+
+  const hasDraft = title.trim().length > 0 || description.trim().length > 0 || stagedFiles.length > 0;
   const currentStatus = statuses.find((s) => s.value === status) ?? statuses[1]!;
   const currentPriority = priorities.find((p) => p.value === priority);
   const currentAssignee = selectedAssigneeAgentId
@@ -541,6 +698,8 @@ export function NewIssueDialog() {
   const canDiscardDraft = hasDraft || hasSavedDraft;
   const createIssueErrorMessage =
     createIssue.error instanceof Error ? createIssue.error.message : "Failed to create issue. Try again.";
+  const stagedDocuments = stagedFiles.filter((file) => file.kind === "document");
+  const stagedAttachments = stagedFiles.filter((file) => file.kind === "attachment");
 
   const handleProjectChange = useCallback((nextProjectId: string) => {
     setProjectId(nextProjectId);
@@ -938,20 +1097,103 @@ export function NewIssueDialog() {
         )}
 
         {/* Description */}
-        <div className={cn("px-4 pb-2 overflow-y-auto min-h-0 border-t border-border/60 pt-3", expanded ? "flex-1" : "")}>
-          <MarkdownEditor
-            ref={descriptionEditorRef}
-            value={description}
-            onChange={setDescription}
-            placeholder="Add description..."
-            bordered={false}
-            mentions={mentionOptions}
-            contentClassName={cn("text-sm text-muted-foreground pb-12", expanded ? "min-h-[220px]" : "min-h-[120px]")}
-            imageUploadHandler={async (file) => {
-              const asset = await uploadDescriptionImage.mutateAsync(file);
-              return asset.contentPath;
-            }}
-          />
+        <div
+          className={cn("px-4 pb-2 overflow-y-auto min-h-0 border-t border-border/60 pt-3", expanded ? "flex-1" : "")}
+          onDragEnter={handleFileDragEnter}
+          onDragOver={handleFileDragOver}
+          onDragLeave={handleFileDragLeave}
+          onDrop={handleFileDrop}
+        >
+          <div
+            className={cn(
+              "rounded-md transition-colors",
+              isFileDragOver && "bg-accent/20",
+            )}
+          >
+            <MarkdownEditor
+              ref={descriptionEditorRef}
+              value={description}
+              onChange={setDescription}
+              placeholder="Add description..."
+              bordered={false}
+              mentions={mentionOptions}
+              contentClassName={cn("text-sm text-muted-foreground pb-12", expanded ? "min-h-[220px]" : "min-h-[120px]")}
+              imageUploadHandler={async (file) => {
+                const asset = await uploadDescriptionImage.mutateAsync(file);
+                return asset.contentPath;
+              }}
+            />
+          </div>
+          {stagedFiles.length > 0 ? (
+            <div className="mt-4 space-y-3 rounded-lg border border-border/70 p-3">
+              {stagedDocuments.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground">Documents</div>
+                  <div className="space-y-2">
+                    {stagedDocuments.map((file) => (
+                      <div key={file.id} className="flex items-start justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                              {file.documentKey}
+                            </span>
+                            <span className="truncate text-sm">{file.file.name}</span>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <FileText className="h-3.5 w-3.5" />
+                            <span>{file.title || file.file.name}</span>
+                            <span>•</span>
+                            <span>{formatFileSize(file.file)}</span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="shrink-0 text-muted-foreground"
+                          onClick={() => removeStagedFile(file.id)}
+                          disabled={createIssue.isPending}
+                          title="Remove document"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {stagedAttachments.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground">Attachments</div>
+                  <div className="space-y-2">
+                    {stagedAttachments.map((file) => (
+                      <div key={file.id} className="flex items-start justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate text-sm">{file.file.name}</span>
+                          </div>
+                          <div className="mt-1 text-[11px] text-muted-foreground">
+                            {file.file.type || "application/octet-stream"} • {formatFileSize(file.file)}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="shrink-0 text-muted-foreground"
+                          onClick={() => removeStagedFile(file.id)}
+                          disabled={createIssue.isPending}
+                          title="Remove attachment"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {/* Property chips bar */}
@@ -1021,21 +1263,21 @@ export function NewIssueDialog() {
             Labels
           </button>
 
-          {/* Attach image chip */}
           <input
-            ref={attachInputRef}
+            ref={stageFileInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
+            accept={STAGED_FILE_ACCEPT}
             className="hidden"
-            onChange={handleAttachImage}
+            onChange={handleStageFilesPicked}
+            multiple
           />
           <button
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/50 transition-colors text-muted-foreground"
-            onClick={() => attachInputRef.current?.click()}
-            disabled={uploadDescriptionImage.isPending}
+            onClick={() => stageFileInputRef.current?.click()}
+            disabled={createIssue.isPending}
           >
             <Paperclip className="h-3 w-3" />
-            {uploadDescriptionImage.isPending ? "Uploading..." : "Image"}
+            Upload
           </button>
 
           {/* More (dates) */}
