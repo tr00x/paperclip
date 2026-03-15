@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import path from "node:path";
+import { promisify } from "node:util";
 import type { Db } from "@paperclipai/db";
 import type {
   CompanyPortabilityAgentManifestEntry,
@@ -47,6 +48,8 @@ const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
 };
 
 const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename";
+const execFileAsync = promisify(execFile);
+let bundledSkillsCommitPromise: Promise<string | null> | null = null;
 
 function isSensitiveEnvKey(key: string) {
   const normalized = key.trim().toLowerCase();
@@ -603,19 +606,22 @@ function buildMarkdown(frontmatter: Record<string, unknown>, body: string) {
   return `${renderFrontmatter(frontmatter)}\n${cleanBody}\n`;
 }
 
-function buildSkillSourceEntry(skill: CompanySkill) {
+async function resolveBundledSkillsCommit() {
+  if (!bundledSkillsCommitPromise) {
+    bundledSkillsCommitPromise = execFileAsync("git", ["rev-parse", "HEAD"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    })
+      .then(({ stdout }) => stdout.trim() || null)
+      .catch(() => null);
+  }
+  return bundledSkillsCommitPromise;
+}
+
+async function buildSkillSourceEntry(skill: CompanySkill) {
   const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
   if (asString(metadata?.sourceKind) === "paperclip_bundled") {
-    let commit: string | null = null;
-    try {
-      const resolved = execFileSync("git", ["rev-parse", "HEAD"], {
-        cwd: process.cwd(),
-        encoding: "utf8",
-      }).trim();
-      commit = resolved || null;
-    } catch {
-      commit = null;
-    }
+    const commit = await resolveBundledSkillsCommit();
     return {
       kind: "github-dir",
       repo: "paperclipai/paperclip",
@@ -658,8 +664,8 @@ function shouldReferenceSkillOnExport(skill: CompanySkill, expandReferencedSkill
   return skill.sourceType === "github" || skill.sourceType === "url";
 }
 
-function buildReferencedSkillMarkdown(skill: CompanySkill) {
-  const sourceEntry = buildSkillSourceEntry(skill);
+async function buildReferencedSkillMarkdown(skill: CompanySkill) {
+  const sourceEntry = await buildSkillSourceEntry(skill);
   const frontmatter: Record<string, unknown> = {
     name: skill.name,
     description: skill.description ?? null,
@@ -672,8 +678,8 @@ function buildReferencedSkillMarkdown(skill: CompanySkill) {
   return buildMarkdown(frontmatter, "");
 }
 
-function withSkillSourceMetadata(skill: CompanySkill, markdown: string) {
-  const sourceEntry = buildSkillSourceEntry(skill);
+async function withSkillSourceMetadata(skill: CompanySkill, markdown: string) {
+  const sourceEntry = await buildSkillSourceEntry(skill);
   if (!sourceEntry) return markdown;
   const parsed = parseFrontmatterMarkdown(markdown);
   const metadata = isPlainRecord(parsed.frontmatter.metadata)
@@ -1635,7 +1641,7 @@ export function companyPortabilityService(db: Db) {
 
     for (const skill of companySkillRows) {
       if (shouldReferenceSkillOnExport(skill, Boolean(input.expandReferencedSkills))) {
-        files[`skills/${skill.slug}/SKILL.md`] = buildReferencedSkillMarkdown(skill);
+        files[`skills/${skill.slug}/SKILL.md`] = await buildReferencedSkillMarkdown(skill);
         continue;
       }
 
@@ -1644,7 +1650,7 @@ export function companyPortabilityService(db: Db) {
         if (!fileDetail) continue;
         const filePath = `skills/${skill.slug}/${inventoryEntry.path}`;
         files[filePath] = inventoryEntry.path === "SKILL.md"
-          ? withSkillSourceMetadata(skill, fileDetail.content)
+          ? await withSkillSourceMetadata(skill, fileDetail.content)
           : fileDetail.content;
       }
     }

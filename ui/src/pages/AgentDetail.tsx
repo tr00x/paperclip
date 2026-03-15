@@ -1190,14 +1190,16 @@ function AgentSkillsTab({
   useEffect(() => {
     if (!skillSnapshot) return;
     if (syncSkills.isPending) return;
-    if (arraysEqual(skillDraft, lastSavedSkills)) return;
+    if (arraysEqual(skillDraft, lastSavedSkillsRef.current)) return;
 
     const timeout = window.setTimeout(() => {
-      syncSkills.mutate(skillDraft);
+      if (!arraysEqual(skillDraft, lastSavedSkillsRef.current)) {
+        syncSkills.mutate(skillDraft);
+      }
     }, 250);
 
     return () => window.clearTimeout(timeout);
-  }, [lastSavedSkills, skillDraft, skillSnapshot, syncSkills.isPending, syncSkills.mutate]);
+  }, [skillDraft, skillSnapshot, syncSkills.isPending, syncSkills.mutate]);
 
   const companySkillBySlug = useMemo(
     () => new Map((companySkills ?? []).map((skill) => [skill.slug, skill])),
