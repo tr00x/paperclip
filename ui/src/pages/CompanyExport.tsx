@@ -18,6 +18,7 @@ import {
   FileText,
   Folder,
   FolderOpen,
+  Info,
   Package,
 } from "lucide-react";
 
@@ -307,6 +308,106 @@ function ExportFileTree({
   );
 }
 
+// ── Frontmatter helpers ───────────────────────────────────────────────
+
+type FrontmatterData = Record<string, string | string[]>;
+
+function parseFrontmatter(content: string): { data: FrontmatterData; body: string } | null {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return null;
+
+  const data: FrontmatterData = {};
+  const rawYaml = match[1];
+  const body = match[2];
+
+  let currentKey: string | null = null;
+  let currentList: string[] | null = null;
+
+  for (const line of rawYaml.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    // List item under current key
+    if (trimmed.startsWith("- ") && currentKey) {
+      if (!currentList) currentList = [];
+      currentList.push(trimmed.slice(2).trim().replace(/^["']|["']$/g, ""));
+      continue;
+    }
+
+    // Flush previous list
+    if (currentKey && currentList) {
+      data[currentKey] = currentList;
+      currentList = null;
+      currentKey = null;
+    }
+
+    const kvMatch = trimmed.match(/^([a-zA-Z_][\w-]*)\s*:\s*(.*)$/);
+    if (kvMatch) {
+      const key = kvMatch[1];
+      const val = kvMatch[2].trim().replace(/^["']|["']$/g, "");
+      if (val) {
+        data[key] = val;
+        currentKey = null;
+      } else {
+        currentKey = key;
+      }
+    }
+  }
+
+  // Flush trailing list
+  if (currentKey && currentList) {
+    data[currentKey] = currentList;
+  }
+
+  return Object.keys(data).length > 0 ? { data, body } : null;
+}
+
+const FRONTMATTER_FIELD_LABELS: Record<string, string> = {
+  name: "Name",
+  title: "Title",
+  kind: "Kind",
+  reportsTo: "Reports to",
+  skills: "Skills",
+  status: "Status",
+  description: "Description",
+  priority: "Priority",
+  assignee: "Assignee",
+  project: "Project",
+  targetDate: "Target date",
+};
+
+function FrontmatterCard({ data }: { data: FrontmatterData }) {
+  return (
+    <div className="rounded-md border border-border bg-accent/20 px-4 py-3 mb-4">
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm">
+        {Object.entries(data).map(([key, value]) => (
+          <div key={key} className="contents">
+            <dt className="text-muted-foreground whitespace-nowrap py-0.5">
+              {FRONTMATTER_FIELD_LABELS[key] ?? key}
+            </dt>
+            <dd className="py-0.5">
+              {Array.isArray(value) ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {value.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span>{value}</span>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 // ── Preview pane ──────────────────────────────────────────────────────
 
 function ExportPreviewPane({
@@ -323,6 +424,7 @@ function ExportPreviewPane({
   }
 
   const isMarkdown = selectedFile.endsWith(".md");
+  const parsed = isMarkdown ? parseFrontmatter(content) : null;
 
   return (
     <div className="min-w-0">
@@ -330,7 +432,12 @@ function ExportPreviewPane({
         <div className="truncate font-mono text-sm">{selectedFile}</div>
       </div>
       <div className="min-h-[560px] px-5 py-5">
-        {isMarkdown ? (
+        {parsed ? (
+          <>
+            <FrontmatterCard data={parsed.data} />
+            {parsed.body.trim() && <MarkdownBody>{parsed.body}</MarkdownBody>}
+          </>
+        ) : isMarkdown ? (
           <MarkdownBody>{content}</MarkdownBody>
         ) : (
           <pre className="overflow-x-auto whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-mono text-sm text-foreground">
@@ -407,6 +514,21 @@ export function CompanyExport() {
 
   const totalFiles = useMemo(() => countFiles(tree), [tree]);
   const selectedCount = checkedFiles.size;
+
+  // Separate info notes (terminated agents) from real warnings
+  const { notes, warnings } = useMemo(() => {
+    if (!exportData) return { notes: [] as string[], warnings: [] as string[] };
+    const notes: string[] = [];
+    const warnings: string[] = [];
+    for (const w of exportData.warnings) {
+      if (/terminated agent/i.test(w)) {
+        notes.push(w);
+      } else {
+        warnings.push(w);
+      }
+    }
+    return { notes, warnings };
+  }, [exportData]);
 
   function handleToggleDir(path: string) {
     setExpandedDirs((prev) => {
@@ -489,9 +611,15 @@ export function CompanyExport() {
             <span className="text-muted-foreground">
               {selectedCount} / {totalFiles} file{totalFiles === 1 ? "" : "s"} selected
             </span>
-            {exportData.warnings.length > 0 && (
-              <span className="text-amber-600">
-                {exportData.warnings.length} warning{exportData.warnings.length === 1 ? "" : "s"}
+            {warnings.length > 0 && (
+              <span className="text-amber-500">
+                {warnings.length} warning{warnings.length === 1 ? "" : "s"}
+              </span>
+            )}
+            {notes.length > 0 && (
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                {notes.length} note{notes.length === 1 ? "" : "s"}
               </span>
             )}
           </div>
@@ -506,11 +634,23 @@ export function CompanyExport() {
         </div>
       </div>
 
+      {/* Notes (informational, e.g. terminated agents) */}
+      {notes.length > 0 && (
+        <div className="border-b border-border px-5 py-2 flex items-start gap-2">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+          <div>
+            {notes.map((n) => (
+              <div key={n} className="text-xs text-muted-foreground">{n}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Warnings */}
-      {exportData.warnings.length > 0 && (
-        <div className="border-b border-amber-300/60 bg-amber-50/60 px-5 py-2">
-          {exportData.warnings.map((w) => (
-            <div key={w} className="text-xs text-amber-700">{w}</div>
+      {warnings.length > 0 && (
+        <div className="border-b border-amber-500/20 bg-amber-500/5 px-5 py-2">
+          {warnings.map((w) => (
+            <div key={w} className="text-xs text-amber-500">{w}</div>
           ))}
         </div>
       )}

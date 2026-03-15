@@ -644,9 +644,9 @@ export function CompanyImport() {
 
           {/* Warnings */}
           {importPreview.warnings.length > 0 && (
-            <div className="border-b border-amber-300/60 bg-amber-50/60 px-5 py-2">
+            <div className="border-b border-amber-500/20 bg-amber-500/5 px-5 py-2">
               {importPreview.warnings.map((w) => (
-                <div key={w} className="text-xs text-amber-700">{w}</div>
+                <div key={w} className="text-xs text-amber-500">{w}</div>
               ))}
             </div>
           )}
