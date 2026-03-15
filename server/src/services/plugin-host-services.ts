@@ -556,6 +556,17 @@ export function buildHostServices(
         }
         await scopedBus.emit(params.name, params.companyId, params.payload);
       },
+      async subscribe(params: { eventPattern: string; filter?: Record<string, unknown> }) {
+        scopedBus.subscribe(
+          params.eventPattern as any,
+          params.filter as any ?? {},
+          async (event) => {
+            if (notifyWorker) {
+              notifyWorker("onEvent", { event });
+            }
+          },
+        );
+      },
     },
 
     http: {
