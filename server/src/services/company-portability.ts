@@ -1551,7 +1551,7 @@ export function companyPortabilityService(db: Db) {
 
     const allAgentRows = include.agents ? await agents.list(companyId, { includeTerminated: true }) : [];
     const agentRows = allAgentRows.filter((agent) => agent.status !== "terminated");
-    const companySkillRows = await companySkills.list(companyId);
+    const companySkillRows = await companySkills.listFull(companyId);
     if (include.agents) {
       const skipped = allAgentRows.length - agentRows.length;
       if (skipped > 0) {

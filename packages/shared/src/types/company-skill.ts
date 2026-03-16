@@ -29,7 +29,20 @@ export interface CompanySkill {
   updatedAt: Date;
 }
 
-export interface CompanySkillListItem extends CompanySkill {
+export interface CompanySkillListItem {
+  id: string;
+  companyId: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  sourceType: CompanySkillSourceType;
+  sourceLocator: string | null;
+  sourceRef: string | null;
+  trustLevel: CompanySkillTrustLevel;
+  compatibility: CompanySkillCompatibility;
+  fileInventory: CompanySkillFileInventoryEntry[];
+  createdAt: Date;
+  updatedAt: Date;
   attachedAgentCount: number;
   editable: boolean;
   editableReason: string | null;

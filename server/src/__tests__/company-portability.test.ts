@@ -31,6 +31,7 @@ const issueSvc = {
 
 const companySkillSvc = {
   list: vi.fn(),
+  listFull: vi.fn(),
   readFile: vi.fn(),
   importPackageFiles: vi.fn(),
 };
@@ -148,7 +149,7 @@ describe("company portability", () => {
     issueSvc.list.mockResolvedValue([]);
     issueSvc.getById.mockResolvedValue(null);
     issueSvc.getByIdentifier.mockResolvedValue(null);
-    companySkillSvc.list.mockResolvedValue([
+    const companySkills = [
       {
         id: "skill-1",
         companyId: "company-1",
@@ -194,7 +195,9 @@ describe("company portability", () => {
           sourceKind: "local_path",
         },
       },
-    ]);
+    ];
+    companySkillSvc.list.mockResolvedValue(companySkills);
+    companySkillSvc.listFull.mockResolvedValue(companySkills);
     companySkillSvc.readFile.mockImplementation(async (_companyId: string, skillId: string, relativePath: string) => {
       if (skillId === "skill-2") {
         return {

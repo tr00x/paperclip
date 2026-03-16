@@ -881,6 +881,30 @@ function enrichSkill(skill: CompanySkill, attachedAgentCount: number, usedByAgen
   };
 }
 
+function toCompanySkillListItem(skill: CompanySkill, attachedAgentCount: number): CompanySkillListItem {
+  const source = deriveSkillSourceInfo(skill);
+  return {
+    id: skill.id,
+    companyId: skill.companyId,
+    slug: skill.slug,
+    name: skill.name,
+    description: skill.description,
+    sourceType: skill.sourceType,
+    sourceLocator: skill.sourceLocator,
+    sourceRef: skill.sourceRef,
+    trustLevel: skill.trustLevel,
+    compatibility: skill.compatibility,
+    fileInventory: skill.fileInventory,
+    createdAt: skill.createdAt,
+    updatedAt: skill.updatedAt,
+    attachedAgentCount,
+    editable: source.editable,
+    editableReason: source.editableReason,
+    sourceLabel: source.sourceLabel,
+    sourceBadge: source.sourceBadge,
+  };
+}
+
 export function companySkillService(db: Db) {
   const agents = agentService(db);
   const secretsSvc = secretService(db);
@@ -905,21 +929,25 @@ export function companySkillService(db: Db) {
   }
 
   async function list(companyId: string): Promise<CompanySkillListItem[]> {
+    const rows = await listFull(companyId);
+    const agentRows = await agents.list(companyId);
+    return rows.map((skill) => {
+      const attachedAgentCount = agentRows.filter((agent) => {
+        const preference = readPaperclipSkillSyncPreference(agent.adapterConfig as Record<string, unknown>);
+        return preference.desiredSkills.includes(skill.slug);
+      }).length;
+      return toCompanySkillListItem(skill, attachedAgentCount);
+    });
+  }
+
+  async function listFull(companyId: string): Promise<CompanySkill[]> {
     await ensureBundledSkills(companyId);
     const rows = await db
       .select()
       .from(companySkills)
       .where(eq(companySkills.companyId, companyId))
       .orderBy(asc(companySkills.name), asc(companySkills.slug));
-    const agentRows = await agents.list(companyId);
-    return rows.map((row) => {
-      const skill = toCompanySkill(row);
-      const attachedAgentCount = agentRows.filter((agent) => {
-        const preference = readPaperclipSkillSyncPreference(agent.adapterConfig as Record<string, unknown>);
-        return preference.desiredSkills.includes(skill.slug);
-      }).length;
-      return enrichSkill(skill, attachedAgentCount);
-    });
+    return rows.map((row) => toCompanySkill(row));
   }
 
   async function getById(id: string) {
@@ -1375,6 +1403,7 @@ export function companySkillService(db: Db) {
 
   return {
     list,
+    listFull,
     getById,
     getBySlug,
     detail,
