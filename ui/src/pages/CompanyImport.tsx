@@ -804,7 +804,7 @@ export function CompanyImport() {
           </Field>
         )}
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className={cn("grid gap-3", targetMode === "existing" ? "md:grid-cols-2" : "md:grid-cols-1")}>
           <Field label="Target" hint="Import into this company or create a new one.">
             <select
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
@@ -820,23 +820,25 @@ export function CompanyImport() {
               <option value="new">Create new company</option>
             </select>
           </Field>
-          <Field
-            label="Default collision strategy"
-            hint="Controls what happens when imported slugs already exist."
-          >
-            <select
-              className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              value={collisionStrategy}
-              onChange={(e) => {
-                setCollisionStrategy(e.target.value as CompanyPortabilityCollisionStrategy);
-                setImportPreview(null);
-              }}
+          {targetMode === "existing" && (
+            <Field
+              label="Default collision strategy"
+              hint="Controls what happens when imported slugs already exist."
             >
-              <option value="rename">Rename imported agents</option>
-              <option value="skip">Skip existing agents</option>
-              <option value="replace">Replace existing agents</option>
-            </select>
-          </Field>
+              <select
+                className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
+                value={collisionStrategy}
+                onChange={(e) => {
+                  setCollisionStrategy(e.target.value as CompanyPortabilityCollisionStrategy);
+                  setImportPreview(null);
+                }}
+              >
+                <option value="rename">Rename imported agents</option>
+                <option value="skip">Skip existing agents</option>
+                <option value="replace">Replace existing agents</option>
+              </select>
+            </Field>
+          )}
         </div>
 
         {targetMode === "new" && (
