@@ -30,6 +30,7 @@ export const AGENT_ADAPTER_TYPES = [
   "pi_local",
   "cursor",
   "openclaw_gateway",
+  "hermes_local",
 ] as const;
 export type AgentAdapterType = (typeof AGENT_ADAPTER_TYPES)[number];
 
@@ -370,6 +371,7 @@ export const PLUGIN_UI_SLOT_TYPES = [
   "sidebar",
   "sidebarPanel",
   "projectSidebarItem",
+  "globalToolbarButton",
   "toolbarButton",
   "contextMenuItem",
   "commentAnnotation",
@@ -419,6 +421,7 @@ export const PLUGIN_LAUNCHER_PLACEMENT_ZONES = [
   "sidebar",
   "sidebarPanel",
   "projectSidebarItem",
+  "globalToolbarButton",
   "toolbarButton",
   "contextMenuItem",
   "commentAnnotation",
