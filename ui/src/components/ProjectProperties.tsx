@@ -424,9 +424,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
           alignStart
           valueClassName="space-y-2"
         >
-          {linkedGoals.length === 0 ? (
-            <span className="text-sm text-muted-foreground">None</span>
-          ) : (
+          {linkedGoals.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {linkedGoals.map((goal) => (
                 <span
@@ -456,7 +454,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
                 <Button
                   variant="outline"
                   size="xs"
-                  className="h-6 w-fit px-2"
+                  className={cn("h-6 w-fit px-2", linkedGoals.length > 0 && "ml-1")}
                   disabled={availableGoals.length === 0}
                 >
                   <Plus className="h-3 w-3 mr-1" />
