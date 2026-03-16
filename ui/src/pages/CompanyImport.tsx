@@ -478,7 +478,7 @@ export function CompanyImport() {
   } | null>(null);
 
   // Target state
-  const [targetMode, setTargetMode] = useState<"existing" | "new">("existing");
+  const [targetMode, setTargetMode] = useState<"existing" | "new">("new");
   const [newCompanyName, setNewCompanyName] = useState("");
 
   // Preview state
@@ -897,10 +897,10 @@ export function CompanyImport() {
               setImportPreview(null);
             }}
           >
+            <option value="new">Create new company</option>
             <option value="existing">
               Existing company: {selectedCompany?.name}
             </option>
-            <option value="new">Create new company</option>
           </select>
         </Field>
 
