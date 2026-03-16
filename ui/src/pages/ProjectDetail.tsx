@@ -443,8 +443,21 @@ export function ProjectDetail() {
     return <Navigate to={`/projects/${canonicalProjectRef}/issues`} replace />;
   }
 
-  // Redirect bare /projects/:id to /projects/:id/issues
+  // Redirect bare /projects/:id to cached tab or default /issues
   if (routeProjectRef && activeTab === null) {
+    let cachedTab: string | null = null;
+    if (project?.id) {
+      try { cachedTab = localStorage.getItem(`paperclip:project-tab:${project.id}`); } catch {}
+    }
+    if (cachedTab === "overview") {
+      return <Navigate to={`/projects/${canonicalProjectRef}/overview`} replace />;
+    }
+    if (cachedTab === "configuration") {
+      return <Navigate to={`/projects/${canonicalProjectRef}/configuration`} replace />;
+    }
+    if (isProjectPluginTab(cachedTab)) {
+      return <Navigate to={`/projects/${canonicalProjectRef}?tab=${encodeURIComponent(cachedTab)}`} replace />;
+    }
     return <Navigate to={`/projects/${canonicalProjectRef}/issues`} replace />;
   }
 
@@ -453,6 +466,10 @@ export function ProjectDetail() {
   if (!project) return null;
 
   const handleTabChange = (tab: ProjectTab) => {
+    // Cache the active tab per project
+    if (project?.id) {
+      try { localStorage.setItem(`paperclip:project-tab:${project.id}`, tab); } catch {}
+    }
     if (isProjectPluginTab(tab)) {
       navigate(`/projects/${canonicalProjectRef}?tab=${encodeURIComponent(tab)}`);
       return;
@@ -527,8 +544,8 @@ export function ProjectDetail() {
       <Tabs value={activeTab ?? "list"} onValueChange={(value) => handleTabChange(value as ProjectTab)}>
         <PageTabBar
           items={[
+            { value: "list", label: "Issues" },
             { value: "overview", label: "Overview" },
-            { value: "list", label: "List" },
             { value: "configuration", label: "Configuration" },
             { value: "budget", label: "Budget" },
             ...pluginTabItems.map((item) => ({
