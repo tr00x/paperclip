@@ -38,6 +38,9 @@ tmp/
 .claude/settings.local.json
 .paperclip-local/
 
+# Doc maintenance cursor
+.doc-review-cursor
+
 # Playwright
 tests/e2e/test-results/
 tests/e2e/playwright-report/
