@@ -108,6 +108,8 @@ export type {
   AdapterEnvironmentTestResult,
   AssetImage,
   Project,
+  ProjectCodebase,
+  ProjectCodebaseOrigin,
   ProjectGoalRef,
   ProjectWorkspace,
   ExecutionWorkspace,

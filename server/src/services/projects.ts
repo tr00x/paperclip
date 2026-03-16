@@ -6,6 +6,7 @@ import {
   deriveProjectUrlKey,
   isUuidLike,
   normalizeProjectUrlKey,
+  type ProjectCodebase,
   type ProjectExecutionWorkspacePolicy,
   type ProjectGoalRef,
   type ProjectWorkspace,
@@ -13,6 +14,7 @@ import {
 } from "@paperclipai/shared";
 import { listWorkspaceRuntimeServicesForProjectWorkspaces } from "./workspace-runtime.js";
 import { parseProjectExecutionWorkspacePolicy } from "./execution-workspace-policy.js";
+import { resolveManagedProjectWorkspaceDir } from "../home-paths.js";
 
 type ProjectRow = typeof projects.$inferSelect;
 type ProjectWorkspaceRow = typeof projectWorkspaces.$inferSelect;
@@ -41,6 +43,7 @@ interface ProjectWithGoals extends Omit<ProjectRow, "executionWorkspacePolicy"> 
   goalIds: string[];
   goals: ProjectGoalRef[];
   executionWorkspacePolicy: ProjectExecutionWorkspacePolicy | null;
+  codebase: ProjectCodebase;
   workspaces: ProjectWorkspace[];
   primaryWorkspace: ProjectWorkspace | null;
 }
@@ -135,7 +138,7 @@ function toWorkspace(
     projectId: row.projectId,
     name: row.name,
     sourceType: row.sourceType as ProjectWorkspace["sourceType"],
-    cwd: row.cwd,
+    cwd: normalizeWorkspaceCwd(row.cwd),
     repoUrl: row.repoUrl ?? null,
     repoRef: row.repoRef ?? null,
     defaultRef: row.defaultRef ?? row.repoRef ?? null,
@@ -150,6 +153,48 @@ function toWorkspace(
     runtimeServices,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+  };
+}
+
+function deriveRepoNameFromRepoUrl(repoUrl: string | null): string | null {
+  const raw = readNonEmptyString(repoUrl);
+  if (!raw) return null;
+  try {
+    const parsed = new URL(raw);
+    const cleanedPath = parsed.pathname.replace(/\/+$/, "");
+    const repoName = cleanedPath.split("/").filter(Boolean).pop()?.replace(/\.git$/i, "") ?? "";
+    return repoName || null;
+  } catch {
+    return null;
+  }
+}
+
+function deriveProjectCodebase(input: {
+  companyId: string;
+  projectId: string;
+  primaryWorkspace: ProjectWorkspace | null;
+  fallbackWorkspaces: ProjectWorkspace[];
+}): ProjectCodebase {
+  const primaryWorkspace = input.primaryWorkspace ?? input.fallbackWorkspaces[0] ?? null;
+  const repoUrl = primaryWorkspace?.repoUrl ?? null;
+  const repoName = deriveRepoNameFromRepoUrl(repoUrl);
+  const localFolder = primaryWorkspace?.cwd ?? null;
+  const managedFolder = resolveManagedProjectWorkspaceDir({
+    companyId: input.companyId,
+    projectId: input.projectId,
+    repoName,
+  });
+
+  return {
+    workspaceId: primaryWorkspace?.id ?? null,
+    repoUrl,
+    repoRef: primaryWorkspace?.repoRef ?? null,
+    defaultRef: primaryWorkspace?.defaultRef ?? null,
+    repoName,
+    localFolder,
+    managedFolder,
+    effectiveLocalFolder: localFolder ?? managedFolder,
+    origin: localFolder ? "local_folder" : "managed_checkout",
   };
 }
 
@@ -203,10 +248,17 @@ async function attachWorkspaces(db: Db, rows: ProjectWithGoals[]): Promise<Proje
         sharedRuntimeServicesByWorkspaceId.get(workspace.id) ?? [],
       ),
     );
+    const primaryWorkspace = pickPrimaryWorkspace(projectWorkspaceRows, sharedRuntimeServicesByWorkspaceId);
     return {
       ...row,
+      codebase: deriveProjectCodebase({
+        companyId: row.companyId,
+        projectId: row.id,
+        primaryWorkspace,
+        fallbackWorkspaces: workspaces,
+      }),
       workspaces,
-      primaryWorkspace: pickPrimaryWorkspace(projectWorkspaceRows, sharedRuntimeServicesByWorkspaceId),
+      primaryWorkspace,
     };
   });
 }

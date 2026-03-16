@@ -32,6 +32,20 @@ export interface ProjectWorkspace {
   updatedAt: Date;
 }
 
+export type ProjectCodebaseOrigin = "local_folder" | "managed_checkout";
+
+export interface ProjectCodebase {
+  workspaceId: string | null;
+  repoUrl: string | null;
+  repoRef: string | null;
+  defaultRef: string | null;
+  repoName: string | null;
+  localFolder: string | null;
+  managedFolder: string;
+  effectiveLocalFolder: string;
+  origin: ProjectCodebaseOrigin;
+}
+
 export interface Project {
   id: string;
   companyId: string;
@@ -47,6 +61,7 @@ export interface Project {
   targetDate: string | null;
   color: string | null;
   executionWorkspacePolicy: ProjectExecutionWorkspacePolicy | null;
+  codebase: ProjectCodebase;
   workspaces: ProjectWorkspace[];
   primaryWorkspace: ProjectWorkspace | null;
   archivedAt: Date | null;

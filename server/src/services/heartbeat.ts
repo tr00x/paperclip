@@ -1,5 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { execFile as execFileCallback } from "node:child_process";
+import { promisify } from "node:util";
 import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
@@ -23,7 +25,7 @@ import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { parseObject, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } from "../adapters/utils.js";
 import { costService } from "./costs.js";
 import { secretService } from "./secrets.js";
-import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
+import { resolveDefaultAgentWorkspaceDir, resolveManagedProjectWorkspaceDir } from "../home-paths.js";
 import { summarizeHeartbeatRunResultJson } from "./heartbeat-run-summary.js";
 import {
   buildWorkspaceReadyComment,
@@ -48,6 +50,7 @@ const HEARTBEAT_MAX_CONCURRENT_RUNS_MAX = 10;
 const DEFERRED_WAKE_CONTEXT_KEY = "_paperclipWakeContext";
 const startLocksByAgent = new Map<string, Promise<void>>();
 const REPO_ONLY_CWD_SENTINEL = "/__paperclip_repo_only__";
+const execFile = promisify(execFileCallback);
 const SESSIONED_LOCAL_ADAPTERS = new Set([
   "claude_local",
   "codex_local",
@@ -56,6 +59,69 @@ const SESSIONED_LOCAL_ADAPTERS = new Set([
   "opencode_local",
   "pi_local",
 ]);
+
+function deriveRepoNameFromRepoUrl(repoUrl: string | null): string | null {
+  const trimmed = repoUrl?.trim() ?? "";
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    const cleanedPath = parsed.pathname.replace(/\/+$/, "");
+    const repoName = cleanedPath.split("/").filter(Boolean).pop()?.replace(/\.git$/i, "") ?? "";
+    return repoName || null;
+  } catch {
+    return null;
+  }
+}
+
+async function ensureManagedProjectWorkspace(input: {
+  companyId: string;
+  projectId: string;
+  repoUrl: string | null;
+}): Promise<{ cwd: string; warning: string | null }> {
+  const cwd = resolveManagedProjectWorkspaceDir({
+    companyId: input.companyId,
+    projectId: input.projectId,
+    repoName: deriveRepoNameFromRepoUrl(input.repoUrl),
+  });
+  await fs.mkdir(path.dirname(cwd), { recursive: true });
+  const stats = await fs.stat(cwd).catch(() => null);
+
+  if (!input.repoUrl) {
+    if (!stats) {
+      await fs.mkdir(cwd, { recursive: true });
+    }
+    return { cwd, warning: null };
+  }
+
+  const gitDirExists = await fs
+    .stat(path.resolve(cwd, ".git"))
+    .then((entry) => entry.isDirectory())
+    .catch(() => false);
+  if (gitDirExists) {
+    return { cwd, warning: null };
+  }
+
+  if (stats) {
+    const entries = await fs.readdir(cwd).catch(() => []);
+    if (entries.length > 0) {
+      return {
+        cwd,
+        warning: `Managed workspace path "${cwd}" already exists but is not a git checkout. Using it as-is.`,
+      };
+    }
+    await fs.rm(cwd, { recursive: true, force: true });
+  }
+
+  try {
+    await execFile("git", ["clone", input.repoUrl, cwd], {
+      env: process.env,
+    });
+    return { cwd, warning: null };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to prepare managed checkout for "${input.repoUrl}" at "${cwd}": ${reason}`);
+  }
+}
 
 const heartbeatRunListColumns = {
   id: heartbeatRuns.id,
@@ -876,12 +942,23 @@ export function heartbeatService(db: Db) {
           `Selected project workspace "${preferredProjectWorkspaceId}" is not available on this project.`;
       }
       for (const workspace of projectWorkspaceRows) {
-        const projectCwd = readNonEmptyString(workspace.cwd);
+        let projectCwd = readNonEmptyString(workspace.cwd);
+        let managedWorkspaceWarning: string | null = null;
         if (!projectCwd || projectCwd === REPO_ONLY_CWD_SENTINEL) {
-          if (preferredWorkspace?.id === workspace.id) {
-            preferredWorkspaceWarning = `Selected project workspace "${workspace.name}" has no local cwd configured.`;
+          try {
+            const managedWorkspace = await ensureManagedProjectWorkspace({
+              companyId: agent.companyId,
+              projectId: workspaceProjectId ?? resolvedProjectId ?? workspace.projectId,
+              repoUrl: readNonEmptyString(workspace.repoUrl),
+            });
+            projectCwd = managedWorkspace.cwd;
+            managedWorkspaceWarning = managedWorkspace.warning;
+          } catch (error) {
+            if (preferredWorkspace?.id === workspace.id) {
+              preferredWorkspaceWarning = error instanceof Error ? error.message : String(error);
+            }
+            continue;
           }
-          continue;
         }
         hasConfiguredProjectCwd = true;
         const projectCwdExists = await fs
@@ -897,7 +974,9 @@ export function heartbeatService(db: Db) {
             repoUrl: workspace.repoUrl,
             repoRef: workspace.repoRef,
             workspaceHints,
-            warnings: preferredWorkspaceWarning ? [preferredWorkspaceWarning] : [],
+            warnings: [preferredWorkspaceWarning, managedWorkspaceWarning].filter(
+              (value): value is string => Boolean(value),
+            ),
           };
         }
         if (preferredWorkspace?.id === workspace.id) {
@@ -935,6 +1014,24 @@ export function heartbeatService(db: Db) {
         repoRef: projectWorkspaceRows[0]?.repoRef ?? null,
         workspaceHints,
         warnings,
+      };
+    }
+
+    if (workspaceProjectId) {
+      const managedWorkspace = await ensureManagedProjectWorkspace({
+        companyId: agent.companyId,
+        projectId: workspaceProjectId,
+        repoUrl: null,
+      });
+      return {
+        cwd: managedWorkspace.cwd,
+        source: "project_primary" as const,
+        projectId: resolvedProjectId,
+        workspaceId: null,
+        repoUrl: null,
+        repoRef: null,
+        workspaceHints,
+        warnings: managedWorkspace.warning ? [managedWorkspace.warning] : [],
       };
     }
 
