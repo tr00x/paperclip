@@ -132,15 +132,27 @@ function FrontmatterCard({ data }: { data: FrontmatterData }) {
 
 // ── Import file tree customization ───────────────────────────────────
 
-function renderImportFileExtra(node: FileTreeNode, checked: boolean) {
-  if (!node.action) return null;
-  const actionColor = ACTION_COLORS[node.action] ?? ACTION_COLORS.skip;
-  return (
+function renderImportFileExtra(node: FileTreeNode, checked: boolean, renameMap: Map<string, string>) {
+  const renamedTo = renameMap.get(node.path);
+  const actionBadge = node.action ? (
     <span className={cn(
       "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide",
-      actionColor,
+      ACTION_COLORS[node.action] ?? ACTION_COLORS.skip,
     )}>
       {checked ? node.action : "skip"}
+    </span>
+  ) : null;
+
+  if (!actionBadge && !renamedTo) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1.5 shrink-0">
+      {renamedTo && checked && (
+        <span className="text-[10px] text-cyan-500 font-mono truncate max-w-[7rem]" title={renamedTo}>
+          &rarr; {renamedTo}
+        </span>
+      )}
+      {actionBadge}
     </span>
   );
 }
@@ -155,10 +167,12 @@ function ImportPreviewPane({
   selectedFile,
   content,
   action,
+  renamedTo,
 }: {
   selectedFile: string | null;
   content: string | null;
   action: string | null;
+  renamedTo: string | null;
 }) {
   if (!selectedFile || content === null) {
     return (
@@ -174,7 +188,14 @@ function ImportPreviewPane({
     <div className="min-w-0">
       <div className="border-b border-border px-5 py-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="truncate font-mono text-sm">{selectedFile}</div>
+          <div className="min-w-0 flex items-center gap-2">
+            <span className="truncate font-mono text-sm">{selectedFile}</span>
+            {renamedTo && (
+              <span className="shrink-0 font-mono text-sm text-cyan-500">
+                &rarr; {renamedTo}
+              </span>
+            )}
+          </div>
           {action && (
             <span className={cn(
               "shrink-0 rounded-full border px-2 py-0.5 text-xs uppercase tracking-wide",
@@ -652,6 +673,25 @@ export function CompanyImport() {
     [importPreview],
   );
 
+  // Map file paths (and their parent dir) → planned rename name for display in tree + preview
+  const renameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!importPreview) return map;
+    for (const c of conflicts) {
+      if (!c.filePath) continue;
+      const isSkipped = skippedSlugs.has(c.slug);
+      if (isSkipped) continue;
+      const renamedTo = nameOverrides[c.slug] ?? c.plannedName;
+      if (renamedTo === c.originalName) continue;
+      // Map the file itself
+      map.set(c.filePath, renamedTo);
+      // Map the parent directory (e.g. agents/ceo → gstack-ceo)
+      const parentDir = c.filePath.split("/").slice(0, -1).join("/");
+      if (parentDir) map.set(parentDir, renamedTo);
+    }
+    return map;
+  }, [importPreview, conflicts, nameOverrides, skippedSlugs]);
+
   const totalFiles = useMemo(() => countFiles(tree), [tree]);
   const selectedCount = checkedFiles.size;
 
@@ -972,7 +1012,7 @@ export function CompanyImport() {
                   onToggleDir={handleToggleDir}
                   onSelectFile={setSelectedFile}
                   onToggleCheck={handleToggleCheck}
-                  renderFileExtra={renderImportFileExtra}
+                  renderFileExtra={(node, checked) => renderImportFileExtra(node, checked, renameMap)}
                   fileRowClassName={importFileRowClassName}
                 />
               </div>
@@ -982,6 +1022,7 @@ export function CompanyImport() {
                 selectedFile={selectedFile}
                 content={previewContent}
                 action={selectedAction}
+                renamedTo={selectedFile ? (renameMap.get(selectedFile) ?? null) : null}
               />
             </div>
           </div>
