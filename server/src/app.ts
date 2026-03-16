@@ -242,7 +242,7 @@ export async function createApp(
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       root: uiRoot,
-      appType: "spa",
+      appType: "custom",
       server: {
         middlewareMode: true,
         hmr: {
