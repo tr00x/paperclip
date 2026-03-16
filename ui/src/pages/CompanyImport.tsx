@@ -133,7 +133,8 @@ function FrontmatterCard({ data }: { data: FrontmatterData }) {
 // ── Import file tree customization ───────────────────────────────────
 
 function renderImportFileExtra(node: FileTreeNode, checked: boolean, renameMap: Map<string, string>) {
-  const renamedTo = renameMap.get(node.path);
+  // Show rename indicator only on directories (folders), not individual files
+  const renamedTo = node.kind === "dir" ? renameMap.get(node.path) : undefined;
   const actionBadge = node.action ? (
     <span className={cn(
       "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide",
@@ -673,7 +674,8 @@ export function CompanyImport() {
     [importPreview],
   );
 
-  // Map file paths (and their parent dir) → planned rename name for display in tree + preview
+  // Map directory paths → planned rename name for display in the file tree
+  // Also maps file paths for use in the preview header
   const renameMap = useMemo(() => {
     const map = new Map<string, string>();
     if (!importPreview) return map;
@@ -683,11 +685,11 @@ export function CompanyImport() {
       if (isSkipped) continue;
       const renamedTo = nameOverrides[c.slug] ?? c.plannedName;
       if (renamedTo === c.originalName) continue;
-      // Map the file itself
-      map.set(c.filePath, renamedTo);
-      // Map the parent directory (e.g. agents/ceo → gstack-ceo)
+      // Map the parent directory (e.g. agents/ceo → gstack-ceo) for the file tree
       const parentDir = c.filePath.split("/").slice(0, -1).join("/");
       if (parentDir) map.set(parentDir, renamedTo);
+      // Map the file path too — used by the preview header, not shown in tree
+      map.set(c.filePath, renamedTo);
     }
     return map;
   }, [importPreview, conflicts, nameOverrides, skippedSlugs]);
