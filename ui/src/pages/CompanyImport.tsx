@@ -27,6 +27,7 @@ import {
 import { Field, adapterLabels } from "../components/agent-config-primitives";
 import { defaultCreateValues } from "../components/agent-config-defaults";
 import { getUIAdapter } from "../adapters";
+import { ClaudeLocalAdvancedFields } from "../adapters/claude-local/config-fields";
 import type { CreateConfigValues } from "@paperclipai/adapter-utils";
 import {
   type FileTreeNode,
@@ -542,7 +543,21 @@ function AdapterPickerList({
                       eff={() => "" as any}
                       mark={() => {}}
                       models={[]}
+                      hideInstructionsFile
                     />
+                    {selectedType === "claude_local" && (
+                      <ClaudeLocalAdvancedFields
+                        mode="create"
+                        isCreate
+                        adapterType={selectedType}
+                        values={vals}
+                        set={(patch) => onChangeConfig(agent.slug, patch)}
+                        config={{}}
+                        eff={() => "" as any}
+                        mark={() => {}}
+                        models={[]}
+                      />
+                    )}
                   </div>
                 )}
               </div>
