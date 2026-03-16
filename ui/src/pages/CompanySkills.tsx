@@ -422,23 +422,25 @@ function SkillList({
                 className="flex min-w-0 items-center self-stretch pr-2 text-left no-underline"
                 onClick={() => onSelectSkill(skill.id)}
               >
-                <span className="flex min-w-0 items-center gap-2 self-center">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground opacity-75 transition-opacity group-hover:opacity-100">
-                        <SourceIcon className="h-3.5 w-3.5" />
-                        <span className="sr-only">{source.managedLabel}</span>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">{source.managedLabel}</TooltipContent>
-                  </Tooltip>
+                <span className="min-w-0 self-center">
                   {skill.key.includes("/") && (
                     <span className="block truncate font-mono text-[11px] leading-4 text-muted-foreground">
                       {skill.key.split("/").slice(0, -1).join("/")}
                     </span>
                   )}
-                  <span className="block min-w-0 overflow-hidden text-[13px] font-medium leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
-                    {skill.name}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground opacity-75 transition-opacity group-hover:opacity-100">
+                          <SourceIcon className="h-3.5 w-3.5" />
+                          <span className="sr-only">{source.managedLabel}</span>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{source.managedLabel}</TooltipContent>
+                    </Tooltip>
+                    <span className="min-w-0 overflow-hidden text-[13px] font-medium leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
+                      {skill.name}
+                    </span>
                   </span>
                 </span>
               </Link>
