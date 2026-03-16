@@ -164,6 +164,60 @@ function sortByChecked(nodes: FileTreeNode[], checkedFiles: Set<string>): FileTr
   });
 }
 
+const TASKS_PAGE_SIZE = 10;
+
+/**
+ * Paginate children of `tasks/` directories: show up to `limit` entries,
+ * but always include children that are checked or match the search query.
+ * Returns the paginated tree and the total count of task children.
+ */
+function paginateTaskNodes(
+  nodes: FileTreeNode[],
+  limit: number,
+  checkedFiles: Set<string>,
+  searchQuery: string,
+): { nodes: FileTreeNode[]; totalTaskChildren: number; visibleTaskChildren: number } {
+  let totalTaskChildren = 0;
+  let visibleTaskChildren = 0;
+
+  const result = nodes.map((node) => {
+    // Only paginate direct children of "tasks" directories
+    if (node.kind === "dir" && node.name === "tasks") {
+      totalTaskChildren = node.children.length;
+
+      // Partition children: pinned (checked or search-matched) vs rest
+      const pinned: FileTreeNode[] = [];
+      const rest: FileTreeNode[] = [];
+      const lower = searchQuery.toLowerCase();
+
+      for (const child of node.children) {
+        const childFiles = collectAllPaths([child], "file");
+        const isChecked = [...childFiles].some((p) => checkedFiles.has(p));
+        const isSearchMatch = searchQuery && (
+          child.name.toLowerCase().includes(lower) ||
+          child.path.toLowerCase().includes(lower) ||
+          [...childFiles].some((p) => p.toLowerCase().includes(lower))
+        );
+        if (isChecked || isSearchMatch) {
+          pinned.push(child);
+        } else {
+          rest.push(child);
+        }
+      }
+
+      // Show pinned + up to `limit` from rest
+      const remaining = Math.max(0, limit - pinned.length);
+      const visible = [...pinned, ...rest.slice(0, remaining)];
+      visibleTaskChildren = visible.length;
+
+      return { ...node, children: visible };
+    }
+    return node;
+  });
+
+  return { nodes: result, totalTaskChildren, visibleTaskChildren };
+}
+
 // ── Tar helpers (reused from CompanySettings) ─────────────────────────
 
 function createTarArchive(files: Record<string, string>, rootPath: string): Uint8Array {
@@ -530,6 +584,7 @@ export function CompanyExport() {
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
   const [treeSearch, setTreeSearch] = useState("");
+  const [taskLimit, setTaskLimit] = useState(TASKS_PAGE_SIZE);
   const savedExpandedRef = useRef<Set<string> | null>(null);
 
   useEffect(() => {
@@ -586,11 +641,17 @@ export function CompanyExport() {
     [exportData],
   );
 
-  const displayTree = useMemo(() => {
+  const { displayTree, totalTaskChildren, visibleTaskChildren } = useMemo(() => {
     let result = tree;
     if (treeSearch) result = filterTree(result, treeSearch);
-    return sortByChecked(result, checkedFiles);
-  }, [tree, treeSearch, checkedFiles]);
+    result = sortByChecked(result, checkedFiles);
+    const paginated = paginateTaskNodes(result, taskLimit, checkedFiles, treeSearch);
+    return {
+      displayTree: paginated.nodes,
+      totalTaskChildren: paginated.totalTaskChildren,
+      visibleTaskChildren: paginated.visibleTaskChildren,
+    };
+  }, [tree, treeSearch, checkedFiles, taskLimit]);
 
   const totalFiles = useMemo(() => countFiles(tree), [tree]);
   const selectedCount = checkedFiles.size;
@@ -767,6 +828,17 @@ export function CompanyExport() {
               onSelectFile={setSelectedFile}
               onToggleCheck={handleToggleCheck}
             />
+            {totalTaskChildren > visibleTaskChildren && !treeSearch && (
+              <div className="px-4 py-2">
+                <button
+                  type="button"
+                  onClick={() => setTaskLimit((prev) => prev + TASKS_PAGE_SIZE)}
+                  className="w-full rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/30 hover:text-foreground transition-colors"
+                >
+                  Show more issues ({visibleTaskChildren} of {totalTaskChildren})
+                </button>
+              </div>
+            )}
           </div>
         </aside>
         <div className="min-w-0 overflow-y-auto pl-6">
