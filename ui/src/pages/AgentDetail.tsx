@@ -60,7 +60,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { AgentIcon, AgentIconPicker } from "../components/AgentIconPicker";
 import { RunTranscriptView, type TranscriptMode } from "../components/transcript/RunTranscriptView";
-import { isUuidLike, type Agent, type HeartbeatRun, type HeartbeatRunEvent, type AgentRuntimeState, type LiveEvent } from "@paperclipai/shared";
+import { isUuidLike, type Agent, type AgentRuntimeState, type AgentSkillSnapshot, type HeartbeatRun, type HeartbeatRunEvent, type LiveEvent } from "@paperclipai/shared";
 import { redactHomePathUserSegments, redactHomePathUserSegmentsInValue } from "@paperclipai/adapter-utils";
 import { agentRouteRef } from "../lib/utils";
 
@@ -253,6 +253,9 @@ export function AgentDetail() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const activeView = urlRunId ? "runs" as AgentDetailView : parseAgentDetailView(urlTab ?? null);
+  const needsDashboardData = activeView === "dashboard";
+  const needsRunData = activeView === "runs" || Boolean(urlRunId);
+  const shouldLoadHeartbeats = needsDashboardData || needsRunData;
   const [configDirty, setConfigDirty] = useState(false);
   const [configSaving, setConfigSaving] = useState(false);
   const saveConfigActionRef = useRef<(() => void) | null>(null);
@@ -282,25 +285,25 @@ export function AgentDetail() {
   const { data: runtimeState } = useQuery({
     queryKey: queryKeys.agents.runtimeState(resolvedAgentId ?? routeAgentRef),
     queryFn: () => agentsApi.runtimeState(resolvedAgentId!, resolvedCompanyId ?? undefined),
-    enabled: Boolean(resolvedAgentId),
+    enabled: Boolean(resolvedAgentId) && needsDashboardData,
   });
 
   const { data: heartbeats } = useQuery({
     queryKey: queryKeys.heartbeats(resolvedCompanyId!, agent?.id ?? undefined),
     queryFn: () => heartbeatsApi.list(resolvedCompanyId!, agent?.id ?? undefined),
-    enabled: !!resolvedCompanyId && !!agent?.id,
+    enabled: !!resolvedCompanyId && !!agent?.id && shouldLoadHeartbeats,
   });
 
   const { data: allIssues } = useQuery({
     queryKey: queryKeys.issues.list(resolvedCompanyId!),
     queryFn: () => issuesApi.list(resolvedCompanyId!),
-    enabled: !!resolvedCompanyId,
+    enabled: !!resolvedCompanyId && needsDashboardData,
   });
 
   const { data: allAgents } = useQuery({
     queryKey: queryKeys.agents.list(resolvedCompanyId!),
     queryFn: () => agentsApi.list(resolvedCompanyId!),
-    enabled: !!resolvedCompanyId,
+    enabled: !!resolvedCompanyId && needsDashboardData,
   });
 
   const assignedIssues = (allIssues ?? [])
@@ -1149,6 +1152,16 @@ function AgentSkillsTab({
   agent: Agent;
   companyId?: string;
 }) {
+  type SkillRow = {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    detail: string | null;
+    linkTo: string | null;
+    adapterEntry: AgentSkillSnapshot["entries"][number] | null;
+  };
+
   const queryClient = useQueryClient();
   const [skillDraft, setSkillDraft] = useState<string[]>([]);
   const [lastSavedSkills, setLastSavedSkills] = useState<string[]>([]);
@@ -1209,6 +1222,39 @@ function AgentSkillsTab({
   const adapterEntryByName = useMemo(
     () => new Map((skillSnapshot?.entries ?? []).map((entry) => [entry.name, entry])),
     [skillSnapshot],
+  );
+  const optionalSkillRows = useMemo<SkillRow[]>(
+    () =>
+      (companySkills ?? [])
+        .filter((skill) => !adapterEntryByName.get(skill.slug)?.required)
+        .map((skill) => ({
+          id: skill.id,
+          slug: skill.slug,
+          name: skill.name,
+          description: skill.description,
+          detail: adapterEntryByName.get(skill.slug)?.detail ?? null,
+          linkTo: `/skills/${skill.id}`,
+          adapterEntry: adapterEntryByName.get(skill.slug) ?? null,
+        })),
+    [adapterEntryByName, companySkills],
+  );
+  const requiredSkillRows = useMemo<SkillRow[]>(
+    () =>
+      (skillSnapshot?.entries ?? [])
+        .filter((entry) => entry.required)
+        .map((entry) => {
+          const companySkill = companySkillBySlug.get(entry.name);
+          return {
+            id: companySkill?.id ?? `required:${entry.name}`,
+            slug: entry.name,
+            name: companySkill?.name ?? entry.name,
+            description: companySkill?.description ?? null,
+            detail: entry.detail ?? null,
+            linkTo: companySkill ? `/skills/${companySkill.id}` : null,
+            adapterEntry: entry,
+          };
+        }),
+    [companySkillBySlug, skillSnapshot],
   );
   const desiredOnlyMissingSkills = useMemo(
     () => skillDraft.filter((slug) => !companySkillBySlug.has(slug)),
@@ -1276,18 +1322,10 @@ function AgentSkillsTab({
       ) : (
         <>
           {(() => {
-            const allSkills = companySkills ?? [];
-            const optionalSkills = allSkills.filter(
-              (skill) => !adapterEntryByName.get(skill.slug)?.required,
-            );
-            const requiredSkills = allSkills.filter(
-              (skill) => adapterEntryByName.get(skill.slug)?.required,
-            );
-
-            const renderSkillRow = (skill: (typeof allSkills)[number]) => {
-              const checked = skillDraft.includes(skill.slug);
-              const adapterEntry = adapterEntryByName.get(skill.slug);
+            const renderSkillRow = (skill: SkillRow) => {
+              const adapterEntry = skill.adapterEntry ?? adapterEntryByName.get(skill.slug);
               const required = Boolean(adapterEntry?.required);
+              const checked = required || Boolean(adapterEntry?.desired) || skillDraft.includes(skill.slug);
               const disabled = required || skillSnapshot?.mode === "unsupported";
               const checkbox = (
                 <input
@@ -1330,27 +1368,29 @@ function AgentSkillsTab({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
                       <span className="truncate font-medium">{skill.name}</span>
-                      <Link
-                        to={`/skills/${skill.id}`}
-                        className="shrink-0 text-xs text-muted-foreground no-underline hover:text-foreground"
-                      >
-                        View
-                      </Link>
+                      {skill.linkTo ? (
+                        <Link
+                          to={skill.linkTo}
+                          className="shrink-0 text-xs text-muted-foreground no-underline hover:text-foreground"
+                        >
+                          View
+                        </Link>
+                      ) : null}
                     </div>
                     {skill.description && (
                       <MarkdownBody className="mt-1 text-xs text-muted-foreground prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                         {skill.description}
                       </MarkdownBody>
                     )}
-                    {adapterEntry?.detail && (
-                      <p className="mt-1 text-xs text-muted-foreground">{adapterEntry.detail}</p>
+                    {skill.detail && (
+                      <p className="mt-1 text-xs text-muted-foreground">{skill.detail}</p>
                     )}
                   </div>
                 </label>
               );
             };
 
-            if (allSkills.length === 0) {
+            if (optionalSkillRows.length === 0 && requiredSkillRows.length === 0) {
               return (
                 <section className="border-y border-border">
                   <div className="px-3 py-6 text-sm text-muted-foreground">
@@ -1362,20 +1402,20 @@ function AgentSkillsTab({
 
             return (
               <>
-                {optionalSkills.length > 0 && (
+                {optionalSkillRows.length > 0 && (
                   <section className="border-y border-border">
-                    {optionalSkills.map(renderSkillRow)}
+                    {optionalSkillRows.map(renderSkillRow)}
                   </section>
                 )}
 
-                {requiredSkills.length > 0 && (
+                {requiredSkillRows.length > 0 && (
                   <section className="border-y border-border">
                     <div className="border-b border-border bg-muted/40 px-3 py-2">
                       <span className="text-xs font-medium text-muted-foreground">
                         Required by Paperclip
                       </span>
                     </div>
-                    {requiredSkills.map(renderSkillRow)}
+                    {requiredSkillRows.map(renderSkillRow)}
                   </section>
                 )}
               </>
