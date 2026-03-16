@@ -34,6 +34,16 @@ type ScopeRecord = {
 type PolicyRow = typeof budgetPolicies.$inferSelect;
 type IncidentRow = typeof budgetIncidents.$inferSelect;
 
+export type BudgetEnforcementScope = {
+  companyId: string;
+  scopeType: BudgetScopeType;
+  scopeId: string;
+};
+
+export type BudgetServiceHooks = {
+  cancelWorkForScope?: (scope: BudgetEnforcementScope) => Promise<void>;
+};
+
 function currentUtcMonthWindow(now = new Date()) {
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth();
@@ -75,6 +85,8 @@ async function resolveScopeRecord(db: Db, scopeType: BudgetScopeType, scopeId: s
         companyId: companies.id,
         name: companies.name,
         status: companies.status,
+        pauseReason: companies.pauseReason,
+        pausedAt: companies.pausedAt,
       })
       .from(companies)
       .where(eq(companies.id, scopeId))
@@ -83,8 +95,8 @@ async function resolveScopeRecord(db: Db, scopeType: BudgetScopeType, scopeId: s
     return {
       companyId: row.companyId,
       name: row.name,
-      paused: row.status === "paused",
-      pauseReason: row.status === "paused" ? "budget" : null,
+      paused: row.status === "paused" || Boolean(row.pausedAt),
+      pauseReason: (row.pauseReason as ScopeRecord["pauseReason"]) ?? null,
     };
   }
 
@@ -197,7 +209,7 @@ async function markApprovalStatus(
     .where(eq(approvals.id, approvalId));
 }
 
-export function budgetService(db: Db) {
+export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
   async function pauseScopeForBudget(policy: PolicyRow) {
     const now = new Date();
     if (policy.scopeType === "agent") {
@@ -229,9 +241,20 @@ export function budgetService(db: Db) {
       .update(companies)
       .set({
         status: "paused",
+        pauseReason: "budget",
+        pausedAt: now,
         updatedAt: now,
       })
       .where(eq(companies.id, policy.scopeId));
+  }
+
+  async function pauseAndCancelScopeForBudget(policy: PolicyRow) {
+    await pauseScopeForBudget(policy);
+    await hooks.cancelWorkForScope?.({
+      companyId: policy.companyId,
+      scopeType: policy.scopeType as BudgetScopeType,
+      scopeId: policy.scopeId,
+    });
   }
 
   async function resumeScopeFromBudget(policy: PolicyRow) {
@@ -265,9 +288,11 @@ export function budgetService(db: Db) {
       .update(companies)
       .set({
         status: "active",
+        pauseReason: null,
+        pausedAt: null,
         updatedAt: now,
       })
-      .where(eq(companies.id, policy.scopeId));
+      .where(and(eq(companies.id, policy.scopeId), eq(companies.pauseReason, "budget")));
   }
 
   async function getPolicyRow(policyId: string) {
@@ -573,7 +598,7 @@ export function budgetService(db: Db) {
           if (row.hardStopEnabled && observedAmount >= row.amount) {
             await resolveOpenSoftIncidents(row.id);
             await createIncidentIfNeeded(row, "hard", observedAmount);
-            await pauseScopeForBudget(row);
+            await pauseAndCancelScopeForBudget(row);
           }
         }
       } else {
@@ -665,7 +690,7 @@ export function budgetService(db: Db) {
         if (policy.hardStopEnabled && observedAmount >= policy.amount) {
           await resolveOpenSoftIncidents(policy.id);
           const hardIncident = await createIncidentIfNeeded(policy, "hard", observedAmount);
-          await pauseScopeForBudget(policy);
+          await pauseAndCancelScopeForBudget(policy);
           if (hardIncident) {
             await logActivity(db, {
               companyId: policy.companyId,
@@ -707,6 +732,7 @@ export function budgetService(db: Db) {
       const company = await db
         .select({
           status: companies.status,
+          pauseReason: companies.pauseReason,
           name: companies.name,
         })
         .from(companies)
@@ -718,7 +744,10 @@ export function budgetService(db: Db) {
           scopeType: "company" as const,
           scopeId: companyId,
           scopeName: company.name,
-          reason: "Company is paused and cannot start new work.",
+          reason:
+            company.pauseReason === "budget"
+              ? "Company is paused because its budget hard-stop was reached."
+              : "Company is paused and cannot start new work.",
         };
       }
 

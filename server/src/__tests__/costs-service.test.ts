@@ -37,6 +37,9 @@ const mockAgentService = vi.hoisted(() => ({
   getById: vi.fn(),
   update: vi.fn(),
 }));
+const mockHeartbeatService = vi.hoisted(() => ({
+  cancelBudgetScopeWork: vi.fn().mockResolvedValue(undefined),
+}));
 const mockLogActivity = vi.hoisted(() => vi.fn());
 const mockFetchAllQuotaWindows = vi.hoisted(() => vi.fn());
 const mockCostService = vi.hoisted(() => ({
@@ -75,6 +78,7 @@ vi.mock("../services/index.js", () => ({
   financeService: () => mockFinanceService,
   companyService: () => mockCompanyService,
   agentService: () => mockAgentService,
+  heartbeatService: () => mockHeartbeatService,
   logActivity: mockLogActivity,
 }));
 

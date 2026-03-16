@@ -2,7 +2,7 @@ import { and, desc, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { activityLog, agents, companies, costEvents, issues, projects } from "@paperclipai/db";
 import { notFound, unprocessable } from "../errors.js";
-import { budgetService } from "./budgets.js";
+import { budgetService, type BudgetServiceHooks } from "./budgets.js";
 
 export interface CostDateRange {
   from?: Date;
@@ -12,8 +12,8 @@ export interface CostDateRange {
 const METERED_BILLING_TYPE = "metered_api";
 const SUBSCRIPTION_BILLING_TYPES = ["subscription_included", "subscription_overage"] as const;
 
-export function costService(db: Db) {
-  const budgets = budgetService(db);
+export function costService(db: Db, budgetHooks: BudgetServiceHooks = {}) {
+  const budgets = budgetService(db, budgetHooks);
   return {
     createEvent: async (companyId: string, data: Omit<typeof costEvents.$inferInsert, "companyId">) => {
       const agent = await db
@@ -54,25 +54,6 @@ export function costService(db: Db) {
           updatedAt: new Date(),
         })
         .where(eq(companies.id, companyId));
-
-      const updatedAgent = await db
-        .select()
-        .from(agents)
-        .where(eq(agents.id, event.agentId))
-        .then((rows) => rows[0] ?? null);
-
-      if (
-        updatedAgent &&
-        updatedAgent.budgetMonthlyCents > 0 &&
-        updatedAgent.spentMonthlyCents >= updatedAgent.budgetMonthlyCents &&
-        updatedAgent.status !== "paused" &&
-        updatedAgent.status !== "terminated"
-      ) {
-        await db
-          .update(agents)
-          .set({ status: "paused", updatedAt: new Date() })
-          .where(eq(agents.id, updatedAgent.id));
-      }
 
       await budgets.evaluateCostEvent(event);
 

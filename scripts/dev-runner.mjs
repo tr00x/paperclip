@@ -34,6 +34,11 @@ const env = {
   PAPERCLIP_UI_DEV_MIDDLEWARE: "true",
 };
 
+if (mode === "watch") {
+  env.PAPERCLIP_MIGRATION_PROMPT ??= "never";
+  env.PAPERCLIP_MIGRATION_AUTO_APPLY ??= "true";
+}
+
 if (tailscaleAuth) {
   env.PAPERCLIP_DEPLOYMENT_MODE = "authenticated";
   env.PAPERCLIP_DEPLOYMENT_EXPOSURE = "private";
@@ -113,7 +118,6 @@ async function runPnpm(args, options = {}) {
 
 async function maybePreflightMigrations() {
   if (mode !== "watch") return;
-  if (process.env.PAPERCLIP_MIGRATION_PROMPT === "never") return;
 
   const status = await runPnpm(
     ["--filter", "@paperclipai/db", "exec", "tsx", "src/migration-status.ts", "--json"],
@@ -144,7 +148,7 @@ async function maybePreflightMigrations() {
     return;
   }
 
-  const autoApply = process.env.PAPERCLIP_MIGRATION_AUTO_APPLY === "true";
+  const autoApply = env.PAPERCLIP_MIGRATION_AUTO_APPLY === "true";
   let shouldApply = autoApply;
 
   if (!autoApply) {
@@ -167,7 +171,13 @@ async function maybePreflightMigrations() {
     }
   }
 
-  if (!shouldApply) return;
+  if (!shouldApply) {
+    process.stderr.write(
+      `[paperclip] Pending migrations detected (${formatPendingMigrationSummary(payload.pendingMigrations)}). ` +
+        "Refusing to start watch mode against a stale schema.\n",
+    );
+    process.exit(1);
+  }
 
   const migrate = spawn(pnpmBin, ["db:migrate"], {
     stdio: "inherit",
@@ -205,10 +215,6 @@ async function buildPluginSdk() {
 }
 
 await buildPluginSdk();
-
-if (mode === "watch") {
-  env.PAPERCLIP_MIGRATION_PROMPT = "never";
-}
 
 const serverScript = mode === "watch" ? "dev:watch" : "dev";
 const child = spawn(

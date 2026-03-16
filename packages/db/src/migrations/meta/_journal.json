@@ -232,6 +232,13 @@
       "when": 1773542934499,
       "tag": "0032_pretty_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1773664961967,
+      "tag": "0033_shiny_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

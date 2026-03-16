@@ -14,6 +14,7 @@ import {
   financeService,
   companyService,
   agentService,
+  heartbeatService,
   logActivity,
 } from "../services/index.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
@@ -22,9 +23,13 @@ import { badRequest } from "../errors.js";
 
 export function costRoutes(db: Db) {
   const router = Router();
-  const costs = costService(db);
+  const heartbeat = heartbeatService(db);
+  const budgetHooks = {
+    cancelWorkForScope: heartbeat.cancelBudgetScopeWork,
+  };
+  const costs = costService(db, budgetHooks);
   const finance = financeService(db);
-  const budgets = budgetService(db);
+  const budgets = budgetService(db, budgetHooks);
   const companies = companyService(db);
   const agents = agentService(db);
 
