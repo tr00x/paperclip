@@ -14,6 +14,7 @@ import { queryKeys } from "../lib/queryKeys";
 import { MarkdownBody } from "../components/MarkdownBody";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "../components/EmptyState";
+import { AgentConfigForm } from "../components/AgentConfigForm";
 import { cn } from "../lib/utils";
 import {
   ArrowRight,
@@ -27,7 +28,6 @@ import {
 import { Field, adapterLabels } from "../components/agent-config-primitives";
 import { defaultCreateValues } from "../components/agent-config-defaults";
 import { getUIAdapter, listUIAdapters } from "../adapters";
-import { ClaudeLocalAdvancedFields } from "../adapters/claude-local/config-fields";
 import type { CreateConfigValues } from "@paperclipai/adapter-utils";
 import {
   type FileTreeNode,
@@ -488,7 +488,6 @@ function AdapterPickerList({
           {agents.map((agent) => {
             const selectedType = adapterOverrides[agent.slug] ?? agent.adapterType;
             const isExpanded = expandedSlugs.has(agent.slug);
-            const uiAdapter = getUIAdapter(selectedType);
             const vals = configValues[agent.slug] ?? { ...defaultCreateValues, adapterType: selectedType };
 
             return (
@@ -531,31 +530,16 @@ function AdapterPickerList({
                 </div>
                 {isExpanded && (
                   <div className="border-t border-border bg-accent/10 px-4 py-3 space-y-3">
-                    <uiAdapter.ConfigFields
+                    <AgentConfigForm
                       mode="create"
-                      isCreate
-                      adapterType={selectedType}
                       values={vals}
-                      set={(patch) => onChangeConfig(agent.slug, patch)}
-                      config={{}}
-                      eff={() => "" as any}
-                      mark={() => {}}
-                      models={[]}
+                      onChange={(patch) => onChangeConfig(agent.slug, patch)}
+                      showAdapterTypeField={false}
+                      showAdapterTestEnvironmentButton={false}
+                      showCreateRunPolicySection={false}
                       hideInstructionsFile
+                      sectionLayout="cards"
                     />
-                    {selectedType === "claude_local" && (
-                      <ClaudeLocalAdvancedFields
-                        mode="create"
-                        isCreate
-                        adapterType={selectedType}
-                        values={vals}
-                        set={(patch) => onChangeConfig(agent.slug, patch)}
-                        config={{}}
-                        eff={() => "" as any}
-                        mark={() => {}}
-                        models={[]}
-                      />
-                    )}
                   </div>
                 )}
               </div>
