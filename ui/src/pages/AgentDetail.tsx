@@ -1313,7 +1313,7 @@ function RunsTab({
 
   // Desktop: side-by-side layout
   return (
-    <div className="flex gap-0">
+    <div className="flex gap-0 -mr-4 md:-mr-6">
       {/* Left: run list — border stretches full height, content sticks */}
       <div className={cn(
         "shrink-0 border border-border rounded-lg",
