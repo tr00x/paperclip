@@ -878,24 +878,33 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
       const policy = await getPolicyRow(incident.policyId);
       if (input.action === "raise_budget_and_resume") {
         const nextAmount = Math.max(0, Math.floor(input.amount ?? 0));
-        if (nextAmount <= incident.amountObserved) {
+        const currentObserved = await computeObservedAmount(db, policy);
+        if (nextAmount <= currentObserved) {
           throw unprocessable("New budget must exceed current observed spend");
         }
 
+        const now = new Date();
         await db
           .update(budgetPolicies)
           .set({
             amount: nextAmount,
             isActive: true,
             updatedByUserId: actorUserId,
-            updatedAt: new Date(),
+            updatedAt: now,
           })
           .where(eq(budgetPolicies.id, policy.id));
+
+        if (policy.scopeType === "company" && policy.windowKind === "calendar_month_utc") {
+          await db
+            .update(companies)
+            .set({ budgetMonthlyCents: nextAmount, updatedAt: now })
+            .where(eq(companies.id, policy.scopeId));
+        }
 
         if (policy.scopeType === "agent" && policy.windowKind === "calendar_month_utc") {
           await db
             .update(agents)
-            .set({ budgetMonthlyCents: nextAmount, updatedAt: new Date() })
+            .set({ budgetMonthlyCents: nextAmount, updatedAt: now })
             .where(eq(agents.id, policy.scopeId));
         }
 
@@ -904,8 +913,8 @@ export function budgetService(db: Db, hooks: BudgetServiceHooks = {}) {
           .update(budgetIncidents)
           .set({
             status: "resolved",
-            resolvedAt: new Date(),
-            updatedAt: new Date(),
+            resolvedAt: now,
+            updatedAt: now,
           })
           .where(and(eq(budgetIncidents.policyId, policy.id), eq(budgetIncidents.status, "open")));
 

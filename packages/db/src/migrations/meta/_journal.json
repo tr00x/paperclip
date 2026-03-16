@@ -239,6 +239,13 @@
       "when": 1773664961967,
       "tag": "0033_shiny_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1773697572188,
+      "tag": "0034_fat_dormammu",
+      "breakpoints": true
     }
   ]
 }
