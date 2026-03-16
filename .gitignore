@@ -39,3 +39,11 @@ tmp/
 .paperclip-local/
 /.idea/
 /.agents/
+
+# Doc maintenance cursor
+.doc-review-cursor
+
+# Playwright
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+.superset/
