@@ -423,20 +423,30 @@ export function createTestHarness(options: TestHarnessOptions): TestHarness {
         return comment;
       },
       documents: {
-        async list(_issueId, _companyId) {
-          requireCapability(manifest, capabilitySet, "issue.documents.read" as any);
+        async list(issueId, companyId) {
+          requireCapability(manifest, capabilitySet, "issue.documents.read");
+          if (!isInCompany(issues.get(issueId), companyId)) return [];
           return [];
         },
-        async get(_issueId, _key, _companyId) {
-          requireCapability(manifest, capabilitySet, "issue.documents.read" as any);
+        async get(issueId, _key, companyId) {
+          requireCapability(manifest, capabilitySet, "issue.documents.read");
+          if (!isInCompany(issues.get(issueId), companyId)) return null;
           return null;
         },
-        async upsert(_input) {
-          requireCapability(manifest, capabilitySet, "issue.documents.write" as any);
+        async upsert(input) {
+          requireCapability(manifest, capabilitySet, "issue.documents.write");
+          const parentIssue = issues.get(input.issueId);
+          if (!isInCompany(parentIssue, input.companyId)) {
+            throw new Error(`Issue not found: ${input.issueId}`);
+          }
           throw new Error("documents.upsert is not implemented in test context");
         },
-        async delete(_issueId, _key, _companyId) {
-          requireCapability(manifest, capabilitySet, "issue.documents.write" as any);
+        async delete(issueId, _key, companyId) {
+          requireCapability(manifest, capabilitySet, "issue.documents.write");
+          const parentIssue = issues.get(issueId);
+          if (!isInCompany(parentIssue, companyId)) {
+            throw new Error(`Issue not found: ${issueId}`);
+          }
         },
       },
     },
