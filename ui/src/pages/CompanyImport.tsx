@@ -902,35 +902,23 @@ export function CompanyImport() {
         <>
           {/* Sticky import action bar */}
           <div className="sticky top-0 z-10 border-b border-border bg-background px-5 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-4 text-sm">
-                <span className="font-medium">
-                  Import preview
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <span className="font-medium">
+                Import preview
+              </span>
+              <span className="text-muted-foreground">
+                {selectedCount} / {totalFiles} file{totalFiles === 1 ? "" : "s"} selected
+              </span>
+              {conflicts.length > 0 && (
+                <span className="text-amber-500">
+                  {conflicts.length} rename{conflicts.length === 1 ? "" : "s"}
                 </span>
-                <span className="text-muted-foreground">
-                  {selectedCount} / {totalFiles} file{totalFiles === 1 ? "" : "s"} selected
+              )}
+              {importPreview.errors.length > 0 && (
+                <span className="text-destructive">
+                  {importPreview.errors.length} error{importPreview.errors.length === 1 ? "" : "s"}
                 </span>
-                {conflicts.length > 0 && (
-                  <span className="text-amber-500">
-                    {conflicts.length} rename{conflicts.length === 1 ? "" : "s"}
-                  </span>
-                )}
-                {importPreview.errors.length > 0 && (
-                  <span className="text-destructive">
-                    {importPreview.errors.length} error{importPreview.errors.length === 1 ? "" : "s"}
-                  </span>
-                )}
-              </div>
-              <Button
-                size="sm"
-                onClick={() => importMutation.mutate()}
-                disabled={importMutation.isPending || hasErrors || selectedCount === 0}
-              >
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                {importMutation.isPending
-                  ? "Importing..."
-                  : `Import ${selectedCount} file${selectedCount === 1 ? "" : "s"}`}
-              </Button>
+              )}
             </div>
           </div>
 
@@ -944,6 +932,20 @@ export function CompanyImport() {
             onToggleSkip={handleConflictToggleSkip}
             onToggleConfirm={handleConflictToggleConfirm}
           />
+
+          {/* Import button — below renames */}
+          <div className="mx-5 mt-3">
+            <Button
+              size="sm"
+              onClick={() => importMutation.mutate()}
+              disabled={importMutation.isPending || hasErrors || selectedCount === 0}
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              {importMutation.isPending
+                ? "Importing..."
+                : `Import ${selectedCount} file${selectedCount === 1 ? "" : "s"}`}
+            </Button>
+          </div>
 
           {/* Warnings */}
           {importPreview.warnings.length > 0 && (
