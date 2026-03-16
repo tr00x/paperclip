@@ -18,7 +18,6 @@ import {
   Check,
   Download,
   Github,
-  Link2,
   Package,
   Upload,
 } from "lucide-react";
@@ -33,6 +32,7 @@ import {
   FRONTMATTER_FIELD_LABELS,
   PackageFileTree,
 } from "../components/PackageFileTree";
+import { readZipArchive } from "../lib/zip";
 
 // ── Import-specific helpers ───────────────────────────────────────────
 
@@ -253,12 +253,19 @@ function buildConflictList(
   return conflicts;
 }
 
-/** Extract a prefix from the import source URL or local folder name */
-function deriveSourcePrefix(sourceMode: string, importUrl: string, localRootPath: string | null): string | null {
-  if (sourceMode === "local" && localRootPath) {
-    return localRootPath.split("/").pop() ?? null;
+/** Extract a prefix from the import source URL or uploaded zip package name */
+function deriveSourcePrefix(
+  sourceMode: string,
+  importUrl: string,
+  localPackageName: string | null,
+  localRootPath: string | null,
+): string | null {
+  if (sourceMode === "local") {
+    if (localRootPath) return localRootPath.split("/").pop() ?? null;
+    if (!localPackageName) return null;
+    return localPackageName.replace(/\.zip$/i, "") || null;
   }
-  if (sourceMode === "github" || sourceMode === "url") {
+  if (sourceMode === "github") {
     const url = importUrl.trim();
     if (!url) return null;
     try {
@@ -407,30 +414,23 @@ function ConflictResolutionList({
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
-async function readLocalPackageSelection(fileList: FileList): Promise<{
+async function readLocalPackageZip(file: File): Promise<{
+  name: string;
   rootPath: string | null;
   files: Record<string, string>;
 }> {
-  const files: Record<string, string> = {};
-  let rootPath: string | null = null;
-  for (const file of Array.from(fileList)) {
-    const relativePath =
-      (file as File & { webkitRelativePath?: string }).webkitRelativePath?.replace(
-        /\\/g,
-        "/",
-      ) || file.name;
-    const isMarkdown = relativePath.endsWith(".md");
-    const isPaperclipYaml =
-      relativePath.endsWith(".paperclip.yaml") || relativePath.endsWith(".paperclip.yml");
-    if (!isMarkdown && !isPaperclipYaml) continue;
-    const topLevel = relativePath.split("/")[0] ?? null;
-    if (!rootPath && topLevel) rootPath = topLevel;
-    files[relativePath] = await file.text();
+  if (!/\.zip$/i.test(file.name)) {
+    throw new Error("Select a .zip company package.");
   }
-  if (Object.keys(files).length === 0) {
-    throw new Error("No package files were found in the selected folder.");
+  const archive = readZipArchive(await file.arrayBuffer());
+  if (Object.keys(archive.files).length === 0) {
+    throw new Error("No package files were found in the selected zip archive.");
   }
-  return { rootPath, files };
+  return {
+    name: file.name,
+    rootPath: archive.rootPath,
+    files: archive.files,
+  };
 }
 
 // ── Main page ─────────────────────────────────────────────────────────
@@ -447,9 +447,10 @@ export function CompanyImport() {
   const packageInputRef = useRef<HTMLInputElement | null>(null);
 
   // Source state
-  const [sourceMode, setSourceMode] = useState<"github" | "url" | "local">("github");
+  const [sourceMode, setSourceMode] = useState<"github" | "local">("github");
   const [importUrl, setImportUrl] = useState("");
   const [localPackage, setLocalPackage] = useState<{
+    name: string;
     rootPath: string | null;
     files: Record<string, string>;
   } | null>(null);
@@ -484,14 +485,8 @@ export function CompanyImport() {
     }
     const url = importUrl.trim();
     if (!url) return null;
-    if (sourceMode === "github") return { type: "github", url };
-    return { type: "url", url };
+    return { type: "github", url };
   }
-
-  const sourcePrefix = useMemo(
-    () => deriveSourcePrefix(sourceMode, importUrl, localPackage?.rootPath ?? null),
-    [sourceMode, importUrl, localPackage],
-  );
 
   // Preview mutation
   const previewMutation = useMutation({
@@ -513,7 +508,12 @@ export function CompanyImport() {
 
       // Build conflicts and set default name overrides with prefix
       const conflicts = buildConflictList(result);
-      const prefix = deriveSourcePrefix(sourceMode, importUrl, localPackage?.rootPath ?? null);
+      const prefix = deriveSourcePrefix(
+        sourceMode,
+        importUrl,
+        localPackage?.name ?? null,
+        localPackage?.rootPath ?? null,
+      );
       const defaultOverrides: Record<string, string> = {};
 
       for (const c of conflicts) {
@@ -625,7 +625,7 @@ export function CompanyImport() {
     const fileList = e.target.files;
     if (!fileList || fileList.length === 0) return;
     try {
-      const pkg = await readLocalPackageSelection(fileList);
+      const pkg = await readLocalPackageZip(fileList[0]!);
       setLocalPackage(pkg);
       setImportPreview(null);
     } catch (err) {
@@ -764,16 +764,15 @@ export function CompanyImport() {
         <div>
           <h2 className="text-base font-semibold">Import source</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Choose a GitHub repo, direct URL, or local folder to import from.
+            Choose a GitHub repo or upload a local Paperclip zip package.
           </p>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-2">
           {(
             [
               { key: "github", icon: Github, label: "GitHub repo" },
-              { key: "url", icon: Link2, label: "Direct URL" },
-              { key: "local", icon: Upload, label: "Local folder" },
+              { key: "local", icon: Upload, label: "Local zip" },
             ] as const
           ).map(({ key, icon: Icon, label }) => (
             <button
@@ -785,7 +784,10 @@ export function CompanyImport() {
                   ? "border-foreground bg-accent"
                   : "border-border hover:bg-accent/50",
               )}
-              onClick={() => setSourceMode(key)}
+              onClick={() => {
+                setSourceMode(key);
+                setImportPreview(null);
+              }}
             >
               <div className="flex items-center gap-2">
                 <Icon className="h-4 w-4" />
@@ -800,10 +802,8 @@ export function CompanyImport() {
             <input
               ref={packageInputRef}
               type="file"
-              multiple
+              accept=".zip,application/zip"
               className="hidden"
-              // @ts-expect-error webkitdirectory is supported by Chromium-based browsers
-              webkitdirectory=""
               onChange={handleChooseLocalPackage}
             />
             <div className="flex flex-wrap items-center gap-2">
@@ -812,11 +812,11 @@ export function CompanyImport() {
                 variant="outline"
                 onClick={() => packageInputRef.current?.click()}
               >
-                Choose folder
+                Choose zip
               </Button>
               {localPackage && (
                 <span className="text-xs text-muted-foreground">
-                  {localPackage.rootPath ?? "package"} with{" "}
+                  {localPackage.name} with{" "}
                   {Object.keys(localPackage.files).length} file
                   {Object.keys(localPackage.files).length === 1 ? "" : "s"}
                 </span>
@@ -824,28 +824,20 @@ export function CompanyImport() {
             </div>
             {!localPackage && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Select a folder that contains COMPANY.md and any referenced AGENTS.md files.
+                Upload a `.zip` exported from Paperclip that contains COMPANY.md and the related package files.
               </p>
             )}
           </div>
         ) : (
           <Field
-            label={sourceMode === "github" ? "GitHub URL" : "Package URL"}
-            hint={
-              sourceMode === "github"
-                ? "Repo tree path or blob URL to COMPANY.md (e.g. github.com/owner/repo/tree/main/company)."
-                : "Point directly at COMPANY.md or a directory that contains it."
-            }
+            label="GitHub URL"
+            hint="Repo tree path or blob URL to COMPANY.md (e.g. github.com/owner/repo/tree/main/company)."
           >
             <input
               className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
               type="text"
               value={importUrl}
-              placeholder={
-                sourceMode === "github"
-                  ? "https://github.com/owner/repo/tree/main/company"
-                  : "https://example.com/company/COMPANY.md"
-              }
+              placeholder="https://github.com/owner/repo/tree/main/company"
               onChange={(e) => {
                 setImportUrl(e.target.value);
                 setImportPreview(null);
@@ -934,7 +926,7 @@ export function CompanyImport() {
           />
 
           {/* Import button — below renames */}
-          <div className="mx-5 mt-3">
+          <div className="mx-5 mt-3 flex justify-end">
             <Button
               size="sm"
               onClick={() => importMutation.mutate()}

@@ -121,10 +121,6 @@ export type CompanyPortabilitySource =
       files: Record<string, string>;
     }
   | {
-      type: "url";
-      url: string;
-    }
-  | {
       type: "github";
       url: string;
     };

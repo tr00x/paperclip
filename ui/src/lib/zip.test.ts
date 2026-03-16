@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import { createZipArchive } from "./zip";
+import { createZipArchive, readZipArchive } from "./zip";
 
 function readUint16(bytes: Uint8Array, offset: number) {
   return bytes[offset]! | (bytes[offset + 1]! << 8);
@@ -49,5 +49,25 @@ describe("createZipArchive", () => {
     expect(readUint32(archive, endOffset)).toBe(0x06054b50);
     expect(readUint16(archive, endOffset + 8)).toBe(2);
     expect(readUint16(archive, endOffset + 10)).toBe(2);
+  });
+
+  it("reads a Paperclip zip archive back into rootPath and file contents", () => {
+    const archive = createZipArchive(
+      {
+        "COMPANY.md": "# Company\n",
+        "agents/ceo/AGENTS.md": "# CEO\n",
+        ".paperclip.yaml": "schema: paperclip/v1\n",
+      },
+      "paperclip-demo",
+    );
+
+    expect(readZipArchive(archive)).toEqual({
+      rootPath: "paperclip-demo",
+      files: {
+        "COMPANY.md": "# Company\n",
+        "agents/ceo/AGENTS.md": "# CEO\n",
+        ".paperclip.yaml": "schema: paperclip/v1\n",
+      },
+    });
   });
 });

@@ -1380,33 +1380,6 @@ export function companyPortabilityService(db: Db) {
       );
     }
 
-    if (source.type === "url") {
-      const normalizedUrl = source.url.trim();
-      const companyUrl = normalizedUrl.endsWith(".md")
-        ? normalizedUrl
-        : new URL("COMPANY.md", normalizedUrl.endsWith("/") ? normalizedUrl : `${normalizedUrl}/`).toString();
-      const companyMarkdown = await fetchText(companyUrl);
-      const files: Record<string, string> = {
-        "COMPANY.md": companyMarkdown,
-      };
-      const paperclipYaml = await fetchOptionalText(
-        new URL(".paperclip.yaml", companyUrl).toString(),
-      ).catch(() => null);
-      if (paperclipYaml) {
-        files[".paperclip.yaml"] = paperclipYaml;
-      }
-      const companyDoc = parseFrontmatterMarkdown(companyMarkdown);
-      const includeEntries = readIncludeEntries(companyDoc.frontmatter);
-
-      for (const includeEntry of includeEntries) {
-        const includePath = normalizePortablePath(includeEntry.path);
-        if (!includePath.endsWith(".md")) continue;
-        const includeUrl = new URL(includeEntry.path, companyUrl).toString();
-        files[includePath] = await fetchText(includeUrl);
-      }
-      return buildManifestFromPackageFiles(files);
-    }
-
     const parsed = parseGitHubSourceUrl(source.url);
     let ref = parsed.ref;
     const warnings: string[] = [];

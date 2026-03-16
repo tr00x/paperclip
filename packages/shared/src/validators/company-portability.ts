@@ -124,10 +124,6 @@ export const portabilitySourceSchema = z.discriminatedUnion("type", [
     files: z.record(z.string()),
   }),
   z.object({
-    type: z.literal("url"),
-    url: z.string().url(),
-  }),
-  z.object({
     type: z.literal("github"),
     url: z.string().url(),
   }),
