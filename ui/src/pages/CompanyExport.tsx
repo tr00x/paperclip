@@ -501,7 +501,13 @@ const FRONTMATTER_FIELD_LABELS: Record<string, string> = {
   targetDate: "Target date",
 };
 
-function FrontmatterCard({ data }: { data: FrontmatterData }) {
+function FrontmatterCard({
+  data,
+  onSkillClick,
+}: {
+  data: FrontmatterData;
+  onSkillClick?: (skill: string) => void;
+}) {
   return (
     <div className="rounded-md border border-border bg-accent/20 px-4 py-3 mb-4">
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm">
@@ -514,12 +520,17 @@ function FrontmatterCard({ data }: { data: FrontmatterData }) {
               {Array.isArray(value) ? (
                 <div className="flex flex-wrap gap-1.5">
                   {value.map((item) => (
-                    <span
+                    <button
                       key={item}
-                      className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs"
+                      type="button"
+                      className={cn(
+                        "inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-xs",
+                        key === "skills" && onSkillClick && "cursor-pointer hover:bg-accent/50 hover:border-foreground/30 transition-colors",
+                      )}
+                      onClick={() => key === "skills" && onSkillClick?.(item)}
                     >
                       {item}
-                    </span>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -538,9 +549,11 @@ function FrontmatterCard({ data }: { data: FrontmatterData }) {
 function ExportPreviewPane({
   selectedFile,
   content,
+  onSkillClick,
 }: {
   selectedFile: string | null;
   content: string | null;
+  onSkillClick?: (skill: string) => void;
 }) {
   if (!selectedFile || content === null) {
     return (
@@ -559,7 +572,7 @@ function ExportPreviewPane({
       <div className="min-h-[560px] px-5 py-5">
         {parsed ? (
           <>
-            <FrontmatterCard data={parsed.data} />
+            <FrontmatterCard data={parsed.data} onSkillClick={onSkillClick} />
             {parsed.body.trim() && <MarkdownBody>{parsed.body}</MarkdownBody>}
           </>
         ) : isMarkdown ? (
@@ -737,6 +750,21 @@ export function CompanyExport() {
     }
   }
 
+  function handleSkillClick(skillSlug: string) {
+    if (!exportData) return;
+    // Find the SKILL.md file for this skill slug
+    const skillPath = `skills/${skillSlug}/SKILL.md`;
+    if (!(skillPath in exportData.files)) return;
+    // Select the file and expand parent dirs
+    setSelectedFile(skillPath);
+    setExpandedDirs((prev) => {
+      const next = new Set(prev);
+      next.add("skills");
+      next.add(`skills/${skillSlug}`);
+      return next;
+    });
+  }
+
   function handleDownload() {
     if (!exportData) return;
     downloadTar(exportData, checkedFiles);
@@ -841,7 +869,7 @@ export function CompanyExport() {
           </div>
         </aside>
         <div className="min-w-0 overflow-y-auto pl-6">
-          <ExportPreviewPane selectedFile={selectedFile} content={previewContent} />
+          <ExportPreviewPane selectedFile={selectedFile} content={previewContent} onSkillClick={handleSkillClick} />
         </div>
       </div>
     </div>
