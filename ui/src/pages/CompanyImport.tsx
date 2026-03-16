@@ -164,7 +164,9 @@ function ensureMarkdownPath(p: string): string {
 
 const ACTION_COLORS: Record<string, string> = {
   create: "text-emerald-500 border-emerald-500/30",
-  update: "text-blue-500 border-blue-500/30",
+  update: "text-amber-500 border-amber-500/30",
+  overwrite: "text-red-500 border-red-500/30",
+  replace: "text-red-500 border-red-500/30",
   skip: "text-muted-foreground border-border",
   none: "text-muted-foreground border-border",
 };
