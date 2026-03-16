@@ -2274,7 +2274,7 @@ export function companyPortabilityService(db: Db) {
           baseAdapterConfig,
           desiredSkills,
         );
-        delete baseAdapterConfig.instructionsFilePath;
+        delete adapterConfigWithSkills.instructionsFilePath;
         const patch = {
           name: planAgent.plannedName,
           role: manifestAgent.role,

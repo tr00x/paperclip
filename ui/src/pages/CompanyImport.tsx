@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { Field, adapterLabels } from "../components/agent-config-primitives";
 import { defaultCreateValues } from "../components/agent-config-defaults";
-import { getUIAdapter } from "../adapters";
+import { getUIAdapter, listUIAdapters } from "../adapters";
 import { ClaudeLocalAdvancedFields } from "../adapters/claude-local/config-fields";
 import type { CreateConfigValues } from "@paperclipai/adapter-utils";
 import {
@@ -443,12 +443,10 @@ function ConflictResolutionList({
 
 // ── Adapter type options for import ───────────────────────────────────
 
-const IMPORT_ADAPTER_OPTIONS: { value: string; label: string }[] = [
-  { value: "claude_local", label: adapterLabels.claude_local ?? "Claude (local)" },
-  { value: "codex_local", label: adapterLabels.codex_local ?? "Codex (local)" },
-  { value: "opencode_local", label: adapterLabels.opencode_local ?? "OpenCode (local)" },
-  { value: "cursor", label: adapterLabels.cursor ?? "Cursor (local)" },
-];
+const IMPORT_ADAPTER_OPTIONS: { value: string; label: string }[] = listUIAdapters().map((adapter) => ({
+  value: adapter.type,
+  label: adapterLabels[adapter.type] ?? adapter.label,
+}));
 
 // ── Adapter picker for imported agents ───────────────────────────────
 
