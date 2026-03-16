@@ -377,21 +377,21 @@
 }
 
 .paperclip-mdxeditor-content h1 {
-  margin: 0 0 0.9em;
+  margin: 1.4em 0 0.9em;
   font-size: 1.75em;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .paperclip-mdxeditor-content h2 {
-  margin: 0 0 0.85em;
+  margin: 1.3em 0 0.85em;
   font-size: 1.35em;
   font-weight: 700;
   line-height: 1.3;
 }
 
 .paperclip-mdxeditor-content h3 {
-  margin: 0 0 0.8em;
+  margin: 1.2em 0 0.8em;
   font-size: 1.15em;
   font-weight: 600;
   line-height: 1.35;
@@ -585,8 +585,11 @@
   color: var(--muted-foreground);
 }
 
-.paperclip-markdown :where(h1, h2, h3, h4) {
-  margin-top: 1.15rem;
+.paperclip-markdown h1,
+.paperclip-markdown h2,
+.paperclip-markdown h3,
+.paperclip-markdown h4 {
+  margin-top: 1.75rem;
   margin-bottom: 0.45rem;
   color: var(--foreground);
   font-weight: 600;
