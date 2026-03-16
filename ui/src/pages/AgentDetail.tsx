@@ -74,6 +74,7 @@ import {
 } from "@paperclipai/shared";
 import { redactHomePathUserSegments, redactHomePathUserSegmentsInValue } from "@paperclipai/adapter-utils";
 import { agentRouteRef } from "../lib/utils";
+import { applyAgentSkillSnapshot, arraysEqual } from "../lib/agent-skills-state";
 
 const runStatusIcons: Record<string, { icon: typeof CheckCircle2; color: string }> = {
   succeeded: { icon: CheckCircle2, color: "text-green-600 dark:text-green-400" },
@@ -136,12 +137,6 @@ const sourceLabels: Record<string, string> = {
 
 const LIVE_SCROLL_BOTTOM_TOLERANCE_PX = 32;
 type ScrollContainer = Window | HTMLElement;
-
-function arraysEqual(a: string[], b: string[]): boolean {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  return a.every((value, index) => value === b[index]);
-}
 
 function isWindowContainer(container: ScrollContainer): container is Window {
   return container === window;
@@ -1250,6 +1245,8 @@ function AgentSkillsTab({
   const [skillDraft, setSkillDraft] = useState<string[]>([]);
   const [lastSavedSkills, setLastSavedSkills] = useState<string[]>([]);
   const lastSavedSkillsRef = useRef<string[]>([]);
+  const hasHydratedSkillSnapshotRef = useRef(false);
+  const skipNextSkillAutosaveRef = useRef(true);
 
   const { data: skillSnapshot, isLoading } = useQuery({
     queryKey: queryKeys.agents.skills(agent.id),
@@ -1277,16 +1274,36 @@ function AgentSkillsTab({
   });
 
   useEffect(() => {
-    if (!skillSnapshot) return;
-    setSkillDraft((current) =>
-      arraysEqual(current, lastSavedSkillsRef.current) ? skillSnapshot.desiredSkills : current,
-    );
-    lastSavedSkillsRef.current = skillSnapshot.desiredSkills;
-    setLastSavedSkills(skillSnapshot.desiredSkills);
-  }, [skillSnapshot]);
+    setSkillDraft([]);
+    setLastSavedSkills([]);
+    lastSavedSkillsRef.current = [];
+    hasHydratedSkillSnapshotRef.current = false;
+    skipNextSkillAutosaveRef.current = true;
+  }, [agent.id]);
 
   useEffect(() => {
     if (!skillSnapshot) return;
+    const nextState = applyAgentSkillSnapshot(
+      {
+        draft: skillDraft,
+        lastSaved: lastSavedSkillsRef.current,
+        hasHydratedSnapshot: hasHydratedSkillSnapshotRef.current,
+      },
+      skillSnapshot.desiredSkills,
+    );
+    skipNextSkillAutosaveRef.current = nextState.shouldSkipAutosave;
+    hasHydratedSkillSnapshotRef.current = nextState.hasHydratedSnapshot;
+    setSkillDraft(nextState.draft);
+    lastSavedSkillsRef.current = nextState.lastSaved;
+    setLastSavedSkills(nextState.lastSaved);
+  }, [skillDraft, skillSnapshot]);
+
+  useEffect(() => {
+    if (!skillSnapshot) return;
+    if (skipNextSkillAutosaveRef.current) {
+      skipNextSkillAutosaveRef.current = false;
+      return;
+    }
     if (syncSkills.isPending) return;
     if (arraysEqual(skillDraft, lastSavedSkillsRef.current)) return;
 
@@ -1409,7 +1426,7 @@ function AgentSkillsTab({
             const renderSkillRow = (skill: SkillRow) => {
               const adapterEntry = skill.adapterEntry ?? adapterEntryByName.get(skill.slug);
               const required = Boolean(adapterEntry?.required);
-              const checked = required || Boolean(adapterEntry?.desired) || skillDraft.includes(skill.slug);
+              const checked = required || skillDraft.includes(skill.slug);
               const disabled = required || skillSnapshot?.mode === "unsupported";
               const checkbox = (
                 <input
