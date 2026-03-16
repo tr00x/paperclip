@@ -251,6 +251,23 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
           try {
             const src = await handler(file);
             setUploadError(null);
+            // After MDXEditor inserts the image, ensure two newlines follow it
+            // so the cursor isn't stuck right next to the image.
+            setTimeout(() => {
+              const current = latestValueRef.current;
+              const updated = current.replace(
+                /!\[([^\]]*)\]\(([^)]+)\)(?!\n\n)/g,
+                "![$1]($2)\n\n",
+              );
+              if (updated !== current) {
+                latestValueRef.current = updated;
+                ref.current?.setMarkdown(updated);
+                onChange(updated);
+                requestAnimationFrame(() => {
+                  ref.current?.focus(undefined, { defaultSelection: "rootEnd" });
+                });
+              }
+            }, 100);
             return src;
           } catch (err) {
             const message = err instanceof Error ? err.message : "Image upload failed";
