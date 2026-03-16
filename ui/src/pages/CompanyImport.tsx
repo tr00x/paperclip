@@ -905,7 +905,7 @@ export function CompanyImport() {
 
           {/* Warnings */}
           {importPreview.warnings.length > 0 && (
-            <div className="border-b border-amber-500/20 bg-amber-500/5 px-5 py-2">
+            <div className="mx-5 mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 px-4 py-3">
               {importPreview.warnings.map((w) => (
                 <div key={w} className="text-xs text-amber-500">{w}</div>
               ))}
@@ -914,7 +914,7 @@ export function CompanyImport() {
 
           {/* Errors */}
           {importPreview.errors.length > 0 && (
-            <div className="border-b border-destructive/40 bg-destructive/5 px-5 py-2">
+            <div className="mx-5 mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3">
               {importPreview.errors.map((e) => (
                 <div key={e} className="text-xs text-destructive">{e}</div>
               ))}
