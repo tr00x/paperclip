@@ -540,7 +540,15 @@ function SkillPane({
       <div className="border-b border-border px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold">{detail.name}</h1>
+            {detail.key.includes("/") && (
+              <div className="truncate font-mono text-xs text-muted-foreground">
+                {detail.key.split("/").slice(0, -1).join("/")}
+              </div>
+            )}
+            <h1 className="flex items-center gap-2 truncate text-2xl font-semibold">
+              <SourceIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
+              {detail.name}
+            </h1>
             {detail.description && (
               <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{detail.description}</p>
             )}
