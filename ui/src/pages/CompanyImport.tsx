@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
-  CompanyPortabilityCollisionStrategy,
   CompanyPortabilityPreviewResult,
   CompanyPortabilitySource,
 } from "@paperclipai/shared";
@@ -15,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "../components/EmptyState";
 import { cn } from "../lib/utils";
 import {
+  ArrowRight,
   Download,
   Github,
   Link2,
@@ -202,6 +202,181 @@ function ImportPreviewPane({
   );
 }
 
+// ── Conflict item type ───────────────────────────────────────────────
+
+interface ConflictItem {
+  slug: string;
+  kind: "agent" | "project" | "issue" | "company" | "skill";
+  originalName: string;
+  plannedName: string;
+  filePath: string | null;
+  action: "rename" | "update";
+}
+
+function buildConflictList(
+  preview: CompanyPortabilityPreviewResult,
+  targetMode: "existing" | "new",
+): ConflictItem[] {
+  const conflicts: ConflictItem[] = [];
+  const manifest = preview.manifest;
+
+  // COMPANY.md when importing to existing company
+  if (targetMode === "existing" && manifest.company && preview.plan.companyAction === "update") {
+    conflicts.push({
+      slug: "__company__",
+      kind: "company",
+      originalName: manifest.company.name,
+      plannedName: manifest.company.name,
+      filePath: ensureMarkdownPath(manifest.company.path),
+      action: "update",
+    });
+  }
+
+  // Agents with collisions
+  for (const ap of preview.plan.agentPlans) {
+    if (ap.existingAgentId) {
+      const agent = manifest.agents.find((a) => a.slug === ap.slug);
+      conflicts.push({
+        slug: ap.slug,
+        kind: "agent",
+        originalName: agent?.name ?? ap.slug,
+        plannedName: ap.plannedName,
+        filePath: agent ? ensureMarkdownPath(agent.path) : null,
+        action: ap.action === "update" ? "update" : "rename",
+      });
+    }
+  }
+
+  // Projects with collisions
+  for (const pp of preview.plan.projectPlans) {
+    if (pp.existingProjectId) {
+      const project = manifest.projects.find((p) => p.slug === pp.slug);
+      conflicts.push({
+        slug: pp.slug,
+        kind: "project",
+        originalName: project?.name ?? pp.slug,
+        plannedName: pp.plannedName,
+        filePath: project ? ensureMarkdownPath(project.path) : null,
+        action: pp.action === "update" ? "update" : "rename",
+      });
+    }
+  }
+
+  return conflicts;
+}
+
+/** Extract a prefix from the import source URL or local folder name */
+function deriveSourcePrefix(sourceMode: string, importUrl: string, localRootPath: string | null): string | null {
+  if (sourceMode === "local" && localRootPath) {
+    return localRootPath.split("/").pop() ?? null;
+  }
+  if (sourceMode === "github" || sourceMode === "url") {
+    const url = importUrl.trim();
+    if (!url) return null;
+    try {
+      const pathname = new URL(url.startsWith("http") ? url : `https://${url}`).pathname;
+      // For github URLs like /owner/repo/tree/branch/path - take last segment
+      const segments = pathname.split("/").filter(Boolean);
+      return segments.length > 0 ? segments[segments.length - 1] : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Generate a prefix-based rename: e.g. "gstack" + "CEO" → "gstack-CEO" */
+function prefixedName(prefix: string | null, originalName: string): string {
+  if (!prefix) return originalName;
+  return `${prefix}-${originalName}`;
+}
+
+// ── Conflict resolution UI ───────────────────────────────────────────
+
+function ConflictResolutionList({
+  conflicts,
+  nameOverrides,
+  skippedSlugs,
+  onRename,
+  onToggleSkip,
+}: {
+  conflicts: ConflictItem[];
+  nameOverrides: Record<string, string>;
+  skippedSlugs: Set<string>;
+  onRename: (slug: string, newName: string) => void;
+  onToggleSkip: (slug: string, filePath: string | null) => void;
+}) {
+  if (conflicts.length === 0) return null;
+
+  return (
+    <div className="mx-5 mt-3">
+      <div className="rounded-md border border-amber-500/30 bg-amber-500/5">
+        <div className="flex items-center gap-2 border-b border-amber-500/20 px-4 py-2.5">
+          <h3 className="text-sm font-medium text-amber-500">
+            Conflicts to resolve
+          </h3>
+          <span className="text-xs text-amber-500/70">
+            {conflicts.length} item{conflicts.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="divide-y divide-amber-500/10">
+          {conflicts.map((item) => {
+            const isSkipped = skippedSlugs.has(item.slug);
+            const currentName = nameOverrides[item.slug] ?? item.plannedName;
+            const kindLabel = item.kind === "company" ? "COMPANY.md" : item.kind;
+            return (
+              <div
+                key={item.slug}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-2.5 text-sm",
+                  isSkipped && "opacity-50",
+                )}
+              >
+                <span className={cn(
+                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                  isSkipped
+                    ? "text-muted-foreground border-border"
+                    : "text-amber-500 border-amber-500/30",
+                )}>
+                  {kindLabel}
+                </span>
+
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                  {item.originalName}
+                </span>
+
+                {item.kind !== "company" && !isSkipped && (
+                  <>
+                    <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    <input
+                      className="min-w-0 flex-1 rounded-md border border-border bg-transparent px-2 py-1 font-mono text-xs outline-none focus:border-foreground"
+                      value={currentName}
+                      onChange={(e) => onRename(item.slug, e.target.value)}
+                    />
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  className={cn(
+                    "ml-auto shrink-0 rounded-md border px-2.5 py-1 text-xs transition-colors",
+                    isSkipped
+                      ? "border-foreground bg-accent text-foreground"
+                      : "border-border text-muted-foreground hover:bg-accent/50",
+                  )}
+                  onClick={() => onToggleSkip(item.slug, item.filePath)}
+                >
+                  {isSkipped ? "skipping" : "skip"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────
 
 async function readLocalPackageSelection(fileList: FileList): Promise<{
@@ -253,8 +428,6 @@ export function CompanyImport() {
 
   // Target state
   const [targetMode, setTargetMode] = useState<"existing" | "new">("existing");
-  const [collisionStrategy, setCollisionStrategy] =
-    useState<CompanyPortabilityCollisionStrategy>("rename");
   const [newCompanyName, setNewCompanyName] = useState("");
 
   // Preview state
@@ -263,6 +436,10 @@ export function CompanyImport() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
+
+  // Conflict resolution state
+  const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
+  const [skippedSlugs, setSkippedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setBreadcrumbs([
@@ -282,6 +459,11 @@ export function CompanyImport() {
     return { type: "url", url };
   }
 
+  const sourcePrefix = useMemo(
+    () => deriveSourcePrefix(sourceMode, importUrl, localPackage?.rootPath ?? null),
+    [sourceMode, importUrl, localPackage],
+  );
+
   // Preview mutation
   const previewMutation = useMutation({
     mutationFn: () => {
@@ -294,14 +476,39 @@ export function CompanyImport() {
           targetMode === "new"
             ? { mode: "new_company", newCompanyName: newCompanyName || null }
             : { mode: "existing_company", companyId: selectedCompanyId! },
-        collisionStrategy,
+        collisionStrategy: "rename",
       });
     },
     onSuccess: (result) => {
       setImportPreview(result);
-      // Check all files by default
+
+      // Build conflicts and set default name overrides with prefix
+      const conflicts = buildConflictList(result, targetMode);
+      const prefix = deriveSourcePrefix(sourceMode, importUrl, localPackage?.rootPath ?? null);
+      const defaultOverrides: Record<string, string> = {};
+      const defaultSkipped = new Set<string>();
+
+      for (const c of conflicts) {
+        if (c.kind === "company") {
+          // COMPANY.md defaults to skip when importing to existing company
+          defaultSkipped.add(c.slug);
+        } else if (c.action === "rename" && prefix) {
+          // Use prefix-based default rename
+          defaultOverrides[c.slug] = prefixedName(prefix, c.originalName);
+        }
+      }
+      setNameOverrides(defaultOverrides);
+      setSkippedSlugs(defaultSkipped);
+
+      // Check all files by default, then uncheck skipped conflict files
       const allFiles = new Set(Object.keys(result.files));
+      for (const c of conflicts) {
+        if (defaultSkipped.has(c.slug) && c.filePath && allFiles.has(c.filePath)) {
+          allFiles.delete(c.filePath);
+        }
+      }
       setCheckedFiles(allFiles);
+
       // Expand top-level dirs + all ancestor dirs of files with conflicts (update action)
       const am = buildActionMap(result);
       const tree = buildFileTree(result.files, am);
@@ -334,6 +541,18 @@ export function CompanyImport() {
     },
   });
 
+  // Build the final nameOverrides to send (only overrides that differ from plannedName)
+  function buildFinalNameOverrides(): Record<string, string> | undefined {
+    if (!importPreview) return undefined;
+    const overrides: Record<string, string> = {};
+    for (const [slug, name] of Object.entries(nameOverrides)) {
+      if (name.trim()) {
+        overrides[slug] = name.trim();
+      }
+    }
+    return Object.keys(overrides).length > 0 ? overrides : undefined;
+  }
+
   // Apply mutation
   const importMutation = useMutation({
     mutationFn: () => {
@@ -346,7 +565,8 @@ export function CompanyImport() {
           targetMode === "new"
             ? { mode: "new_company", newCompanyName: newCompanyName || null }
             : { mode: "existing_company", companyId: selectedCompanyId! },
-        collisionStrategy,
+        collisionStrategy: "rename",
+        nameOverrides: buildFinalNameOverrides(),
       });
     },
     onSuccess: async (result) => {
@@ -363,6 +583,8 @@ export function CompanyImport() {
       setImportPreview(null);
       setLocalPackage(null);
       setImportUrl("");
+      setNameOverrides({});
+      setSkippedSlugs(new Set());
     },
     onError: (err) => {
       pushToast({
@@ -397,6 +619,11 @@ export function CompanyImport() {
   const tree = useMemo(
     () => (importPreview ? buildFileTree(importPreview.files, actionMap) : []),
     [importPreview, actionMap],
+  );
+
+  const conflicts = useMemo(
+    () => (importPreview ? buildConflictList(importPreview, targetMode) : []),
+    [importPreview, targetMode],
   );
 
   const totalFiles = useMemo(() => countFiles(tree), [tree]);
@@ -440,6 +667,37 @@ export function CompanyImport() {
           }
         }
       }
+      return next;
+    });
+  }
+
+  function handleConflictRename(slug: string, newName: string) {
+    setNameOverrides((prev) => ({ ...prev, [slug]: newName }));
+  }
+
+  function handleConflictToggleSkip(slug: string, filePath: string | null) {
+    setSkippedSlugs((prev) => {
+      const next = new Set(prev);
+      const wasSkipped = next.has(slug);
+      if (wasSkipped) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
+
+      // Sync with file tree checkboxes
+      if (filePath) {
+        setCheckedFiles((prevChecked) => {
+          const nextChecked = new Set(prevChecked);
+          if (wasSkipped) {
+            nextChecked.add(filePath);
+          } else {
+            nextChecked.delete(filePath);
+          }
+          return nextChecked;
+        });
+      }
+
       return next;
     });
   }
@@ -554,42 +812,21 @@ export function CompanyImport() {
           </Field>
         )}
 
-        <div className={cn("grid gap-3", targetMode === "existing" ? "md:grid-cols-2" : "md:grid-cols-1")}>
-          <Field label="Target" hint="Import into this company or create a new one.">
-            <select
-              className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              value={targetMode}
-              onChange={(e) => {
-                setTargetMode(e.target.value as "existing" | "new");
-                setImportPreview(null);
-              }}
-            >
-              <option value="existing">
-                Existing company: {selectedCompany?.name}
-              </option>
-              <option value="new">Create new company</option>
-            </select>
-          </Field>
-          {targetMode === "existing" && (
-            <Field
-              label="Default collision strategy"
-              hint="Controls what happens when imported slugs already exist."
-            >
-              <select
-                className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
-                value={collisionStrategy}
-                onChange={(e) => {
-                  setCollisionStrategy(e.target.value as CompanyPortabilityCollisionStrategy);
-                  setImportPreview(null);
-                }}
-              >
-                <option value="rename">Rename imported agents</option>
-                <option value="skip">Skip existing agents</option>
-                <option value="replace">Replace existing agents</option>
-              </select>
-            </Field>
-          )}
-        </div>
+        <Field label="Target" hint="Import into this company or create a new one.">
+          <select
+            className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
+            value={targetMode}
+            onChange={(e) => {
+              setTargetMode(e.target.value as "existing" | "new");
+              setImportPreview(null);
+            }}
+          >
+            <option value="existing">
+              Existing company: {selectedCompany?.name}
+            </option>
+            <option value="new">Create new company</option>
+          </select>
+        </Field>
 
         {targetMode === "new" && (
           <Field
@@ -631,9 +868,9 @@ export function CompanyImport() {
                 <span className="text-muted-foreground">
                   {selectedCount} / {totalFiles} file{totalFiles === 1 ? "" : "s"} selected
                 </span>
-                {importPreview.warnings.length > 0 && (
+                {conflicts.length > 0 && (
                   <span className="text-amber-500">
-                    {importPreview.warnings.length} warning{importPreview.warnings.length === 1 ? "" : "s"}
+                    {conflicts.length} conflict{conflicts.length === 1 ? "" : "s"}
                   </span>
                 )}
                 {importPreview.errors.length > 0 && (
@@ -654,6 +891,15 @@ export function CompanyImport() {
               </Button>
             </div>
           </div>
+
+          {/* Conflict resolution list */}
+          <ConflictResolutionList
+            conflicts={conflicts}
+            nameOverrides={nameOverrides}
+            skippedSlugs={skippedSlugs}
+            onRename={handleConflictRename}
+            onToggleSkip={handleConflictToggleSkip}
+          />
 
           {/* Warnings */}
           {importPreview.warnings.length > 0 && (

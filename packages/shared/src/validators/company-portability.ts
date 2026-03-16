@@ -167,6 +167,7 @@ export const companyPortabilityPreviewSchema = z.object({
   target: portabilityTargetSchema,
   agents: portabilityAgentSelectionSchema.optional(),
   collisionStrategy: portabilityCollisionStrategySchema.optional(),
+  nameOverrides: z.record(z.string().min(1), z.string().min(1)).optional(),
 });
 
 export type CompanyPortabilityPreview = z.infer<typeof companyPortabilityPreviewSchema>;

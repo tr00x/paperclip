@@ -2036,6 +2036,28 @@ export function companyPortabilityService(db: Db) {
       }
     }
 
+    // Apply user-specified name overrides (keyed by slug)
+    if (input.nameOverrides) {
+      for (const ap of agentPlans) {
+        const override = input.nameOverrides[ap.slug];
+        if (override) {
+          ap.plannedName = override;
+        }
+      }
+      for (const pp of projectPlans) {
+        const override = input.nameOverrides[pp.slug];
+        if (override) {
+          pp.plannedName = override;
+        }
+      }
+      for (const ip of issuePlans) {
+        const override = input.nameOverrides[ip.slug];
+        if (override) {
+          ip.plannedTitle = override;
+        }
+      }
+    }
+
     // Warn about agents that will be overwritten/updated
     for (const ap of agentPlans) {
       if (ap.action === "update") {

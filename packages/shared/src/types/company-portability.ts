@@ -149,6 +149,7 @@ export interface CompanyPortabilityPreviewRequest {
   target: CompanyPortabilityImportTarget;
   agents?: CompanyPortabilityAgentSelection;
   collisionStrategy?: CompanyPortabilityCollisionStrategy;
+  nameOverrides?: Record<string, string>;
 }
 
 export interface CompanyPortabilityPreviewAgentPlan {
