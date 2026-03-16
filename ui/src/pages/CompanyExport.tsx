@@ -18,7 +18,6 @@ import {
   FileText,
   Folder,
   FolderOpen,
-  Info,
   Package,
   Search,
 } from "lucide-react";
@@ -596,19 +595,10 @@ export function CompanyExport() {
   const totalFiles = useMemo(() => countFiles(tree), [tree]);
   const selectedCount = checkedFiles.size;
 
-  // Separate info notes (terminated agents) from real warnings
-  const { notes, warnings } = useMemo(() => {
-    if (!exportData) return { notes: [] as string[], warnings: [] as string[] };
-    const notes: string[] = [];
-    const warnings: string[] = [];
-    for (const w of exportData.warnings) {
-      if (/terminated agent/i.test(w)) {
-        notes.push(w);
-      } else {
-        warnings.push(w);
-      }
-    }
-    return { notes, warnings };
+  // Filter out terminated agent messages — they don't need to be shown
+  const warnings = useMemo(() => {
+    if (!exportData) return [] as string[];
+    return exportData.warnings.filter((w) => !/terminated agent/i.test(w));
   }, [exportData]);
 
   function handleToggleDir(path: string) {
@@ -725,12 +715,6 @@ export function CompanyExport() {
                 {warnings.length} warning{warnings.length === 1 ? "" : "s"}
               </span>
             )}
-            {notes.length > 0 && (
-              <span className="text-muted-foreground flex items-center gap-1">
-                <Info className="h-3 w-3" />
-                {notes.length} note{notes.length === 1 ? "" : "s"}
-              </span>
-            )}
           </div>
           <Button
             size="sm"
@@ -743,21 +727,9 @@ export function CompanyExport() {
         </div>
       </div>
 
-      {/* Notes (informational, e.g. terminated agents) */}
-      {notes.length > 0 && (
-        <div className="border-b border-border px-5 py-2 flex items-start gap-2">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-          <div>
-            {notes.map((n) => (
-              <div key={n} className="text-xs text-muted-foreground">{n}</div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Warnings */}
       {warnings.length > 0 && (
-        <div className="border-b border-amber-500/20 bg-amber-500/5 px-5 py-2">
+        <div className="mx-5 mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 px-4 py-3">
           {warnings.map((w) => (
             <div key={w} className="text-xs text-amber-500">{w}</div>
           ))}
