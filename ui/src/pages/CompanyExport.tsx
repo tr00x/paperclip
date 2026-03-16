@@ -106,6 +106,117 @@ function isTaskPath(filePath: string): boolean {
   return /(?:^|\/)tasks\//.test(filePath);
 }
 
+/**
+ * Extract the set of agent/project/task slugs that are "checked" based on
+ * which file paths are in the checked set.
+ *   agents/{slug}/AGENT.md   → agents slug
+ *   projects/{slug}/PROJECT.md → projects slug
+ *   tasks/{slug}/TASK.md     → tasks slug
+ */
+function checkedSlugs(checkedFiles: Set<string>): {
+  agents: Set<string>;
+  projects: Set<string>;
+  tasks: Set<string>;
+} {
+  const agents = new Set<string>();
+  const projects = new Set<string>();
+  const tasks = new Set<string>();
+  for (const p of checkedFiles) {
+    const agentMatch = p.match(/^agents\/([^/]+)\//);
+    if (agentMatch) agents.add(agentMatch[1]);
+    const projectMatch = p.match(/^projects\/([^/]+)\//);
+    if (projectMatch) projects.add(projectMatch[1]);
+    const taskMatch = p.match(/^tasks\/([^/]+)\//);
+    if (taskMatch) tasks.add(taskMatch[1]);
+  }
+  return { agents, projects, tasks };
+}
+
+/**
+ * Filter .paperclip.yaml content so it only includes entries whose
+ * corresponding files are checked. Works by line-level YAML parsing
+ * since the file has a known, simple structure produced by our own
+ * renderYamlBlock.
+ */
+function filterPaperclipYaml(yaml: string, checkedFiles: Set<string>): string {
+  const slugs = checkedSlugs(checkedFiles);
+  const lines = yaml.split("\n");
+  const out: string[] = [];
+
+  // Sections whose entries are slug-keyed and should be filtered
+  const filterableSections = new Set(["agents", "projects", "tasks"]);
+
+  let currentSection: string | null = null; // top-level key (e.g. "agents")
+  let currentEntry: string | null = null;   // slug under that section
+  let includeEntry = true;
+  // Collect entries per section so we can omit empty section headers
+  let sectionHeaderLine: string | null = null;
+  let sectionBuffer: string[] = [];
+
+  function flushSection() {
+    if (sectionHeaderLine !== null && sectionBuffer.length > 0) {
+      out.push(sectionHeaderLine);
+      out.push(...sectionBuffer);
+    }
+    sectionHeaderLine = null;
+    sectionBuffer = [];
+  }
+
+  for (const line of lines) {
+    // Detect top-level key (no indentation)
+    const topMatch = line.match(/^([a-zA-Z_][\w-]*):\s*(.*)$/);
+    if (topMatch && !line.startsWith(" ")) {
+      // Flush previous section
+      flushSection();
+      currentEntry = null;
+      includeEntry = true;
+
+      const key = topMatch[0].split(":")[0];
+      if (filterableSections.has(key)) {
+        currentSection = key;
+        sectionHeaderLine = line;
+        continue;
+      } else {
+        currentSection = null;
+        out.push(line);
+        continue;
+      }
+    }
+
+    // Inside a filterable section
+    if (currentSection && filterableSections.has(currentSection)) {
+      // 2-space indented key = entry slug (slugs may start with digits/hyphens)
+      const entryMatch = line.match(/^  ([\w][\w-]*):\s*(.*)$/);
+      if (entryMatch && !line.startsWith("    ")) {
+        const slug = entryMatch[1];
+        currentEntry = slug;
+        const sectionSlugs = slugs[currentSection as keyof typeof slugs];
+        includeEntry = sectionSlugs.has(slug);
+        if (includeEntry) sectionBuffer.push(line);
+        continue;
+      }
+
+      // Deeper indented line belongs to current entry
+      if (currentEntry !== null) {
+        if (includeEntry) sectionBuffer.push(line);
+        continue;
+      }
+
+      // Shouldn't happen in well-formed output, but pass through
+      sectionBuffer.push(line);
+      continue;
+    }
+
+    // Outside filterable sections — pass through
+    out.push(line);
+  }
+
+  // Flush last section
+  flushSection();
+
+  return out.join("\n");
+}
+
 /** Filter tree nodes whose path (or descendant paths) match a search string */
 function filterTree(nodes: FileTreeNode[], query: string): FileTreeNode[] {
   if (!query) return nodes;
@@ -277,10 +388,14 @@ function writeTarChecksum(target: Uint8Array, checksum: number) {
   target[155] = 32;
 }
 
-function downloadTar(exported: CompanyPortabilityExportResult, selectedFiles: Set<string>) {
+function downloadTar(
+  exported: CompanyPortabilityExportResult,
+  selectedFiles: Set<string>,
+  effectiveFiles: Record<string, string>,
+) {
   const filteredFiles: Record<string, string> = {};
-  for (const [path, content] of Object.entries(exported.files)) {
-    if (selectedFiles.has(path)) filteredFiles[path] = content;
+  for (const [path] of Object.entries(exported.files)) {
+    if (selectedFiles.has(path)) filteredFiles[path] = effectiveFiles[path] ?? exported.files[path];
   }
   const tarBytes = createTarArchive(filteredFiles, exported.rootPath);
   const tarBuffer = new ArrayBuffer(tarBytes.byteLength);
@@ -668,6 +783,17 @@ export function CompanyExport() {
     };
   }, [tree, treeSearch, checkedFiles, taskLimit]);
 
+  // Recompute .paperclip.yaml content whenever checked files change so
+  // the preview & download always reflect the current selection.
+  const effectiveFiles = useMemo(() => {
+    if (!exportData) return {} as Record<string, string>;
+    const yamlPath = exportData.paperclipExtensionPath;
+    if (!yamlPath || !exportData.files[yamlPath]) return exportData.files;
+    const filtered = { ...exportData.files };
+    filtered[yamlPath] = filterPaperclipYaml(exportData.files[yamlPath], checkedFiles);
+    return filtered;
+  }, [exportData, checkedFiles]);
+
   const totalFiles = useMemo(() => countFiles(tree), [tree]);
   const selectedCount = checkedFiles.size;
 
@@ -767,7 +893,7 @@ export function CompanyExport() {
 
   function handleDownload() {
     if (!exportData) return;
-    downloadTar(exportData, checkedFiles);
+    downloadTar(exportData, checkedFiles, effectiveFiles);
     pushToast({
       tone: "success",
       title: "Export downloaded",
@@ -787,7 +913,7 @@ export function CompanyExport() {
     return <EmptyState icon={Package} message="Loading export data..." />;
   }
 
-  const previewContent = selectedFile ? (exportData.files[selectedFile] ?? null) : null;
+  const previewContent = selectedFile ? (effectiveFiles[selectedFile] ?? null) : null;
 
   return (
     <div>
