@@ -15,6 +15,7 @@ import { EmptyState } from "../components/EmptyState";
 import { cn } from "../lib/utils";
 import {
   ArrowRight,
+  Check,
   Download,
   Github,
   Link2,
@@ -206,7 +207,7 @@ function ImportPreviewPane({
 
 interface ConflictItem {
   slug: string;
-  kind: "agent" | "project" | "issue" | "company" | "skill";
+  kind: "agent" | "project" | "issue" | "skill";
   originalName: string;
   plannedName: string;
   filePath: string | null;
@@ -215,22 +216,9 @@ interface ConflictItem {
 
 function buildConflictList(
   preview: CompanyPortabilityPreviewResult,
-  targetMode: "existing" | "new",
 ): ConflictItem[] {
   const conflicts: ConflictItem[] = [];
   const manifest = preview.manifest;
-
-  // COMPANY.md when importing to existing company
-  if (targetMode === "existing" && manifest.company && preview.plan.companyAction === "update") {
-    conflicts.push({
-      slug: "__company__",
-      kind: "company",
-      originalName: manifest.company.name,
-      plannedName: manifest.company.name,
-      filePath: ensureMarkdownPath(manifest.company.path),
-      action: "update",
-    });
-  }
 
   // Agents with collisions
   for (const ap of preview.plan.agentPlans) {
@@ -297,77 +285,117 @@ function ConflictResolutionList({
   conflicts,
   nameOverrides,
   skippedSlugs,
+  confirmedSlugs,
   onRename,
   onToggleSkip,
+  onToggleConfirm,
 }: {
   conflicts: ConflictItem[];
   nameOverrides: Record<string, string>;
   skippedSlugs: Set<string>;
+  confirmedSlugs: Set<string>;
   onRename: (slug: string, newName: string) => void;
   onToggleSkip: (slug: string, filePath: string | null) => void;
+  onToggleConfirm: (slug: string) => void;
 }) {
   if (conflicts.length === 0) return null;
 
   return (
     <div className="mx-5 mt-3">
-      <div className="rounded-md border border-amber-500/30 bg-amber-500/5">
-        <div className="flex items-center gap-2 border-b border-amber-500/20 px-4 py-2.5">
-          <h3 className="text-sm font-medium text-amber-500">
-            Conflicts to resolve
+      <div className="rounded-md border border-border">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+          <h3 className="text-sm font-medium">
+            Renames
           </h3>
-          <span className="text-xs text-amber-500/70">
+          <span className="text-xs text-muted-foreground">
             {conflicts.length} item{conflicts.length === 1 ? "" : "s"}
           </span>
         </div>
-        <div className="divide-y divide-amber-500/10">
+        <div className="divide-y divide-border">
           {conflicts.map((item) => {
             const isSkipped = skippedSlugs.has(item.slug);
+            const isConfirmed = confirmedSlugs.has(item.slug);
             const currentName = nameOverrides[item.slug] ?? item.plannedName;
-            const kindLabel = item.kind === "company" ? "COMPANY.md" : item.kind;
             return (
               <div
                 key={item.slug}
                 className={cn(
                   "flex items-center gap-3 px-4 py-2.5 text-sm",
-                  isSkipped && "opacity-50",
+                  isSkipped && "opacity-40",
+                  isConfirmed && !isSkipped && "bg-emerald-500/5",
                 )}
               >
-                <span className={cn(
-                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide",
-                  isSkipped
-                    ? "text-muted-foreground border-border"
-                    : "text-amber-500 border-amber-500/30",
-                )}>
-                  {kindLabel}
-                </span>
-
-                <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                  {item.originalName}
-                </span>
-
-                {item.kind !== "company" && !isSkipped && (
-                  <>
-                    <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    <input
-                      className="min-w-0 flex-1 rounded-md border border-border bg-transparent px-2 py-1 font-mono text-xs outline-none focus:border-foreground"
-                      value={currentName}
-                      onChange={(e) => onRename(item.slug, e.target.value)}
-                    />
-                  </>
-                )}
-
+                {/* Skip button on the left */}
                 <button
                   type="button"
                   className={cn(
-                    "ml-auto shrink-0 rounded-md border px-2.5 py-1 text-xs transition-colors",
+                    "shrink-0 rounded-md border px-2.5 py-1 text-xs transition-colors",
                     isSkipped
                       ? "border-foreground bg-accent text-foreground"
                       : "border-border text-muted-foreground hover:bg-accent/50",
                   )}
                   onClick={() => onToggleSkip(item.slug, item.filePath)}
                 >
-                  {isSkipped ? "skipping" : "skip"}
+                  {isSkipped ? "skipped" : "skip"}
                 </button>
+
+                <span className={cn(
+                  "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                  isSkipped
+                    ? "text-muted-foreground border-border"
+                    : isConfirmed
+                      ? "text-emerald-500 border-emerald-500/30"
+                      : "text-amber-500 border-amber-500/30",
+                )}>
+                  {item.kind}
+                </span>
+
+                <span className={cn(
+                  "shrink-0 font-mono text-xs",
+                  isSkipped ? "text-muted-foreground line-through" : "text-muted-foreground",
+                )}>
+                  {item.originalName}
+                </span>
+
+                {!isSkipped && (
+                  <>
+                    <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    {isConfirmed ? (
+                      <span className="min-w-0 flex-1 font-mono text-xs text-emerald-500">
+                        {currentName}
+                      </span>
+                    ) : (
+                      <input
+                        className="min-w-0 flex-1 rounded-md border border-border bg-transparent px-2 py-1 font-mono text-xs outline-none focus:border-foreground"
+                        value={currentName}
+                        onChange={(e) => onRename(item.slug, e.target.value)}
+                      />
+                    )}
+                  </>
+                )}
+
+                {/* Confirm rename button on the right */}
+                {!isSkipped && (
+                  <button
+                    type="button"
+                    className={cn(
+                      "ml-auto shrink-0 rounded-md border px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1.5",
+                      isConfirmed
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                        : "border-border text-muted-foreground hover:bg-accent/50",
+                    )}
+                    onClick={() => onToggleConfirm(item.slug)}
+                  >
+                    {isConfirmed ? (
+                      <>
+                        <Check className="h-3 w-3" />
+                        confirmed
+                      </>
+                    ) : (
+                      "confirm rename"
+                    )}
+                  </button>
+                )}
               </div>
             );
           })}
@@ -440,6 +468,7 @@ export function CompanyImport() {
   // Conflict resolution state
   const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
   const [skippedSlugs, setSkippedSlugs] = useState<Set<string>>(new Set());
+  const [confirmedSlugs, setConfirmedSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setBreadcrumbs([
@@ -483,29 +512,25 @@ export function CompanyImport() {
       setImportPreview(result);
 
       // Build conflicts and set default name overrides with prefix
-      const conflicts = buildConflictList(result, targetMode);
+      const conflicts = buildConflictList(result);
       const prefix = deriveSourcePrefix(sourceMode, importUrl, localPackage?.rootPath ?? null);
       const defaultOverrides: Record<string, string> = {};
-      const defaultSkipped = new Set<string>();
 
       for (const c of conflicts) {
-        if (c.kind === "company") {
-          // COMPANY.md defaults to skip when importing to existing company
-          defaultSkipped.add(c.slug);
-        } else if (c.action === "rename" && prefix) {
+        if (c.action === "rename" && prefix) {
           // Use prefix-based default rename
           defaultOverrides[c.slug] = prefixedName(prefix, c.originalName);
         }
       }
       setNameOverrides(defaultOverrides);
-      setSkippedSlugs(defaultSkipped);
+      setSkippedSlugs(new Set());
+      setConfirmedSlugs(new Set());
 
-      // Check all files by default, then uncheck skipped conflict files
+      // Check all files by default, then uncheck COMPANY.md for existing company
       const allFiles = new Set(Object.keys(result.files));
-      for (const c of conflicts) {
-        if (defaultSkipped.has(c.slug) && c.filePath && allFiles.has(c.filePath)) {
-          allFiles.delete(c.filePath);
-        }
+      if (targetMode === "existing" && result.manifest.company && result.plan.companyAction === "update") {
+        const companyPath = ensureMarkdownPath(result.manifest.company.path);
+        allFiles.delete(companyPath);
       }
       setCheckedFiles(allFiles);
 
@@ -585,6 +610,7 @@ export function CompanyImport() {
       setImportUrl("");
       setNameOverrides({});
       setSkippedSlugs(new Set());
+      setConfirmedSlugs(new Set());
     },
     onError: (err) => {
       pushToast({
@@ -622,8 +648,8 @@ export function CompanyImport() {
   );
 
   const conflicts = useMemo(
-    () => (importPreview ? buildConflictList(importPreview, targetMode) : []),
-    [importPreview, targetMode],
+    () => (importPreview ? buildConflictList(importPreview) : []),
+    [importPreview],
   );
 
   const totalFiles = useMemo(() => countFiles(tree), [tree]);
@@ -673,6 +699,22 @@ export function CompanyImport() {
 
   function handleConflictRename(slug: string, newName: string) {
     setNameOverrides((prev) => ({ ...prev, [slug]: newName }));
+    // Editing the name un-confirms
+    setConfirmedSlugs((prev) => {
+      if (!prev.has(slug)) return prev;
+      const next = new Set(prev);
+      next.delete(slug);
+      return next;
+    });
+  }
+
+  function handleConflictToggleConfirm(slug: string) {
+    setConfirmedSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
   }
 
   function handleConflictToggleSkip(slug: string, filePath: string | null) {
@@ -870,7 +912,7 @@ export function CompanyImport() {
                 </span>
                 {conflicts.length > 0 && (
                   <span className="text-amber-500">
-                    {conflicts.length} conflict{conflicts.length === 1 ? "" : "s"}
+                    {conflicts.length} rename{conflicts.length === 1 ? "" : "s"}
                   </span>
                 )}
                 {importPreview.errors.length > 0 && (
@@ -897,8 +939,10 @@ export function CompanyImport() {
             conflicts={conflicts}
             nameOverrides={nameOverrides}
             skippedSlugs={skippedSlugs}
+            confirmedSlugs={confirmedSlugs}
             onRename={handleConflictRename}
             onToggleSkip={handleConflictToggleSkip}
+            onToggleConfirm={handleConflictToggleConfirm}
           />
 
           {/* Warnings */}
