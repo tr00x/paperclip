@@ -260,6 +260,7 @@ describe("company portability", () => {
     expect(extension).toContain("ANTHROPIC_API_KEY:");
     expect(extension).toContain('requirement: "optional"');
     expect(extension).toContain('default: ""');
+    expect(extension).not.toContain("paperclipSkillSync");
     expect(extension).not.toContain("PATH:");
     expect(extension).not.toContain("requireBoardApprovalForNewAgents: true");
     expect(extension).not.toContain("budgetMonthlyCents: 0");

@@ -315,7 +315,12 @@ function normalizePortableConfig(
   const next: Record<string, unknown> = {};
 
   for (const [key, entry] of Object.entries(input)) {
-    if (key === "cwd" || key === "instructionsFilePath" || key === "promptTemplate") continue;
+    if (
+      key === "cwd" ||
+      key === "instructionsFilePath" ||
+      key === "promptTemplate" ||
+      key === "paperclipSkillSync"
+    ) continue;
     if (key === "env") continue;
     next[key] = entry;
   }
