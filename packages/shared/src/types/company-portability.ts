@@ -146,6 +146,7 @@ export interface CompanyPortabilityPreviewRequest {
   agents?: CompanyPortabilityAgentSelection;
   collisionStrategy?: CompanyPortabilityCollisionStrategy;
   nameOverrides?: Record<string, string>;
+  selectedFiles?: string[];
 }
 
 export interface CompanyPortabilityPreviewAgentPlan {

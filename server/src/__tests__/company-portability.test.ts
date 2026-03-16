@@ -394,4 +394,81 @@ describe("company portability", () => {
       }),
     }));
   });
+
+  it("imports only selected files and leaves unchecked company metadata alone", async () => {
+    const portability = companyPortabilityService({} as any);
+
+    const exported = await portability.exportBundle("company-1", {
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+    });
+
+    agentSvc.list.mockResolvedValue([]);
+    projectSvc.list.mockResolvedValue([]);
+    companySvc.getById.mockResolvedValue({
+      id: "company-1",
+      name: "Paperclip",
+      description: "Existing company",
+      brandColor: "#123456",
+      requireBoardApprovalForNewAgents: false,
+    });
+    agentSvc.create.mockResolvedValue({
+      id: "agent-cmo",
+      name: "CMO",
+    });
+
+    const result = await portability.importBundle({
+      source: {
+        type: "inline",
+        rootPath: exported.rootPath,
+        files: exported.files,
+      },
+      include: {
+        company: true,
+        agents: true,
+        projects: true,
+        issues: true,
+      },
+      selectedFiles: ["agents/cmo/AGENTS.md"],
+      target: {
+        mode: "existing_company",
+        companyId: "company-1",
+      },
+      agents: "all",
+      collisionStrategy: "rename",
+    }, "user-1");
+
+    expect(companySvc.update).not.toHaveBeenCalled();
+    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({
+        "COMPANY.md": expect.any(String),
+        "agents/cmo/AGENTS.md": expect.any(String),
+      }),
+    );
+    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith(
+      "company-1",
+      expect.not.objectContaining({
+        "agents/claudecoder/AGENTS.md": expect.any(String),
+      }),
+    );
+    expect(agentSvc.create).toHaveBeenCalledTimes(1);
+    expect(agentSvc.create).toHaveBeenCalledWith("company-1", expect.objectContaining({
+      name: "CMO",
+    }));
+    expect(result.company.action).toBe("unchanged");
+    expect(result.agents).toEqual([
+      {
+        slug: "cmo",
+        id: "agent-cmo",
+        action: "created",
+        name: "CMO",
+        reason: null,
+      },
+    ]);
+  });
 });

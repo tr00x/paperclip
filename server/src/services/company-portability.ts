@@ -612,6 +612,81 @@ function buildMarkdown(frontmatter: Record<string, unknown>, body: string) {
   return `${renderFrontmatter(frontmatter)}\n${cleanBody}\n`;
 }
 
+function normalizeSelectedFiles(selectedFiles?: string[]) {
+  if (!selectedFiles) return null;
+  return new Set(
+    selectedFiles
+      .map((entry) => normalizePortablePath(entry))
+      .filter((entry) => entry.length > 0),
+  );
+}
+
+function filterCompanyMarkdownIncludes(
+  companyPath: string,
+  markdown: string,
+  selectedFiles: Set<string>,
+) {
+  const parsed = parseFrontmatterMarkdown(markdown);
+  const includeEntries = readIncludeEntries(parsed.frontmatter);
+  const filteredIncludes = includeEntries.filter((entry) =>
+    selectedFiles.has(resolvePortablePath(companyPath, entry.path)),
+  );
+  const nextFrontmatter: Record<string, unknown> = { ...parsed.frontmatter };
+  if (filteredIncludes.length > 0) {
+    nextFrontmatter.includes = filteredIncludes.map((entry) => entry.path);
+  } else {
+    delete nextFrontmatter.includes;
+  }
+  return buildMarkdown(nextFrontmatter, parsed.body);
+}
+
+function applySelectedFilesToSource(source: ResolvedSource, selectedFiles?: string[]): ResolvedSource {
+  const normalizedSelection = normalizeSelectedFiles(selectedFiles);
+  if (!normalizedSelection) return source;
+
+  const companyPath = source.manifest.company
+    ? ensureMarkdownPath(source.manifest.company.path)
+    : Object.keys(source.files).find((entry) => entry.endsWith("/COMPANY.md") || entry === "COMPANY.md") ?? null;
+  if (!companyPath) {
+    throw unprocessable("Company package is missing COMPANY.md");
+  }
+
+  const companyMarkdown = source.files[companyPath];
+  if (typeof companyMarkdown !== "string") {
+    throw unprocessable("Company package is missing COMPANY.md");
+  }
+
+  const effectiveFiles: Record<string, string> = {};
+  for (const [filePath, content] of Object.entries(source.files)) {
+    const normalizedPath = normalizePortablePath(filePath);
+    if (!normalizedSelection.has(normalizedPath)) continue;
+    effectiveFiles[normalizedPath] = content;
+  }
+
+  effectiveFiles[companyPath] = filterCompanyMarkdownIncludes(
+    companyPath,
+    companyMarkdown,
+    normalizedSelection,
+  );
+
+  const filtered = buildManifestFromPackageFiles(effectiveFiles, {
+    sourceLabel: source.manifest.source,
+  });
+
+  if (!normalizedSelection.has(companyPath)) {
+    filtered.manifest.company = null;
+  }
+
+  filtered.manifest.includes = {
+    company: filtered.manifest.company !== null,
+    agents: filtered.manifest.agents.length > 0,
+    projects: filtered.manifest.projects.length > 0,
+    issues: filtered.manifest.issues.length > 0,
+  };
+
+  return filtered;
+}
+
 async function resolveBundledSkillsCommit() {
   if (!bundledSkillsCommitPromise) {
     bundledSkillsCommitPromise = execFileAsync("git", ["rev-parse", "HEAD"], {
@@ -1796,9 +1871,15 @@ export function companyPortabilityService(db: Db) {
   }
 
   async function buildPreview(input: CompanyPortabilityPreview): Promise<ImportPlanInternal> {
-    const include = normalizeInclude(input.include);
-    const source = await resolveSource(input.source);
+    const requestedInclude = normalizeInclude(input.include);
+    const source = applySelectedFilesToSource(await resolveSource(input.source), input.selectedFiles);
     const manifest = source.manifest;
+    const include: CompanyPortabilityInclude = {
+      company: requestedInclude.company && manifest.company !== null,
+      agents: requestedInclude.agents && manifest.agents.length > 0,
+      projects: requestedInclude.projects && manifest.projects.length > 0,
+      issues: requestedInclude.issues && manifest.issues.length > 0,
+    };
     const collisionStrategy = input.collisionStrategy ?? DEFAULT_COLLISION_STRATEGY;
     const warnings = [...source.warnings];
     const errors: string[] = [];

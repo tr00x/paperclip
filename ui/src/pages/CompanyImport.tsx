@@ -600,6 +600,11 @@ export function CompanyImport() {
     return Object.keys(overrides).length > 0 ? overrides : undefined;
   }
 
+  function buildSelectedFiles(): string[] | undefined {
+    const selected = Array.from(checkedFiles).sort();
+    return selected.length > 0 ? selected : undefined;
+  }
+
   // Apply mutation
   const importMutation = useMutation({
     mutationFn: () => {
@@ -614,25 +619,20 @@ export function CompanyImport() {
             : { mode: "existing_company", companyId: selectedCompanyId! },
         collisionStrategy: "rename",
         nameOverrides: buildFinalNameOverrides(),
+        selectedFiles: buildSelectedFiles(),
       });
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
-      if (result.company.action === "created") {
-        setSelectedCompanyId(result.company.id);
-      }
+      const importedCompany = await companiesApi.get(result.company.id);
+      setSelectedCompanyId(importedCompany.id);
       pushToast({
         tone: "success",
         title: "Import complete",
         body: `${result.company.name}: ${result.agents.length} agent${result.agents.length === 1 ? "" : "s"} processed.`,
       });
-      // Reset
-      setImportPreview(null);
-      setLocalPackage(null);
-      setImportUrl("");
-      setNameOverrides({});
-      setSkippedSlugs(new Set());
-      setConfirmedSlugs(new Set());
+      // Force a fresh dashboard load so newly imported agents are immediately visible.
+      window.location.assign(`/${importedCompany.issuePrefix}/dashboard`);
     },
     onError: (err) => {
       pushToast({
