@@ -2042,6 +2042,20 @@ export function companyPortabilityService(db: Db) {
       }
     }
 
+    // Warn about agents that will be overwritten/updated
+    for (const ap of agentPlans) {
+      if (ap.action === "update") {
+        warnings.push(`Existing agent "${ap.plannedName}" (${ap.slug}) will be overwritten by import.`);
+      }
+    }
+
+    // Warn about projects that will be overwritten/updated
+    for (const pp of projectPlans) {
+      if (pp.action === "update") {
+        warnings.push(`Existing project "${pp.plannedName}" (${pp.slug}) will be overwritten by import.`);
+      }
+    }
+
     if (include.issues) {
       for (const manifestIssue of manifest.issues) {
         issuePlans.push({

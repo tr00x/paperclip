@@ -566,13 +566,25 @@ export function CompanyImport() {
       // Check all files by default
       const allFiles = new Set(Object.keys(result.files));
       setCheckedFiles(allFiles);
-      // Expand top-level dirs
-      const tree = buildFileTree(result.files, buildActionMap(result));
-      const topDirs = new Set<string>();
+      // Expand top-level dirs + all ancestor dirs of files with conflicts (update action)
+      const am = buildActionMap(result);
+      const tree = buildFileTree(result.files, am);
+      const dirsToExpand = new Set<string>();
       for (const node of tree) {
-        if (node.kind === "dir") topDirs.add(node.path);
+        if (node.kind === "dir") dirsToExpand.add(node.path);
       }
-      setExpandedDirs(topDirs);
+      // Auto-expand directories containing conflicting files so they're visible
+      for (const [filePath, action] of am) {
+        if (action === "update") {
+          const segments = filePath.split("/").filter(Boolean);
+          let current = "";
+          for (let i = 0; i < segments.length - 1; i++) {
+            current = current ? `${current}/${segments[i]}` : segments[i];
+            dirsToExpand.add(current);
+          }
+        }
+      }
+      setExpandedDirs(dirsToExpand);
       // Select first file
       const firstFile = Object.keys(result.files)[0];
       if (firstFile) setSelectedFile(firstFile);
