@@ -10,6 +10,14 @@ import { isAllowedContentType, MAX_ATTACHMENT_BYTES } from "../attachment-types.
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 const MAX_COMPANY_LOGO_BYTES = 100 * 1024;
 const SVG_CONTENT_TYPE = "image/svg+xml";
+const ALLOWED_COMPANY_LOGO_CONTENT_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  SVG_CONTENT_TYPE,
+]);
 
 function sanitizeSvgBuffer(input: Buffer): Buffer | null {
   const raw = input.toString("utf8").trim();
@@ -78,12 +86,20 @@ function sanitizeSvgBuffer(input: Buffer): Buffer | null {
 export function assetRoutes(db: Db, storage: StorageService) {
   const router = Router();
   const svc = assetService(db);
-  const upload = multer({
+  const assetUpload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 1 },
   });
+  const companyLogoUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_COMPANY_LOGO_BYTES + 1, files: 1 },
+  });
 
-  async function runSingleFileUpload(req: Request, res: Response) {
+  async function runSingleFileUpload(
+    upload: ReturnType<typeof multer>,
+    req: Request,
+    res: Response,
+  ) {
     await new Promise<void>((resolve, reject) => {
       upload.single("file")(req, res, (err: unknown) => {
         if (err) reject(err);
@@ -97,7 +113,7 @@ export function assetRoutes(db: Db, storage: StorageService) {
     assertCompanyAccess(req, companyId);
 
     try {
-      await runSingleFileUpload(req, res);
+      await runSingleFileUpload(assetUpload, req, res);
     } catch (err) {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
@@ -123,12 +139,7 @@ export function assetRoutes(db: Db, storage: StorageService) {
     }
 
     const namespaceSuffix = parsedMeta.data.namespace ?? "general";
-    const isCompanyLogoNamespace = namespaceSuffix === "companies" || namespaceSuffix.startsWith("companies/");
     const contentType = (file.mimetype || "").toLowerCase();
-    if (isCompanyLogoNamespace && !contentType.startsWith("image/")) {
-      res.status(422).json({ error: `Unsupported image type: ${contentType || "unknown"}` });
-      return;
-    }
     if (contentType !== SVG_CONTENT_TYPE && !isAllowedContentType(contentType)) {
       res.status(422).json({ error: `Unsupported file type: ${contentType || "unknown"}` });
       return;
@@ -146,7 +157,7 @@ export function assetRoutes(db: Db, storage: StorageService) {
       res.status(422).json({ error: "Image is empty" });
       return;
     }
-    if (isCompanyLogoNamespace && fileBody.length > MAX_COMPANY_LOGO_BYTES) {
+    if (fileBody.length > MAX_COMPANY_LOGO_BYTES) {
       res.status(422).json({ error: `Image exceeds ${MAX_COMPANY_LOGO_BYTES} bytes` });
       return;
     }
@@ -184,6 +195,105 @@ export function assetRoutes(db: Db, storage: StorageService) {
         originalFilename: asset.originalFilename,
         contentType: asset.contentType,
         byteSize: asset.byteSize,
+      },
+    });
+
+    res.status(201).json({
+      assetId: asset.id,
+      companyId: asset.companyId,
+      provider: asset.provider,
+      objectKey: asset.objectKey,
+      contentType: asset.contentType,
+      byteSize: asset.byteSize,
+      sha256: asset.sha256,
+      originalFilename: asset.originalFilename,
+      createdByAgentId: asset.createdByAgentId,
+      createdByUserId: asset.createdByUserId,
+      createdAt: asset.createdAt,
+      updatedAt: asset.updatedAt,
+      contentPath: `/api/assets/${asset.id}/content`,
+    });
+  });
+
+  router.post("/companies/:companyId/logo", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+
+    try {
+      await runSingleFileUpload(companyLogoUpload, req, res);
+    } catch (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          res.status(422).json({ error: `Image exceeds ${MAX_COMPANY_LOGO_BYTES} bytes` });
+          return;
+        }
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+
+    const file = (req as Request & { file?: { mimetype: string; buffer: Buffer; originalname: string } }).file;
+    if (!file) {
+      res.status(400).json({ error: "Missing file field 'file'" });
+      return;
+    }
+
+    const contentType = (file.mimetype || "").toLowerCase();
+    if (!ALLOWED_COMPANY_LOGO_CONTENT_TYPES.has(contentType)) {
+      res.status(422).json({ error: `Unsupported image type: ${contentType || "unknown"}` });
+      return;
+    }
+
+    let fileBody = file.buffer;
+    if (contentType === SVG_CONTENT_TYPE) {
+      const sanitized = sanitizeSvgBuffer(file.buffer);
+      if (!sanitized || sanitized.length <= 0) {
+        res.status(422).json({ error: "SVG could not be sanitized" });
+        return;
+      }
+      fileBody = sanitized;
+    }
+
+    if (fileBody.length <= 0) {
+      res.status(422).json({ error: "Image is empty" });
+      return;
+    }
+
+    const actor = getActorInfo(req);
+    const stored = await storage.putFile({
+      companyId,
+      namespace: "assets/companies",
+      originalFilename: file.originalname || null,
+      contentType,
+      body: fileBody,
+    });
+
+    const asset = await svc.create(companyId, {
+      provider: stored.provider,
+      objectKey: stored.objectKey,
+      contentType: stored.contentType,
+      byteSize: stored.byteSize,
+      sha256: stored.sha256,
+      originalFilename: stored.originalFilename,
+      createdByAgentId: actor.agentId,
+      createdByUserId: actor.actorType === "user" ? actor.actorId : null,
+    });
+
+    await logActivity(db, {
+      companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "asset.created",
+      entityType: "asset",
+      entityId: asset.id,
+      details: {
+        originalFilename: asset.originalFilename,
+        contentType: asset.contentType,
+        byteSize: asset.byteSize,
+        namespace: "assets/companies",
       },
     });
 

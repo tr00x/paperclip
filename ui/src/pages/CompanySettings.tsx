@@ -140,7 +140,7 @@ export function CompanySettings() {
   const logoUploadMutation = useMutation({
     mutationFn: (file: File) =>
       assetsApi
-        .uploadImage(selectedCompanyId!, file, "companies")
+        .uploadCompanyLogo(selectedCompanyId!, file)
         .then((asset) => companiesApi.update(selectedCompanyId!, { logoAssetId: asset.assetId })),
     onSuccess: (company) => {
       syncLogoState(company.logoUrl);
@@ -160,8 +160,8 @@ export function CompanySettings() {
     const file = event.target.files?.[0] ?? null;
     event.currentTarget.value = "";
     if (!file) return;
-    if (file.size >= 100 * 1024) {
-      setLogoUploadError("Logo image must be smaller than 100 KB.");
+    if (file.size > 100 * 1024) {
+      setLogoUploadError("Logo image must be 100 KB or smaller.");
       return;
     }
     setLogoUploadError(null);

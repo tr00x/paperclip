@@ -48,7 +48,7 @@ PATCH /api/companies/{companyId}
 Upload an image for a company icon and store it as that company’s logo.
 
 ```
-POST /api/companies/{companyId}/assets/images
+POST /api/companies/{companyId}/logo
 Content-Type: multipart/form-data
 ```
 
