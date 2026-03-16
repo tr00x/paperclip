@@ -10,6 +10,7 @@ import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { MarkdownBody } from "../components/MarkdownBody";
 import { cn } from "../lib/utils";
+import { createZipArchive } from "../lib/zip";
 import {
   ChevronDown,
   ChevronRight,
@@ -329,66 +330,7 @@ function paginateTaskNodes(
   return { nodes: result, totalTaskChildren, visibleTaskChildren };
 }
 
-// ── Tar helpers (reused from CompanySettings) ─────────────────────────
-
-function createTarArchive(files: Record<string, string>, rootPath: string): Uint8Array {
-  const encoder = new TextEncoder();
-  const chunks: Uint8Array[] = [];
-  for (const [relativePath, contents] of Object.entries(files)) {
-    const tarPath = `${rootPath}/${relativePath}`.replace(/\\/g, "/");
-    const body = encoder.encode(contents);
-    chunks.push(buildTarHeader(tarPath, body.length));
-    chunks.push(body);
-    const remainder = body.length % 512;
-    if (remainder > 0) chunks.push(new Uint8Array(512 - remainder));
-  }
-  chunks.push(new Uint8Array(1024));
-  const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-  const archive = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    archive.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return archive;
-}
-
-function buildTarHeader(pathname: string, size: number): Uint8Array {
-  const header = new Uint8Array(512);
-  writeTarString(header, 0, 100, pathname);
-  writeTarOctal(header, 100, 8, 0o644);
-  writeTarOctal(header, 108, 8, 0);
-  writeTarOctal(header, 116, 8, 0);
-  writeTarOctal(header, 124, 12, size);
-  writeTarOctal(header, 136, 12, Math.floor(Date.now() / 1000));
-  for (let i = 148; i < 156; i++) header[i] = 32;
-  header[156] = "0".charCodeAt(0);
-  writeTarString(header, 257, 6, "ustar");
-  writeTarString(header, 263, 2, "00");
-  const checksum = header.reduce((sum, byte) => sum + byte, 0);
-  writeTarChecksum(header, checksum);
-  return header;
-}
-
-function writeTarString(target: Uint8Array, offset: number, length: number, value: string) {
-  const encoded = new TextEncoder().encode(value);
-  target.set(encoded.slice(0, length), offset);
-}
-
-function writeTarOctal(target: Uint8Array, offset: number, length: number, value: number) {
-  const stringValue = value.toString(8).padStart(length - 1, "0");
-  writeTarString(target, offset, length - 1, stringValue);
-  target[offset + length - 1] = 0;
-}
-
-function writeTarChecksum(target: Uint8Array, checksum: number) {
-  const stringValue = checksum.toString(8).padStart(6, "0");
-  writeTarString(target, 148, 6, stringValue);
-  target[154] = 0;
-  target[155] = 32;
-}
-
-function downloadTar(
+function downloadZip(
   exported: CompanyPortabilityExportResult,
   selectedFiles: Set<string>,
   effectiveFiles: Record<string, string>,
@@ -397,14 +339,14 @@ function downloadTar(
   for (const [path] of Object.entries(exported.files)) {
     if (selectedFiles.has(path)) filteredFiles[path] = effectiveFiles[path] ?? exported.files[path];
   }
-  const tarBytes = createTarArchive(filteredFiles, exported.rootPath);
-  const tarBuffer = new ArrayBuffer(tarBytes.byteLength);
-  new Uint8Array(tarBuffer).set(tarBytes);
-  const blob = new Blob([tarBuffer], { type: "application/x-tar" });
+  const zipBytes = createZipArchive(filteredFiles, exported.rootPath);
+  const zipBuffer = new ArrayBuffer(zipBytes.byteLength);
+  new Uint8Array(zipBuffer).set(zipBytes);
+  const blob = new Blob([zipBuffer], { type: "application/zip" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `${exported.rootPath}.tar`;
+  anchor.download = `${exported.rootPath}.zip`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
@@ -893,11 +835,11 @@ export function CompanyExport() {
 
   function handleDownload() {
     if (!exportData) return;
-    downloadTar(exportData, checkedFiles, effectiveFiles);
+    downloadZip(exportData, checkedFiles, effectiveFiles);
     pushToast({
       tone: "success",
       title: "Export downloaded",
-      body: `${selectedCount} file${selectedCount === 1 ? "" : "s"} exported as ${exportData.rootPath}.tar`,
+      body: `${selectedCount} file${selectedCount === 1 ? "" : "s"} exported as ${exportData.rootPath}.zip`,
     });
   }
 
