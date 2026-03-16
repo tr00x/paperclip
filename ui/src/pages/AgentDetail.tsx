@@ -1275,79 +1275,112 @@ function AgentSkillsTab({
         <PageSkeleton variant="list" />
       ) : (
         <>
-          <section className="border-y border-border">
-            {(companySkills ?? []).length === 0 ? (
-              <div className="px-3 py-6 text-sm text-muted-foreground">
-                Import skills into the company library first, then attach them here.
-              </div>
-            ) : (
-              (companySkills ?? []).map((skill) => {
-                const checked = skillDraft.includes(skill.slug);
-                const adapterEntry = adapterEntryByName.get(skill.slug);
-                const required = Boolean(adapterEntry?.required);
-                const disabled = required || skillSnapshot?.mode === "unsupported";
-                const checkbox = (
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={disabled}
-                    onChange={(event) => {
-                      const next = event.target.checked
-                        ? Array.from(new Set([...skillDraft, skill.slug]))
-                        : skillDraft.filter((value) => value !== skill.slug);
-                      setSkillDraft(next);
-                    }}
-                    className="mt-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-                );
-                return (
-                  <label
-                    key={skill.id}
-                    className="flex items-start gap-3 border-b border-border px-3 py-3 text-sm last:border-b-0 hover:bg-accent/20"
-                  >
-                    {required && adapterEntry?.requiredReason ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>{checkbox}</span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">{adapterEntry.requiredReason}</TooltipContent>
-                      </Tooltip>
-                    ) : skillSnapshot?.mode === "unsupported" ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>{checkbox}</span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          {unsupportedSkillMessage ?? "Manage skills in the adapter directly."}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      checkbox
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="truncate font-medium">{skill.name}</span>
-                        <Link
-                          to={`/skills/${skill.id}`}
-                          className="shrink-0 text-xs text-muted-foreground no-underline hover:text-foreground"
-                        >
-                          View
-                        </Link>
-                      </div>
-                      {skill.description && (
-                        <MarkdownBody className="mt-1 text-xs text-muted-foreground prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                          {skill.description}
-                        </MarkdownBody>
-                      )}
-                      {adapterEntry?.detail && (
-                        <p className="mt-1 text-xs text-muted-foreground">{adapterEntry.detail}</p>
-                      )}
+          {(() => {
+            const allSkills = companySkills ?? [];
+            const optionalSkills = allSkills.filter(
+              (skill) => !adapterEntryByName.get(skill.slug)?.required,
+            );
+            const requiredSkills = allSkills.filter(
+              (skill) => adapterEntryByName.get(skill.slug)?.required,
+            );
+
+            const renderSkillRow = (skill: (typeof allSkills)[number]) => {
+              const checked = skillDraft.includes(skill.slug);
+              const adapterEntry = adapterEntryByName.get(skill.slug);
+              const required = Boolean(adapterEntry?.required);
+              const disabled = required || skillSnapshot?.mode === "unsupported";
+              const checkbox = (
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={(event) => {
+                    const next = event.target.checked
+                      ? Array.from(new Set([...skillDraft, skill.slug]))
+                      : skillDraft.filter((value) => value !== skill.slug);
+                    setSkillDraft(next);
+                  }}
+                  className="mt-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              );
+              return (
+                <label
+                  key={skill.id}
+                  className="flex items-start gap-3 border-b border-border px-3 py-3 text-sm last:border-b-0 hover:bg-accent/20"
+                >
+                  {required && adapterEntry?.requiredReason ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>{checkbox}</span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">{adapterEntry.requiredReason}</TooltipContent>
+                    </Tooltip>
+                  ) : skillSnapshot?.mode === "unsupported" ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>{checkbox}</span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {unsupportedSkillMessage ?? "Manage skills in the adapter directly."}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    checkbox
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate font-medium">{skill.name}</span>
+                      <Link
+                        to={`/skills/${skill.id}`}
+                        className="shrink-0 text-xs text-muted-foreground no-underline hover:text-foreground"
+                      >
+                        View
+                      </Link>
                     </div>
-                  </label>
-                );
-              })
-            )}
-          </section>
+                    {skill.description && (
+                      <MarkdownBody className="mt-1 text-xs text-muted-foreground prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                        {skill.description}
+                      </MarkdownBody>
+                    )}
+                    {adapterEntry?.detail && (
+                      <p className="mt-1 text-xs text-muted-foreground">{adapterEntry.detail}</p>
+                    )}
+                  </div>
+                </label>
+              );
+            };
+
+            if (allSkills.length === 0) {
+              return (
+                <section className="border-y border-border">
+                  <div className="px-3 py-6 text-sm text-muted-foreground">
+                    Import skills into the company library first, then attach them here.
+                  </div>
+                </section>
+              );
+            }
+
+            return (
+              <>
+                {optionalSkills.length > 0 && (
+                  <section className="border-y border-border">
+                    {optionalSkills.map(renderSkillRow)}
+                  </section>
+                )}
+
+                {requiredSkills.length > 0 && (
+                  <section className="border-y border-border">
+                    <div className="border-b border-border bg-muted/40 px-3 py-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Required by Paperclip
+                      </span>
+                    </div>
+                    {requiredSkills.map(renderSkillRow)}
+                  </section>
+                )}
+              </>
+            );
+          })()}
 
           {desiredOnlyMissingSkills.length > 0 && (
             <div className="rounded-xl border border-amber-300/60 bg-amber-50/60 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-200">
