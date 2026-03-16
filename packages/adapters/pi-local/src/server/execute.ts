@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AdapterExecutionContext, AdapterExecutionResult } from "@paperclipai/adapter-utils";
+import { inferOpenAiCompatibleBiller, type AdapterExecutionContext, type AdapterExecutionResult } from "@paperclipai/adapter-utils";
 import {
   asString,
   asNumber,
@@ -59,7 +59,6 @@ async function ensurePiSkillsInjected(
   const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.name));
   const selectedEntries = skillsEntries.filter((entry) => desiredSet.has(entry.name));
   if (selectedEntries.length === 0) return;
-
   const piSkillsHome = path.join(os.homedir(), ".pi", "agent", "skills");
   await fs.mkdir(piSkillsHome, { recursive: true });
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
@@ -90,6 +89,10 @@ async function ensurePiSkillsInjected(
       );
     }
   }
+}
+
+function resolvePiBiller(env: Record<string, string>, provider: string | null): string {
+  return inferOpenAiCompatibleBiller(env, null) ?? provider ?? "unknown";
 }
 
 async function ensureSessionsDir(): Promise<string> {
@@ -455,6 +458,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       sessionParams: resolvedSessionParams,
       sessionDisplayId: resolvedSessionId,
       provider: provider,
+      biller: resolvePiBiller(runtimeEnv, provider),
       model: model,
       billingType: "unknown",
       costUsd: attempt.parsed.usage.costUsd,
