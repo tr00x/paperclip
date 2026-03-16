@@ -1284,9 +1284,6 @@ function buildManifestFromPackageFiles(
   };
 }
 
-function isGitCommitRef(value: string) {
-  return /^[0-9a-f]{40}$/i.test(value.trim());
-}
 
 function parseGitHubSourceUrl(rawUrl: string) {
   const url = new URL(rawUrl);
@@ -1413,9 +1410,6 @@ export function companyPortabilityService(db: Db) {
     const parsed = parseGitHubSourceUrl(source.url);
     let ref = parsed.ref;
     const warnings: string[] = [];
-    if (!isGitCommitRef(ref)) {
-      warnings.push("GitHub source is not pinned to a commit SHA; imports may drift if the ref changes.");
-    }
     const companyRelativePath = parsed.companyPath === "COMPANY.md"
       ? [parsed.basePath, "COMPANY.md"].filter(Boolean).join("/")
       : parsed.companyPath;
