@@ -131,8 +131,12 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
     queryFn: () => projectsApi.list(companyId!),
     enabled: !!companyId,
   });
+  const activeProjects = useMemo(
+    () => (projects ?? []).filter((p) => !p.archivedAt || p.id === issue.projectId),
+    [projects, issue.projectId],
+  );
   const { orderedProjects } = useProjectOrder({
-    projects: projects ?? [],
+    projects: activeProjects,
     companyId,
     userId: currentUserId,
   });
