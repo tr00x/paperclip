@@ -366,7 +366,9 @@ export function AgentDetail() {
         ? "configuration"
         : activeView === "runs"
           ? "runs"
-          : "dashboard";
+          : activeView === "budget"
+            ? "budget"
+            : "dashboard";
     if (routeAgentRef !== canonicalAgentRef || urlTab !== canonicalTab) {
       navigate(`/agents/${canonicalAgentRef}/${canonicalTab}`, { replace: true });
       return;
@@ -483,6 +485,8 @@ export function AgentDetail() {
         crumbs.push({ label: "Configuration" });
       } else if (activeView === "runs") {
         crumbs.push({ label: "Runs" });
+      } else if (activeView === "budget") {
+        crumbs.push({ label: "Budget" });
       } else {
         crumbs.push({ label: "Dashboard" });
       }
