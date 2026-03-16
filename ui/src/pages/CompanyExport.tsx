@@ -332,10 +332,12 @@ function ExportFileTree({
                   "group grid w-full grid-cols-[auto_minmax(0,1fr)_2.25rem] items-center gap-x-1 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground",
                   TREE_ROW_HEIGHT_CLASS,
                 )}
+                style={{
+                  paddingInlineStart: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT - 8}px`,
+                }}
               >
                 <label
                   className="flex items-center pl-2"
-                  style={{ paddingLeft: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT - 8}px` }}
                 >
                   <input
                     type="checkbox"
@@ -802,9 +804,6 @@ export function CompanyExport() {
         <aside className="flex flex-col border-r border-border overflow-hidden">
           <div className="border-b border-border px-4 py-3 shrink-0">
             <h2 className="text-base font-semibold">Package files</h2>
-            <p className="text-xs text-muted-foreground">
-              {totalFiles} file{totalFiles === 1 ? "" : "s"} in {exportData.rootPath}
-            </p>
           </div>
           <div className="border-b border-border px-3 py-2 shrink-0">
             <div className="flex items-center gap-2 rounded-md border border-border px-2 py-1">
