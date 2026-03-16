@@ -510,7 +510,7 @@ function ExportFileTree({
           <div
             key={node.path}
             className={cn(
-              "flex w-full items-center gap-2 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground cursor-pointer",
+              "flex w-full items-center gap-1 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground cursor-pointer",
               TREE_ROW_HEIGHT_CLASS,
               node.path === selectedFile && "text-foreground bg-accent/20",
             )}
