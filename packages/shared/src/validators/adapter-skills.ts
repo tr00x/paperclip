@@ -16,7 +16,8 @@ export const agentSkillSyncModeSchema = z.enum([
 ]);
 
 export const agentSkillEntrySchema = z.object({
-  name: z.string().min(1),
+  key: z.string().min(1),
+  runtimeName: z.string().min(1).nullable(),
   desired: z.boolean(),
   managed: z.boolean(),
   required: z.boolean().optional(),

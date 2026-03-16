@@ -9,7 +9,8 @@ export type AgentSkillState =
   | "external";
 
 export interface AgentSkillEntry {
-  name: string;
+  key: string;
+  runtimeName: string | null;
   desired: boolean;
   managed: boolean;
   required?: boolean;

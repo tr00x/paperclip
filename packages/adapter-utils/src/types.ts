@@ -158,7 +158,8 @@ export type AdapterSkillState =
   | "external";
 
 export interface AdapterSkillEntry {
-  name: string;
+  key: string;
+  runtimeName: string | null;
   desired: boolean;
   managed: boolean;
   required?: boolean;

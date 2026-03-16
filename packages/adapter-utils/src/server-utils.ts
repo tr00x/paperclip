@@ -38,7 +38,8 @@ const PAPERCLIP_SKILL_ROOT_RELATIVE_CANDIDATES = [
 ];
 
 export interface PaperclipSkillEntry {
-  name: string;
+  key: string;
+  runtimeName: string;
   source: string;
   required?: boolean;
   requiredReason?: string | null;
@@ -306,7 +307,8 @@ export async function listPaperclipSkillEntries(
     return entries
       .filter((entry) => entry.isDirectory())
       .map((entry) => ({
-        name: entry.name,
+        key: `paperclipai/paperclip/${entry.name}`,
+        runtimeName: entry.name,
         source: path.join(root, entry.name),
         required: true,
         requiredReason: "Bundled Paperclip skills are always available for local adapters.",
@@ -321,11 +323,13 @@ function normalizeConfiguredPaperclipRuntimeSkills(value: unknown): PaperclipSki
   const out: PaperclipSkillEntry[] = [];
   for (const rawEntry of value) {
     const entry = parseObject(rawEntry);
-    const name = asString(entry.name, "").trim();
+    const key = asString(entry.key, asString(entry.name, "")).trim();
+    const runtimeName = asString(entry.runtimeName, asString(entry.name, "")).trim();
     const source = asString(entry.source, "").trim();
-    if (!name || !source) continue;
+    if (!key || !runtimeName || !source) continue;
     out.push({
-      name,
+      key,
+      runtimeName,
       source,
       required: asBoolean(entry.required, false),
       requiredReason:
@@ -349,13 +353,13 @@ export async function readPaperclipRuntimeSkillEntries(
 
 export async function readPaperclipSkillMarkdown(
   moduleDir: string,
-  skillName: string,
+  skillKey: string,
 ): Promise<string | null> {
-  const normalized = skillName.trim().toLowerCase();
+  const normalized = skillKey.trim().toLowerCase();
   if (!normalized) return null;
 
   const entries = await listPaperclipSkillEntries(moduleDir);
-  const match = entries.find((entry) => entry.name === normalized);
+  const match = entries.find((entry) => entry.key === normalized);
   if (!match) return null;
 
   try {
@@ -389,12 +393,12 @@ export function readPaperclipSkillSyncPreference(config: Record<string, unknown>
 
 export function resolvePaperclipDesiredSkillNames(
   config: Record<string, unknown>,
-  availableEntries: Array<{ name: string; required?: boolean }>,
+  availableEntries: Array<{ key: string; required?: boolean }>,
 ): string[] {
   const preference = readPaperclipSkillSyncPreference(config);
   const requiredSkills = availableEntries
     .filter((entry) => entry.required)
-    .map((entry) => entry.name);
+    .map((entry) => entry.key);
   if (!preference.explicit) {
     return Array.from(new Set(requiredSkills));
   }

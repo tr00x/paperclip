@@ -12,6 +12,7 @@ async function makeTempDir(prefix: string): Promise<string> {
 }
 
 describe("pi local skill sync", () => {
+  const paperclipKey = "paperclipai/paperclip/paperclip";
   const cleanupDirs = new Set<string>();
 
   afterEach(async () => {
@@ -32,19 +33,19 @@ describe("pi local skill sync", () => {
           HOME: home,
         },
         paperclipSkillSync: {
-          desiredSkills: ["paperclip"],
+          desiredSkills: [paperclipKey],
         },
       },
     } as const;
 
     const before = await listPiSkills(ctx);
     expect(before.mode).toBe("persistent");
-    expect(before.desiredSkills).toContain("paperclip");
-    expect(before.entries.find((entry) => entry.name === "paperclip")?.required).toBe(true);
-    expect(before.entries.find((entry) => entry.name === "paperclip")?.state).toBe("missing");
+    expect(before.desiredSkills).toContain(paperclipKey);
+    expect(before.entries.find((entry) => entry.key === paperclipKey)?.required).toBe(true);
+    expect(before.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("missing");
 
-    const after = await syncPiSkills(ctx, ["paperclip"]);
-    expect(after.entries.find((entry) => entry.name === "paperclip")?.state).toBe("installed");
+    const after = await syncPiSkills(ctx, [paperclipKey]);
+    expect(after.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("installed");
     expect((await fs.lstat(path.join(home, ".pi", "agent", "skills", "paperclip"))).isSymbolicLink()).toBe(true);
   });
 
@@ -61,12 +62,12 @@ describe("pi local skill sync", () => {
           HOME: home,
         },
         paperclipSkillSync: {
-          desiredSkills: ["paperclip"],
+          desiredSkills: [paperclipKey],
         },
       },
     } as const;
 
-    await syncPiSkills(configuredCtx, ["paperclip"]);
+    await syncPiSkills(configuredCtx, [paperclipKey]);
 
     const clearedCtx = {
       ...configuredCtx,
@@ -81,8 +82,8 @@ describe("pi local skill sync", () => {
     } as const;
 
     const after = await syncPiSkills(clearedCtx, []);
-    expect(after.desiredSkills).toContain("paperclip");
-    expect(after.entries.find((entry) => entry.name === "paperclip")?.state).toBe("installed");
+    expect(after.desiredSkills).toContain(paperclipKey);
+    expect(after.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("installed");
     expect((await fs.lstat(path.join(home, ".pi", "agent", "skills", "paperclip"))).isSymbolicLink()).toBe(true);
   });
 });

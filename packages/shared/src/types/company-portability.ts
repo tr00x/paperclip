@@ -74,6 +74,7 @@ export interface CompanyPortabilityAgentManifestEntry {
 }
 
 export interface CompanyPortabilitySkillManifestEntry {
+  key: string;
   slug: string;
   name: string;
   path: string;

@@ -389,7 +389,7 @@ function SkillList({
   onSelectPath: (skillId: string, path: string) => void;
 }) {
   const filteredSkills = skills.filter((skill) => {
-    const haystack = `${skill.name} ${skill.slug} ${skill.sourceLabel ?? ""}`.toLowerCase();
+    const haystack = `${skill.name} ${skill.key} ${skill.slug} ${skill.sourceLabel ?? ""}`.toLowerCase();
     return haystack.includes(skillFilter.toLowerCase());
   });
 
@@ -434,6 +434,9 @@ function SkillList({
                   </Tooltip>
                   <span className="block min-w-0 overflow-hidden text-[13px] font-medium leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
                     {skill.name}
+                  </span>
+                  <span className="truncate font-mono text-[11px] text-muted-foreground">
+                    {skill.key}
                   </span>
                 </span>
               </Link>
@@ -596,6 +599,10 @@ function SkillPane({
                 )}
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Key</span>
+              <span className="font-mono text-xs">{detail.key}</span>
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Mode</span>
               <span>{detail.editable ? "Editable" : "Read only"}</span>

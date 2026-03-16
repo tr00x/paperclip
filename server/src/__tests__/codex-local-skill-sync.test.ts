@@ -12,6 +12,7 @@ async function makeTempDir(prefix: string): Promise<string> {
 }
 
 describe("codex local skill sync", () => {
+  const paperclipKey = "paperclipai/paperclip/paperclip";
   const cleanupDirs = new Set<string>();
 
   afterEach(async () => {
@@ -32,19 +33,19 @@ describe("codex local skill sync", () => {
           CODEX_HOME: codexHome,
         },
         paperclipSkillSync: {
-          desiredSkills: ["paperclip"],
+          desiredSkills: [paperclipKey],
         },
       },
     } as const;
 
     const before = await listCodexSkills(ctx);
     expect(before.mode).toBe("persistent");
-    expect(before.desiredSkills).toContain("paperclip");
-    expect(before.entries.find((entry) => entry.name === "paperclip")?.required).toBe(true);
-    expect(before.entries.find((entry) => entry.name === "paperclip")?.state).toBe("missing");
+    expect(before.desiredSkills).toContain(paperclipKey);
+    expect(before.entries.find((entry) => entry.key === paperclipKey)?.required).toBe(true);
+    expect(before.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("missing");
 
-    const after = await syncCodexSkills(ctx, ["paperclip"]);
-    expect(after.entries.find((entry) => entry.name === "paperclip")?.state).toBe("installed");
+    const after = await syncCodexSkills(ctx, [paperclipKey]);
+    expect(after.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("installed");
     expect((await fs.lstat(path.join(codexHome, "skills", "paperclip"))).isSymbolicLink()).toBe(true);
   });
 
@@ -61,12 +62,12 @@ describe("codex local skill sync", () => {
           CODEX_HOME: codexHome,
         },
         paperclipSkillSync: {
-          desiredSkills: ["paperclip"],
+          desiredSkills: [paperclipKey],
         },
       },
     } as const;
 
-    await syncCodexSkills(configuredCtx, ["paperclip"]);
+    await syncCodexSkills(configuredCtx, [paperclipKey]);
 
     const clearedCtx = {
       ...configuredCtx,
@@ -81,8 +82,8 @@ describe("codex local skill sync", () => {
     } as const;
 
     const after = await syncCodexSkills(clearedCtx, []);
-    expect(after.desiredSkills).toContain("paperclip");
-    expect(after.entries.find((entry) => entry.name === "paperclip")?.state).toBe("installed");
+    expect(after.desiredSkills).toContain(paperclipKey);
+    expect(after.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("installed");
     expect((await fs.lstat(path.join(codexHome, "skills", "paperclip"))).isSymbolicLink()).toBe(true);
   });
 });

@@ -99,7 +99,7 @@ async function isLikelyPaperclipRuntimeSkillSource(candidate: string, skillName:
 
 type EnsureCodexSkillsInjectedOptions = {
   skillsHome?: string;
-  skillsEntries?: Array<{ name: string; source: string }>;
+  skillsEntries?: Array<{ key: string; runtimeName: string; source: string }>;
   desiredSkillNames?: string[];
   linkSkill?: (source: string, target: string) => Promise<void>;
 };
@@ -110,16 +110,16 @@ export async function ensureCodexSkillsInjected(
 ) {
   const allSkillsEntries = options.skillsEntries ?? await readPaperclipRuntimeSkillEntries({}, __moduleDir);
   const desiredSkillNames =
-    options.desiredSkillNames ?? allSkillsEntries.map((entry) => entry.name);
+    options.desiredSkillNames ?? allSkillsEntries.map((entry) => entry.key);
   const desiredSet = new Set(desiredSkillNames);
-  const skillsEntries = allSkillsEntries.filter((entry) => desiredSet.has(entry.name));
+  const skillsEntries = allSkillsEntries.filter((entry) => desiredSet.has(entry.key));
   if (skillsEntries.length === 0) return;
 
   const skillsHome = options.skillsHome ?? path.join(resolveCodexHomeDir(process.env), "skills");
   await fs.mkdir(skillsHome, { recursive: true });
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
     skillsHome,
-    skillsEntries.map((entry) => entry.name),
+    skillsEntries.map((entry) => entry.runtimeName),
   );
   for (const skillName of removedSkills) {
     await onLog(
@@ -129,7 +129,7 @@ export async function ensureCodexSkillsInjected(
   }
   const linkSkill = options.linkSkill;
   for (const entry of skillsEntries) {
-    const target = path.join(skillsHome, entry.name);
+    const target = path.join(skillsHome, entry.runtimeName);
 
     try {
       const existing = await fs.lstat(target).catch(() => null);
@@ -141,7 +141,7 @@ export async function ensureCodexSkillsInjected(
         if (
           resolvedLinkedPath &&
           resolvedLinkedPath !== entry.source &&
-          (await isLikelyPaperclipRuntimeSkillSource(resolvedLinkedPath, entry.name))
+          (await isLikelyPaperclipRuntimeSkillSource(resolvedLinkedPath, entry.runtimeName))
         ) {
           await fs.unlink(target);
           if (linkSkill) {
@@ -151,7 +151,7 @@ export async function ensureCodexSkillsInjected(
           }
           await onLog(
             "stderr",
-            `[paperclip] Repaired Codex skill "${entry.name}" into ${skillsHome}\n`,
+            `[paperclip] Repaired Codex skill "${entry.key}" into ${skillsHome}\n`,
           );
           continue;
         }
@@ -162,12 +162,12 @@ export async function ensureCodexSkillsInjected(
 
       await onLog(
         "stderr",
-        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Codex skill "${entry.name}" into ${skillsHome}\n`,
+        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Codex skill "${entry.key}" into ${skillsHome}\n`,
       );
     } catch (err) {
       await onLog(
         "stderr",
-        `[paperclip] Failed to inject Codex skill "${entry.name}" into ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
+        `[paperclip] Failed to inject Codex skill "${entry.key}" into ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   }

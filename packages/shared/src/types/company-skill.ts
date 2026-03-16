@@ -14,6 +14,7 @@ export interface CompanySkillFileInventoryEntry {
 export interface CompanySkill {
   id: string;
   companyId: string;
+  key: string;
   slug: string;
   name: string;
   description: string | null;
@@ -32,6 +33,7 @@ export interface CompanySkill {
 export interface CompanySkillListItem {
   id: string;
   companyId: string;
+  key: string;
   slug: string;
   name: string;
   description: string | null;

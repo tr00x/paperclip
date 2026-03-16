@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +32,7 @@ import { secretService } from "./secrets.js";
 type CompanySkillRow = typeof companySkills.$inferSelect;
 
 type ImportedSkill = {
+  key: string;
   slug: string;
   name: string;
   description: string | null;
@@ -52,6 +54,7 @@ type ParsedSkillImportSource = {
 };
 
 type SkillSourceMeta = {
+  skillKey?: string;
   sourceKind?: string;
   owner?: string;
   repo?: string;
@@ -95,6 +98,86 @@ function normalizePackageFileMap(files: Record<string, string>) {
 
 function normalizeSkillSlug(value: string | null | undefined) {
   return value ? normalizeAgentUrlKey(value) ?? null : null;
+}
+
+function normalizeSkillKey(value: string | null | undefined) {
+  if (!value) return null;
+  const segments = value
+    .split("/")
+    .map((segment) => normalizeSkillSlug(segment))
+    .filter((segment): segment is string => Boolean(segment));
+  return segments.length > 0 ? segments.join("/") : null;
+}
+
+function hashSkillValue(value: string) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 10);
+}
+
+function buildSkillRuntimeName(key: string, slug: string) {
+  if (key.startsWith("paperclipai/paperclip/")) return slug;
+  return `${slug}--${hashSkillValue(key)}`;
+}
+
+function readCanonicalSkillKey(frontmatter: Record<string, unknown>, metadata: Record<string, unknown> | null) {
+  const direct = normalizeSkillKey(
+    asString(frontmatter.key)
+    ?? asString(frontmatter.skillKey)
+    ?? asString(metadata?.skillKey)
+    ?? asString(metadata?.canonicalKey)
+    ?? asString(metadata?.paperclipSkillKey),
+  );
+  if (direct) return direct;
+  const paperclip = isPlainRecord(metadata?.paperclip) ? metadata?.paperclip as Record<string, unknown> : null;
+  return normalizeSkillKey(
+    asString(paperclip?.skillKey)
+    ?? asString(paperclip?.key),
+  );
+}
+
+function deriveCanonicalSkillKey(
+  companyId: string,
+  input: Pick<ImportedSkill, "slug" | "sourceType" | "sourceLocator" | "metadata">,
+) {
+  const slug = normalizeSkillSlug(input.slug) ?? "skill";
+  const metadata = isPlainRecord(input.metadata) ? input.metadata : null;
+  const explicitKey = readCanonicalSkillKey({}, metadata);
+  if (explicitKey) return explicitKey;
+
+  const sourceKind = asString(metadata?.sourceKind);
+  if (sourceKind === "paperclip_bundled") {
+    return `paperclipai/paperclip/${slug}`;
+  }
+
+  const owner = normalizeSkillSlug(asString(metadata?.owner));
+  const repo = normalizeSkillSlug(asString(metadata?.repo));
+  if ((input.sourceType === "github" || sourceKind === "github") && owner && repo) {
+    return `${owner}/${repo}/${slug}`;
+  }
+
+  if (input.sourceType === "url" || sourceKind === "url") {
+    const locator = asString(input.sourceLocator);
+    if (locator) {
+      try {
+        const url = new URL(locator);
+        const host = normalizeSkillSlug(url.host) ?? "url";
+        return `url/${host}/${hashSkillValue(locator)}/${slug}`;
+      } catch {
+        return `url/unknown/${hashSkillValue(locator)}/${slug}`;
+      }
+    }
+  }
+
+  if (input.sourceType === "local_path") {
+    if (sourceKind === "managed_local") {
+      return `company/${companyId}/${slug}`;
+    }
+    const locator = asString(input.sourceLocator);
+    if (locator) {
+      return `local/${hashSkillValue(path.resolve(locator))}/${slug}`;
+    }
+  }
+
+  return `company/${companyId}/${slug}`;
 }
 
 function classifyInventoryKind(relativePath: string): CompanySkillFileInventoryEntry["kind"] {
@@ -417,7 +500,10 @@ function matchesRequestedSkill(relativeSkillPath: string, requestedSkillSlug: st
 }
 
 function deriveImportedSkillSlug(frontmatter: Record<string, unknown>, fallback: string) {
-  return normalizeSkillSlug(asString(frontmatter.name)) ?? normalizeAgentUrlKey(fallback) ?? "skill";
+  return normalizeSkillSlug(asString(frontmatter.slug))
+    ?? normalizeSkillSlug(asString(frontmatter.name))
+    ?? normalizeAgentUrlKey(fallback)
+    ?? "skill";
 }
 
 function deriveImportedSkillSource(
@@ -425,6 +511,7 @@ function deriveImportedSkillSource(
   fallbackSlug: string,
 ): Pick<ImportedSkill, "sourceType" | "sourceLocator" | "sourceRef" | "metadata"> {
   const metadata = isPlainRecord(frontmatter.metadata) ? frontmatter.metadata : null;
+  const canonicalKey = readCanonicalSkillKey(frontmatter, metadata);
   const rawSources = metadata && Array.isArray(metadata.sources) ? metadata.sources : [];
   const sourceEntry = rawSources.find((entry) => isPlainRecord(entry)) as Record<string, unknown> | undefined;
   const kind = asString(sourceEntry?.kind);
@@ -445,6 +532,7 @@ function deriveImportedSkillSource(
         sourceLocator: url,
         sourceRef: commit,
         metadata: {
+          ...(canonicalKey ? { skillKey: canonicalKey } : {}),
           sourceKind: "github",
           owner,
           repo: repoName,
@@ -464,6 +552,7 @@ function deriveImportedSkillSource(
         sourceLocator: url,
         sourceRef: null,
         metadata: {
+          ...(canonicalKey ? { skillKey: canonicalKey } : {}),
           sourceKind: "url",
         },
       };
@@ -475,12 +564,13 @@ function deriveImportedSkillSource(
     sourceLocator: null,
     sourceRef: null,
     metadata: {
+      ...(canonicalKey ? { skillKey: canonicalKey } : {}),
       sourceKind: "catalog",
     },
   };
 }
 
-function readInlineSkillImports(files: Record<string, string>): ImportedSkill[] {
+function readInlineSkillImports(companyId: string, files: Record<string, string>): ImportedSkill[] {
   const normalizedFiles = normalizePackageFileMap(files);
   const skillPaths = Object.keys(normalizedFiles).filter(
     (entry) => path.posix.basename(entry).toLowerCase() === "skill.md",
@@ -507,6 +597,7 @@ function readInlineSkillImports(files: Record<string, string>): ImportedSkill[] 
       .sort((left, right) => left.path.localeCompare(right.path));
 
     imports.push({
+      key: "",
       slug,
       name: asString(parsed.frontmatter.name) ?? slug,
       description: asString(parsed.frontmatter.description),
@@ -520,6 +611,7 @@ function readInlineSkillImports(files: Record<string, string>): ImportedSkill[] 
       fileInventory: inventory,
       metadata: source.metadata,
     });
+    imports[imports.length - 1]!.key = deriveCanonicalSkillKey(companyId, imports[imports.length - 1]!);
   }
 
   return imports;
@@ -539,7 +631,7 @@ async function walkLocalFiles(root: string, current: string, out: string[]) {
   }
 }
 
-async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[]> {
+async function readLocalSkillImports(companyId: string, sourcePath: string): Promise<ImportedSkill[]> {
   const resolvedPath = path.resolve(sourcePath);
   const stat = await fs.stat(resolvedPath).catch(() => null);
   if (!stat) {
@@ -550,10 +642,24 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
     const markdown = await fs.readFile(resolvedPath, "utf8");
     const parsed = parseFrontmatterMarkdown(markdown);
     const slug = deriveImportedSkillSlug(parsed.frontmatter, path.basename(path.dirname(resolvedPath)));
+    const skillKey = readCanonicalSkillKey(
+      parsed.frontmatter,
+      isPlainRecord(parsed.frontmatter.metadata) ? parsed.frontmatter.metadata : null,
+    );
+    const metadata = {
+      ...(skillKey ? { skillKey } : {}),
+      sourceKind: "local_path",
+    };
     const inventory: CompanySkillFileInventoryEntry[] = [
       { path: "SKILL.md", kind: "skill" },
     ];
     return [{
+      key: deriveCanonicalSkillKey(companyId, {
+        slug,
+        sourceType: "local_path",
+        sourceLocator: path.dirname(resolvedPath),
+        metadata,
+      }),
       slug,
       name: asString(parsed.frontmatter.name) ?? slug,
       description: asString(parsed.frontmatter.description),
@@ -565,7 +671,7 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
       trustLevel: deriveTrustLevel(inventory),
       compatibility: "compatible",
       fileInventory: inventory,
-      metadata: { sourceKind: "local_path" },
+      metadata,
     }];
   }
 
@@ -583,6 +689,14 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
     const markdown = await fs.readFile(path.join(root, skillPath), "utf8");
     const parsed = parseFrontmatterMarkdown(markdown);
     const slug = deriveImportedSkillSlug(parsed.frontmatter, path.posix.basename(skillDir));
+    const skillKey = readCanonicalSkillKey(
+      parsed.frontmatter,
+      isPlainRecord(parsed.frontmatter.metadata) ? parsed.frontmatter.metadata : null,
+    );
+    const metadata = {
+      ...(skillKey ? { skillKey } : {}),
+      sourceKind: "local_path",
+    };
     const inventory = allFiles
       .filter((entry) => entry === skillPath || entry.startsWith(`${skillDir}/`))
       .map((entry) => {
@@ -594,6 +708,12 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
       })
       .sort((left, right) => left.path.localeCompare(right.path));
     imports.push({
+      key: deriveCanonicalSkillKey(companyId, {
+        slug,
+        sourceType: "local_path",
+        sourceLocator: path.join(root, skillDir),
+        metadata,
+      }),
       slug,
       name: asString(parsed.frontmatter.name) ?? slug,
       description: asString(parsed.frontmatter.description),
@@ -605,7 +725,7 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
       trustLevel: deriveTrustLevel(inventory),
       compatibility: "compatible",
       fileInventory: inventory,
-      metadata: { sourceKind: "local_path" },
+      metadata,
     });
   }
 
@@ -613,6 +733,7 @@ async function readLocalSkillImports(sourcePath: string): Promise<ImportedSkill[
 }
 
 async function readUrlSkillImports(
+  companyId: string,
   sourceUrl: string,
   requestedSkillSlug: string | null = null,
 ): Promise<{ skills: ImportedSkill[]; warnings: string[] }> {
@@ -654,9 +775,22 @@ async function readUrlSkillImports(
       const parsedMarkdown = parseFrontmatterMarkdown(markdown);
       const skillDir = path.posix.dirname(relativeSkillPath);
       const slug = deriveImportedSkillSlug(parsedMarkdown.frontmatter, path.posix.basename(skillDir));
+      const skillKey = readCanonicalSkillKey(
+        parsedMarkdown.frontmatter,
+        isPlainRecord(parsedMarkdown.frontmatter.metadata) ? parsedMarkdown.frontmatter.metadata : null,
+      );
       if (requestedSkillSlug && !matchesRequestedSkill(relativeSkillPath, requestedSkillSlug) && slug !== requestedSkillSlug) {
         continue;
       }
+      const metadata = {
+        ...(skillKey ? { skillKey } : {}),
+        sourceKind: "github",
+        owner: parsed.owner,
+        repo: parsed.repo,
+        ref: ref,
+        trackingRef,
+        repoSkillDir: basePrefix ? `${basePrefix}${skillDir}` : skillDir,
+      };
       const inventory = filteredPaths
         .filter((entry) => entry === relativeSkillPath || entry.startsWith(`${skillDir}/`))
         .map((entry) => ({
@@ -665,6 +799,12 @@ async function readUrlSkillImports(
         }))
         .sort((left, right) => left.path.localeCompare(right.path));
       skills.push({
+        key: deriveCanonicalSkillKey(companyId, {
+          slug,
+          sourceType: "github",
+          sourceLocator: sourceUrl,
+          metadata,
+        }),
         slug,
         name: asString(parsedMarkdown.frontmatter.name) ?? slug,
         description: asString(parsedMarkdown.frontmatter.description),
@@ -675,14 +815,7 @@ async function readUrlSkillImports(
         trustLevel: deriveTrustLevel(inventory),
         compatibility: "compatible",
         fileInventory: inventory,
-        metadata: {
-          sourceKind: "github",
-          owner: parsed.owner,
-          repo: parsed.repo,
-          ref: ref,
-          trackingRef,
-          repoSkillDir: basePrefix ? `${basePrefix}${skillDir}` : skillDir,
-        },
+        metadata,
       });
     }
     if (skills.length === 0) {
@@ -701,9 +834,23 @@ async function readUrlSkillImports(
     const urlObj = new URL(url);
     const fileName = path.posix.basename(urlObj.pathname);
     const slug = deriveImportedSkillSlug(parsedMarkdown.frontmatter, fileName.replace(/\.md$/i, ""));
+    const skillKey = readCanonicalSkillKey(
+      parsedMarkdown.frontmatter,
+      isPlainRecord(parsedMarkdown.frontmatter.metadata) ? parsedMarkdown.frontmatter.metadata : null,
+    );
+    const metadata = {
+      ...(skillKey ? { skillKey } : {}),
+      sourceKind: "url",
+    };
     const inventory: CompanySkillFileInventoryEntry[] = [{ path: "SKILL.md", kind: "skill" }];
     return {
       skills: [{
+        key: deriveCanonicalSkillKey(companyId, {
+          slug,
+          sourceType: "url",
+          sourceLocator: url,
+          metadata,
+        }),
         slug,
         name: asString(parsedMarkdown.frontmatter.name) ?? slug,
         description: asString(parsedMarkdown.frontmatter.description),
@@ -714,9 +861,7 @@ async function readUrlSkillImports(
         trustLevel: deriveTrustLevel(inventory),
         compatibility: "compatible",
         fileInventory: inventory,
-        metadata: {
-          sourceKind: "url",
-        },
+        metadata,
       }],
       warnings,
     };
@@ -758,6 +903,34 @@ function serializeFileInventory(
 
 function getSkillMeta(skill: CompanySkill): SkillSourceMeta {
   return isPlainRecord(skill.metadata) ? skill.metadata as SkillSourceMeta : {};
+}
+
+function resolveSkillReference(
+  skills: CompanySkill[],
+  reference: string,
+): CompanySkill | null {
+  const normalizedReference = normalizeSkillKey(reference) ?? normalizeSkillSlug(reference);
+  if (!normalizedReference) return null;
+
+  const byKey = skills.find((skill) => skill.key === normalizedReference);
+  if (byKey) return byKey;
+
+  const bySlug = skills.filter((skill) => skill.slug === normalizedReference);
+  if (bySlug.length === 1) return bySlug[0] ?? null;
+
+  return null;
+}
+
+function resolveDesiredSkillKeys(
+  skills: CompanySkill[],
+  config: Record<string, unknown>,
+) {
+  const preference = readPaperclipSkillSyncPreference(config);
+  return Array.from(new Set(
+    preference.desiredSkills
+      .map((reference) => resolveSkillReference(skills, reference)?.key ?? normalizeSkillKey(reference))
+      .filter((value): value is string => Boolean(value)),
+  ));
 }
 
 function normalizeSkillDirectory(skill: CompanySkill) {
@@ -886,6 +1059,7 @@ function toCompanySkillListItem(skill: CompanySkill, attachedAgentCount: number)
   return {
     id: skill.id,
     companyId: skill.companyId,
+    key: skill.key,
     slug: skill.slug,
     name: skill.name,
     description: skill.description,
@@ -913,9 +1087,16 @@ export function companySkillService(db: Db) {
     for (const skillsRoot of resolveBundledSkillsRoot()) {
       const stats = await fs.stat(skillsRoot).catch(() => null);
       if (!stats?.isDirectory()) continue;
-      const bundledSkills = await readLocalSkillImports(skillsRoot)
+      const bundledSkills = await readLocalSkillImports(companyId, skillsRoot)
         .then((skills) => skills.map((skill) => ({
           ...skill,
+          key: deriveCanonicalSkillKey(companyId, {
+            ...skill,
+            metadata: {
+              ...(skill.metadata ?? {}),
+              sourceKind: "paperclip_bundled",
+            },
+          }),
           metadata: {
             ...(skill.metadata ?? {}),
             sourceKind: "paperclip_bundled",
@@ -933,8 +1114,8 @@ export function companySkillService(db: Db) {
     const agentRows = await agents.list(companyId);
     return rows.map((skill) => {
       const attachedAgentCount = agentRows.filter((agent) => {
-        const preference = readPaperclipSkillSyncPreference(agent.adapterConfig as Record<string, unknown>);
-        return preference.desiredSkills.includes(skill.slug);
+        const desiredSkills = resolveDesiredSkillKeys(rows, agent.adapterConfig as Record<string, unknown>);
+        return desiredSkills.includes(skill.key);
       }).length;
       return toCompanySkillListItem(skill, attachedAgentCount);
     });
@@ -946,7 +1127,7 @@ export function companySkillService(db: Db) {
       .select()
       .from(companySkills)
       .where(eq(companySkills.companyId, companyId))
-      .orderBy(asc(companySkills.name), asc(companySkills.slug));
+      .orderBy(asc(companySkills.name), asc(companySkills.key));
     return rows.map((row) => toCompanySkill(row));
   }
 
@@ -959,20 +1140,21 @@ export function companySkillService(db: Db) {
     return row ? toCompanySkill(row) : null;
   }
 
-  async function getBySlug(companyId: string, slug: string) {
+  async function getByKey(companyId: string, key: string) {
     const row = await db
       .select()
       .from(companySkills)
-      .where(and(eq(companySkills.companyId, companyId), eq(companySkills.slug, slug)))
+      .where(and(eq(companySkills.companyId, companyId), eq(companySkills.key, key)))
       .then((rows) => rows[0] ?? null);
     return row ? toCompanySkill(row) : null;
   }
 
-  async function usage(companyId: string, slug: string): Promise<CompanySkillUsageAgent[]> {
+  async function usage(companyId: string, key: string): Promise<CompanySkillUsageAgent[]> {
+    const skills = await listFull(companyId);
     const agentRows = await agents.list(companyId);
     const desiredAgents = agentRows.filter((agent) => {
-      const preference = readPaperclipSkillSyncPreference(agent.adapterConfig as Record<string, unknown>);
-      return preference.desiredSkills.includes(slug);
+      const desiredSkills = resolveDesiredSkillKeys(skills, agent.adapterConfig as Record<string, unknown>);
+      return desiredSkills.includes(key);
     });
 
     return Promise.all(
@@ -998,7 +1180,7 @@ export function companySkillService(db: Db) {
                 paperclipRuntimeSkills: runtimeSkillEntries,
               },
             });
-            actualState = snapshot.entries.find((entry) => entry.name === slug)?.state
+            actualState = snapshot.entries.find((entry) => entry.key === key)?.state
               ?? (snapshot.supported ? "missing" : "unsupported");
           } catch {
             actualState = "unknown";
@@ -1021,7 +1203,7 @@ export function companySkillService(db: Db) {
     await ensureBundledSkills(companyId);
     const skill = await getById(id);
     if (!skill || skill.companyId !== companyId) return null;
-    const usedByAgents = await usage(companyId, skill.slug);
+    const usedByAgents = await usage(companyId, skill.key);
     return enrichSkill(skill, usedByAgents.length, usedByAgents);
   }
 
@@ -1147,6 +1329,7 @@ export function companySkillService(db: Db) {
 
     const parsed = parseFrontmatterMarkdown(markdown);
     const imported = await upsertImportedSkills(companyId, [{
+      key: `company/${companyId}/${slug}`,
       slug,
       name: asString(parsed.frontmatter.name) ?? input.name,
       description: asString(parsed.frontmatter.description) ?? input.description?.trim() ?? null,
@@ -1216,10 +1399,10 @@ export function companySkillService(db: Db) {
       throw unprocessable("Skill source locator is missing.");
     }
 
-    const result = await readUrlSkillImports(skill.sourceLocator, skill.slug);
-    const matching = result.skills.find((entry) => entry.slug === skill.slug) ?? result.skills[0] ?? null;
+    const result = await readUrlSkillImports(companyId, skill.sourceLocator, skill.slug);
+    const matching = result.skills.find((entry) => entry.key === skill.key) ?? result.skills[0] ?? null;
     if (!matching) {
-      throw unprocessable(`Skill ${skill.slug} could not be re-imported from its source.`);
+      throw unprocessable(`Skill ${skill.key} could not be re-imported from its source.`);
     }
 
     const imported = await upsertImportedSkills(companyId, [matching]);
@@ -1234,7 +1417,7 @@ export function companySkillService(db: Db) {
     const packageDir = skill.packageDir ? normalizePortablePath(skill.packageDir) : null;
     if (!packageDir) return null;
     const catalogRoot = path.resolve(resolveManagedSkillsRoot(companyId), "__catalog__");
-    const skillDir = path.resolve(catalogRoot, skill.slug);
+    const skillDir = path.resolve(catalogRoot, buildSkillRuntimeName(skill.key, skill.slug));
     await fs.rm(skillDir, { recursive: true, force: true });
     await fs.mkdir(skillDir, { recursive: true });
 
@@ -1254,7 +1437,7 @@ export function companySkillService(db: Db) {
 
   async function materializeRuntimeSkillFiles(companyId: string, skill: CompanySkill) {
     const runtimeRoot = path.resolve(resolveManagedSkillsRoot(companyId), "__runtime__");
-    const skillDir = path.resolve(runtimeRoot, skill.slug);
+    const skillDir = path.resolve(runtimeRoot, buildSkillRuntimeName(skill.key, skill.slug));
     await fs.rm(skillDir, { recursive: true, force: true });
     await fs.mkdir(skillDir, { recursive: true });
 
@@ -1275,7 +1458,7 @@ export function companySkillService(db: Db) {
       .select()
       .from(companySkills)
       .where(eq(companySkills.companyId, companyId))
-      .orderBy(asc(companySkills.name), asc(companySkills.slug));
+      .orderBy(asc(companySkills.name), asc(companySkills.key));
 
     const out: PaperclipSkillEntry[] = [];
     for (const row of rows) {
@@ -1289,7 +1472,8 @@ export function companySkillService(db: Db) {
 
       const required = sourceKind === "paperclip_bundled";
       out.push({
-        name: skill.slug,
+        key: skill.key,
+        runtimeName: buildSkillRuntimeName(skill.key, skill.slug),
         source,
         required,
         requiredReason: required
@@ -1298,14 +1482,14 @@ export function companySkillService(db: Db) {
       });
     }
 
-    out.sort((left, right) => left.name.localeCompare(right.name));
+    out.sort((left, right) => left.key.localeCompare(right.key));
     return out;
   }
 
   async function importPackageFiles(companyId: string, files: Record<string, string>): Promise<CompanySkill[]> {
     await ensureBundledSkills(companyId);
     const normalizedFiles = normalizePackageFileMap(files);
-    const importedSkills = readInlineSkillImports(normalizedFiles);
+    const importedSkills = readInlineSkillImports(companyId, normalizedFiles);
     if (importedSkills.length === 0) return [];
 
     for (const skill of importedSkills) {
@@ -1322,7 +1506,7 @@ export function companySkillService(db: Db) {
   async function upsertImportedSkills(companyId: string, imported: ImportedSkill[]): Promise<CompanySkill[]> {
     const out: CompanySkill[] = [];
     for (const skill of imported) {
-      const existing = await getBySlug(companyId, skill.slug);
+      const existing = await getByKey(companyId, skill.key);
       const existingMeta = existing ? getSkillMeta(existing) : {};
       const incomingMeta = skill.metadata && isPlainRecord(skill.metadata) ? skill.metadata : {};
       const incomingOwner = asString(incomingMeta.owner);
@@ -1339,8 +1523,13 @@ export function companySkillService(db: Db) {
         continue;
       }
 
+      const metadata = {
+        ...(skill.metadata ?? {}),
+        skillKey: skill.key,
+      };
       const values = {
         companyId,
+        key: skill.key,
         slug: skill.slug,
         name: skill.name,
         description: skill.description,
@@ -1351,7 +1540,7 @@ export function companySkillService(db: Db) {
         trustLevel: skill.trustLevel,
         compatibility: skill.compatibility,
         fileInventory: serializeFileInventory(skill.fileInventory),
-        metadata: skill.metadata,
+        metadata,
         updatedAt: new Date(),
       };
       const row = existing
@@ -1378,11 +1567,11 @@ export function companySkillService(db: Db) {
     const local = !/^https?:\/\//i.test(parsed.resolvedSource);
     const { skills, warnings } = local
       ? {
-        skills: (await readLocalSkillImports(parsed.resolvedSource))
+        skills: (await readLocalSkillImports(companyId, parsed.resolvedSource))
           .filter((skill) => !parsed.requestedSkillSlug || skill.slug === parsed.requestedSkillSlug),
         warnings: parsed.warnings,
       }
-      : await readUrlSkillImports(parsed.resolvedSource, parsed.requestedSkillSlug)
+      : await readUrlSkillImports(companyId, parsed.resolvedSource, parsed.requestedSkillSlug)
         .then((result) => ({
           skills: result.skills,
           warnings: [...parsed.warnings, ...result.warnings],
@@ -1405,7 +1594,7 @@ export function companySkillService(db: Db) {
     list,
     listFull,
     getById,
-    getBySlug,
+    getByKey,
     detail,
     updateStatus,
     readFile,

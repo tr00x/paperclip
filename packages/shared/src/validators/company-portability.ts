@@ -46,6 +46,7 @@ export const portabilityAgentManifestEntrySchema = z.object({
 });
 
 export const portabilitySkillManifestEntrySchema = z.object({
+  key: z.string().min(1),
   slug: z.string().min(1),
   name: z.string().min(1),
   path: z.string().min(1),

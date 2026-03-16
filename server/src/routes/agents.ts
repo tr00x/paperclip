@@ -506,7 +506,7 @@ export function agentRoutes(db: Db) {
         agent.adapterConfig as Record<string, unknown>,
       );
       const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId);
-      const requiredSkills = runtimeSkillEntries.filter((entry) => entry.required).map((entry) => entry.name);
+      const requiredSkills = runtimeSkillEntries.filter((entry) => entry.required).map((entry) => entry.key);
       res.json(buildUnsupportedSkillSnapshot(agent.adapterType, Array.from(new Set([...requiredSkills, ...preference.desiredSkills]))));
       return;
     }
@@ -545,7 +545,7 @@ export function agentRoutes(db: Db) {
         ),
       );
       const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId);
-      const requiredSkills = runtimeSkillEntries.filter((entry) => entry.required).map((entry) => entry.name);
+      const requiredSkills = runtimeSkillEntries.filter((entry) => entry.required).map((entry) => entry.key);
       const desiredSkills = Array.from(new Set([...requiredSkills, ...requestedSkills]));
       const nextAdapterConfig = writePaperclipSkillSyncPreference(
         agent.adapterConfig as Record<string, unknown>,

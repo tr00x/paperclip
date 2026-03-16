@@ -53,17 +53,17 @@ function parseModelId(model: string | null): string | null {
 
 async function ensurePiSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
-  skillsEntries: Array<{ name: string; source: string }>,
+  skillsEntries: Array<{ key: string; runtimeName: string; source: string }>,
   desiredSkillNames?: string[],
 ) {
-  const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.name));
-  const selectedEntries = skillsEntries.filter((entry) => desiredSet.has(entry.name));
+  const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.key));
+  const selectedEntries = skillsEntries.filter((entry) => desiredSet.has(entry.key));
   if (selectedEntries.length === 0) return;
   const piSkillsHome = path.join(os.homedir(), ".pi", "agent", "skills");
   await fs.mkdir(piSkillsHome, { recursive: true });
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
     piSkillsHome,
-    selectedEntries.map((entry) => entry.name),
+    selectedEntries.map((entry) => entry.runtimeName),
   );
   for (const skillName of removedSkills) {
     await onLog(
@@ -73,19 +73,19 @@ async function ensurePiSkillsInjected(
   }
 
   for (const entry of selectedEntries) {
-    const target = path.join(piSkillsHome, entry.name);
+    const target = path.join(piSkillsHome, entry.runtimeName);
 
     try {
       const result = await ensurePaperclipSkillSymlink(entry.source, target);
       if (result === "skipped") continue;
       await onLog(
         "stderr",
-        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Pi skill "${entry.name}" into ${piSkillsHome}\n`,
+        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Pi skill "${entry.key}" into ${piSkillsHome}\n`,
       );
     } catch (err) {
       await onLog(
         "stderr",
-        `[paperclip] Failed to inject Pi skill "${entry.name}" into ${piSkillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
+        `[paperclip] Failed to inject Pi skill "${entry.key}" into ${piSkillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   }

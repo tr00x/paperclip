@@ -51,6 +51,67 @@ const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename"
 const execFileAsync = promisify(execFile);
 let bundledSkillsCommitPromise: Promise<string | null> | null = null;
 
+function normalizeSkillSlug(value: string | null | undefined) {
+  return value ? normalizeAgentUrlKey(value) ?? null : null;
+}
+
+function normalizeSkillKey(value: string | null | undefined) {
+  if (!value) return null;
+  const segments = value
+    .split("/")
+    .map((segment) => normalizeSkillSlug(segment))
+    .filter((segment): segment is string => Boolean(segment));
+  return segments.length > 0 ? segments.join("/") : null;
+}
+
+function readSkillKey(frontmatter: Record<string, unknown>) {
+  const metadata = isPlainRecord(frontmatter.metadata) ? frontmatter.metadata : null;
+  const paperclip = isPlainRecord(metadata?.paperclip) ? metadata?.paperclip as Record<string, unknown> : null;
+  return normalizeSkillKey(
+    asString(frontmatter.key)
+    ?? asString(frontmatter.skillKey)
+    ?? asString(metadata?.skillKey)
+    ?? asString(metadata?.canonicalKey)
+    ?? asString(metadata?.paperclipSkillKey)
+    ?? asString(paperclip?.skillKey)
+    ?? asString(paperclip?.key),
+  );
+}
+
+function deriveManifestSkillKey(
+  frontmatter: Record<string, unknown>,
+  fallbackSlug: string,
+  metadata: Record<string, unknown> | null,
+  sourceType: string,
+  sourceLocator: string | null,
+) {
+  const explicit = readSkillKey(frontmatter);
+  if (explicit) return explicit;
+  const slug = normalizeSkillSlug(asString(frontmatter.slug) ?? fallbackSlug) ?? "skill";
+  const sourceKind = asString(metadata?.sourceKind);
+  const owner = normalizeSkillSlug(asString(metadata?.owner));
+  const repo = normalizeSkillSlug(asString(metadata?.repo));
+  if ((sourceType === "github" || sourceKind === "github") && owner && repo) {
+    return `${owner}/${repo}/${slug}`;
+  }
+  if (sourceKind === "paperclip_bundled") {
+    return `paperclipai/paperclip/${slug}`;
+  }
+  if (sourceType === "url" || sourceKind === "url") {
+    try {
+      const host = normalizeSkillSlug(sourceLocator ? new URL(sourceLocator).host : null) ?? "url";
+      return `url/${host}/${slug}`;
+    } catch {
+      return `url/unknown/${slug}`;
+    }
+  }
+  return slug;
+}
+
+function skillPackageDir(key: string) {
+  return `skills/${key}`;
+}
+
 function isSensitiveEnvKey(key: string) {
   const normalized = key.trim().toLowerCase();
   return (
@@ -748,6 +809,8 @@ function shouldReferenceSkillOnExport(skill: CompanySkill, expandReferencedSkill
 async function buildReferencedSkillMarkdown(skill: CompanySkill) {
   const sourceEntry = await buildSkillSourceEntry(skill);
   const frontmatter: Record<string, unknown> = {
+    key: skill.key,
+    slug: skill.slug,
     name: skill.name,
     description: skill.description ?? null,
   };
@@ -761,7 +824,6 @@ async function buildReferencedSkillMarkdown(skill: CompanySkill) {
 
 async function withSkillSourceMetadata(skill: CompanySkill, markdown: string) {
   const sourceEntry = await buildSkillSourceEntry(skill);
-  if (!sourceEntry) return markdown;
   const parsed = parseFrontmatterMarkdown(markdown);
   const metadata = isPlainRecord(parsed.frontmatter.metadata)
     ? { ...parsed.frontmatter.metadata }
@@ -769,9 +831,20 @@ async function withSkillSourceMetadata(skill: CompanySkill, markdown: string) {
   const existingSources = Array.isArray(metadata.sources)
     ? metadata.sources.filter((entry) => isPlainRecord(entry))
     : [];
-  metadata.sources = [...existingSources, sourceEntry];
+  if (sourceEntry) {
+    metadata.sources = [...existingSources, sourceEntry];
+  }
+  metadata.skillKey = skill.key;
+  metadata.paperclipSkillKey = skill.key;
+  metadata.paperclip = {
+    ...(isPlainRecord(metadata.paperclip) ? metadata.paperclip : {}),
+    skillKey: skill.key,
+    slug: skill.slug,
+  };
   const frontmatter = {
     ...parsed.frontmatter,
+    key: skill.key,
+    slug: skill.slug,
     metadata,
   };
   return buildMarkdown(frontmatter, parsed.body);
@@ -1043,7 +1116,7 @@ function readAgentSkillRefs(frontmatter: Record<string, unknown>) {
   return Array.from(new Set(
     skills
       .filter((entry): entry is string => typeof entry === "string")
-      .map((entry) => normalizeAgentUrlKey(entry) ?? entry.trim())
+      .map((entry) => normalizeSkillKey(entry) ?? entry.trim())
       .filter(Boolean),
   ));
 }
@@ -1256,8 +1329,10 @@ function buildManifestFromPackageFiles(
         sourceKind: "catalog",
       };
     }
+    const key = deriveManifestSkillKey(frontmatter, slug, normalizedMetadata, sourceType, sourceLocator);
 
     manifest.skills.push({
+      key,
       slug,
       name: asString(frontmatter.name) ?? slug,
       path: skillPath,
@@ -1688,15 +1763,16 @@ export function companyPortabilityService(db: Db) {
     const paperclipTasksOut: Record<string, Record<string, unknown>> = {};
 
     for (const skill of companySkillRows) {
+      const packageDir = skillPackageDir(skill.key);
       if (shouldReferenceSkillOnExport(skill, Boolean(input.expandReferencedSkills))) {
-        files[`skills/${skill.slug}/SKILL.md`] = await buildReferencedSkillMarkdown(skill);
+        files[`${packageDir}/SKILL.md`] = await buildReferencedSkillMarkdown(skill);
         continue;
       }
 
       for (const inventoryEntry of skill.fileInventory) {
         const fileDetail = await companySkills.readFile(companyId, skill.id, inventoryEntry.path).catch(() => null);
         if (!fileDetail) continue;
-        const filePath = `skills/${skill.slug}/${inventoryEntry.path}`;
+        const filePath = `${packageDir}/${inventoryEntry.path}`;
         files[filePath] = inventoryEntry.path === "SKILL.md"
           ? await withSkillSourceMetadata(skill, fileDetail.content)
           : fileDetail.content;
@@ -1908,7 +1984,13 @@ export function companyPortabilityService(db: Db) {
       warnings.push("No agents selected for import.");
     }
 
-    const availableSkillSlugs = new Set(source.manifest.skills.map((skill) => skill.slug));
+    const availableSkillKeys = new Set(source.manifest.skills.map((skill) => skill.key));
+    const availableSkillSlugs = new Map<string, CompanyPortabilitySkillManifestEntry[]>();
+    for (const skill of source.manifest.skills) {
+      const existing = availableSkillSlugs.get(skill.slug) ?? [];
+      existing.push(skill);
+      availableSkillSlugs.set(skill.slug, existing);
+    }
 
     for (const agent of selectedAgents) {
       const filePath = ensureMarkdownPath(agent.path);
@@ -1921,9 +2003,10 @@ export function companyPortabilityService(db: Db) {
       if (parsed.frontmatter.kind && parsed.frontmatter.kind !== "agent") {
         warnings.push(`Agent markdown ${filePath} does not declare kind: agent in frontmatter.`);
       }
-      for (const skillSlug of agent.skills) {
-        if (!availableSkillSlugs.has(skillSlug)) {
-          warnings.push(`Agent ${agent.slug} references skill ${skillSlug}, but that skill is not present in the package.`);
+      for (const skillRef of agent.skills) {
+        const slugMatches = availableSkillSlugs.get(skillRef) ?? [];
+        if (!availableSkillKeys.has(skillRef) && slugMatches.length !== 1) {
+          warnings.push(`Agent ${agent.slug} references skill ${skillRef}, but that skill is not present in the package.`);
         }
       }
     }

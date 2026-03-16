@@ -63,6 +63,9 @@ vi.mock("../services/company-skills.js", () => ({
 const { companyPortabilityService } = await import("../services/company-portability.js");
 
 describe("company portability", () => {
+  const paperclipKey = "paperclipai/paperclip/paperclip";
+  const companyPlaybookKey = "company/company-1/company-playbook";
+
   beforeEach(() => {
     vi.clearAllMocks();
     companySvc.getById.mockResolvedValue({
@@ -86,7 +89,7 @@ describe("company portability", () => {
         adapterConfig: {
           promptTemplate: "You are ClaudeCoder.",
           paperclipSkillSync: {
-            desiredSkills: ["paperclip"],
+            desiredSkills: [paperclipKey],
           },
           instructionsFilePath: "/tmp/ignored.md",
           cwd: "/tmp/ignored",
@@ -153,6 +156,7 @@ describe("company portability", () => {
       {
         id: "skill-1",
         companyId: "company-1",
+        key: paperclipKey,
         slug: "paperclip",
         name: "paperclip",
         description: "Paperclip coordination skill",
@@ -178,6 +182,7 @@ describe("company portability", () => {
       {
         id: "skill-2",
         companyId: "company-1",
+        key: companyPlaybookKey,
         slug: "company-playbook",
         name: "company-playbook",
         description: "Internal company skill",
@@ -244,13 +249,13 @@ describe("company portability", () => {
     expect(exported.files["COMPANY.md"]).toContain('schema: "agentcompanies/v1"');
     expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain("You are ClaudeCoder.");
     expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain("skills:");
-    expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain('- "paperclip"');
+    expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain(`- "${paperclipKey}"`);
     expect(exported.files["agents/cmo/AGENTS.md"]).not.toContain("skills:");
-    expect(exported.files["skills/paperclip/SKILL.md"]).toContain("metadata:");
-    expect(exported.files["skills/paperclip/SKILL.md"]).toContain('kind: "github-dir"');
-    expect(exported.files["skills/paperclip/references/api.md"]).toBeUndefined();
-    expect(exported.files["skills/company-playbook/SKILL.md"]).toContain("# Company Playbook");
-    expect(exported.files["skills/company-playbook/references/checklist.md"]).toContain("# Checklist");
+    expect(exported.files[`skills/${paperclipKey}/SKILL.md`]).toContain("metadata:");
+    expect(exported.files[`skills/${paperclipKey}/SKILL.md`]).toContain('kind: "github-dir"');
+    expect(exported.files[`skills/${paperclipKey}/references/api.md`]).toBeUndefined();
+    expect(exported.files[`skills/${companyPlaybookKey}/SKILL.md`]).toContain("# Company Playbook");
+    expect(exported.files[`skills/${companyPlaybookKey}/references/checklist.md`]).toContain("# Checklist");
 
     const extension = exported.files[".paperclip.yaml"];
     expect(extension).toContain('schema: "paperclip/v1"');
@@ -284,9 +289,9 @@ describe("company portability", () => {
       expandReferencedSkills: true,
     });
 
-    expect(exported.files["skills/paperclip/SKILL.md"]).toContain("# Paperclip");
-    expect(exported.files["skills/paperclip/SKILL.md"]).toContain("metadata:");
-    expect(exported.files["skills/paperclip/references/api.md"]).toContain("# API");
+    expect(exported.files[`skills/${paperclipKey}/SKILL.md`]).toContain("# Paperclip");
+    expect(exported.files[`skills/${paperclipKey}/SKILL.md`]).toContain("metadata:");
+    expect(exported.files[`skills/${paperclipKey}/references/api.md`]).toContain("# API");
   });
 
   it("reads env inputs back from .paperclip.yaml during preview import", async () => {
@@ -392,7 +397,7 @@ describe("company portability", () => {
     expect(agentSvc.create).toHaveBeenCalledWith("company-imported", expect.objectContaining({
       adapterConfig: expect.objectContaining({
         paperclipSkillSync: {
-          desiredSkills: ["paperclip"],
+          desiredSkills: [paperclipKey],
         },
       }),
     }));

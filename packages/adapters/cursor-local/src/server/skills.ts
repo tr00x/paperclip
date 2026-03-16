@@ -53,7 +53,7 @@ async function readInstalledSkillTargets(skillsHome: string) {
 
 async function buildCursorSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
   const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const availableByName = new Map(availableEntries.map((entry) => [entry.name, entry]));
+  const availableByKey = new Map(availableEntries.map((entry) => [entry.key, entry]));
   const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
   const desiredSet = new Set(desiredSkills);
   const skillsHome = resolveCursorSkillsHome(config);
@@ -62,8 +62,8 @@ async function buildCursorSkillSnapshot(config: Record<string, unknown>): Promis
   const warnings: string[] = [];
 
   for (const available of availableEntries) {
-    const installedEntry = installed.get(available.name) ?? null;
-    const desired = desiredSet.has(available.name);
+    const installedEntry = installed.get(available.runtimeName) ?? null;
+    const desired = desiredSet.has(available.key);
     let state: AdapterSkillEntry["state"] = "available";
     let managed = false;
     let detail: string | null = null;
@@ -82,12 +82,13 @@ async function buildCursorSkillSnapshot(config: Record<string, unknown>): Promis
     }
 
     entries.push({
-      name: available.name,
+      key: available.key,
+      runtimeName: available.runtimeName,
       desired,
       managed,
       state,
       sourcePath: available.source,
-      targetPath: path.join(skillsHome, available.name),
+      targetPath: path.join(skillsHome, available.runtimeName),
       detail,
       required: Boolean(available.required),
       requiredReason: available.requiredReason ?? null,
@@ -95,23 +96,25 @@ async function buildCursorSkillSnapshot(config: Record<string, unknown>): Promis
   }
 
   for (const desiredSkill of desiredSkills) {
-    if (availableByName.has(desiredSkill)) continue;
+    if (availableByKey.has(desiredSkill)) continue;
     warnings.push(`Desired skill "${desiredSkill}" is not available from the Paperclip skills directory.`);
     entries.push({
-      name: desiredSkill,
+      key: desiredSkill,
+      runtimeName: null,
       desired: true,
       managed: true,
       state: "missing",
       sourcePath: null,
-      targetPath: path.join(skillsHome, desiredSkill),
+      targetPath: null,
       detail: "Paperclip cannot find this skill in the local runtime skills directory.",
     });
   }
 
   for (const [name, installedEntry] of installed.entries()) {
-    if (availableByName.has(name)) continue;
+    if (availableEntries.some((entry) => entry.runtimeName === name)) continue;
     entries.push({
-      name,
+      key: name,
+      runtimeName: name,
       desired: false,
       managed: false,
       state: "external",
@@ -121,7 +124,7 @@ async function buildCursorSkillSnapshot(config: Record<string, unknown>): Promis
     });
   }
 
-  entries.sort((left, right) => left.name.localeCompare(right.name));
+  entries.sort((left, right) => left.key.localeCompare(right.key));
 
   return {
     adapterType: "cursor",
@@ -144,23 +147,23 @@ export async function syncCursorSkills(
   const availableEntries = await readPaperclipRuntimeSkillEntries(ctx.config, __moduleDir);
   const desiredSet = new Set([
     ...desiredSkills,
-    ...availableEntries.filter((entry) => entry.required).map((entry) => entry.name),
+    ...availableEntries.filter((entry) => entry.required).map((entry) => entry.key),
   ]);
   const skillsHome = resolveCursorSkillsHome(ctx.config);
   await fs.mkdir(skillsHome, { recursive: true });
   const installed = await readInstalledSkillTargets(skillsHome);
-  const availableByName = new Map(availableEntries.map((entry) => [entry.name, entry]));
+  const availableByRuntimeName = new Map(availableEntries.map((entry) => [entry.runtimeName, entry]));
 
   for (const available of availableEntries) {
-    if (!desiredSet.has(available.name)) continue;
-    const target = path.join(skillsHome, available.name);
+    if (!desiredSet.has(available.key)) continue;
+    const target = path.join(skillsHome, available.runtimeName);
     await ensurePaperclipSkillSymlink(available.source, target);
   }
 
   for (const [name, installedEntry] of installed.entries()) {
-    const available = availableByName.get(name);
+    const available = availableByRuntimeName.get(name);
     if (!available) continue;
-    if (desiredSet.has(name)) continue;
+    if (desiredSet.has(available.key)) continue;
     if (installedEntry.targetPath !== available.source) continue;
     await fs.unlink(path.join(skillsHome, name)).catch(() => {});
   }
@@ -170,7 +173,7 @@ export async function syncCursorSkills(
 
 export function resolveCursorDesiredSkillNames(
   config: Record<string, unknown>,
-  availableEntries: Array<{ name: string; required?: boolean }>,
+  availableEntries: Array<{ key: string; required?: boolean }>,
 ) {
   return resolvePaperclipDesiredSkillNames(config, availableEntries);
 }

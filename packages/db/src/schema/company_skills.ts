@@ -14,6 +14,7 @@ export const companySkills = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     companyId: uuid("company_id").notNull().references(() => companies.id),
+    key: text("key").notNull(),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
     description: text("description"),
@@ -29,7 +30,7 @@ export const companySkills = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    companySlugUniqueIdx: uniqueIndex("company_skills_company_slug_idx").on(table.companyId, table.slug),
+    companyKeyUniqueIdx: uniqueIndex("company_skills_company_key_idx").on(table.companyId, table.key),
     companyNameIdx: index("company_skills_company_name_idx").on(table.companyId, table.name),
   }),
 );

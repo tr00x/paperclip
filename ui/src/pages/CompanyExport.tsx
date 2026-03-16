@@ -540,17 +540,23 @@ export function CompanyExport() {
     }
   }
 
-  function handleSkillClick(skillSlug: string) {
+  function handleSkillClick(skillKey: string) {
     if (!exportData) return;
-    // Find the SKILL.md file for this skill slug
-    const skillPath = `skills/${skillSlug}/SKILL.md`;
+    const manifestSkill = exportData.manifest.skills.find(
+      (skill) => skill.key === skillKey || skill.slug === skillKey,
+    );
+    const skillPath = manifestSkill?.path ?? `skills/${skillKey}/SKILL.md`;
     if (!(skillPath in exportData.files)) return;
-    // Select the file and expand parent dirs
     setSelectedFile(skillPath);
     setExpandedDirs((prev) => {
       const next = new Set(prev);
       next.add("skills");
-      next.add(`skills/${skillSlug}`);
+      const parts = skillPath.split("/").slice(0, -1);
+      let current = "";
+      for (const part of parts) {
+        current = current ? `${current}/${part}` : part;
+        next.add(current);
+      }
       return next;
     });
   }

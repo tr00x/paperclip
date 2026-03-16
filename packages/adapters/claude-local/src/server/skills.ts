@@ -14,17 +14,18 @@ const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 async function buildClaudeSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
   const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const availableByName = new Map(availableEntries.map((entry) => [entry.name, entry]));
+  const availableByKey = new Map(availableEntries.map((entry) => [entry.key, entry]));
   const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
   const desiredSet = new Set(desiredSkills);
   const entries: AdapterSkillEntry[] = availableEntries.map((entry) => ({
-    name: entry.name,
-    desired: desiredSet.has(entry.name),
+    key: entry.key,
+    runtimeName: entry.runtimeName,
+    desired: desiredSet.has(entry.key),
     managed: true,
-    state: desiredSet.has(entry.name) ? "configured" : "available",
+    state: desiredSet.has(entry.key) ? "configured" : "available",
     sourcePath: entry.source,
     targetPath: null,
-    detail: desiredSet.has(entry.name)
+    detail: desiredSet.has(entry.key)
       ? "Will be mounted into the ephemeral Claude skill directory on the next run."
       : null,
     required: Boolean(entry.required),
@@ -33,10 +34,11 @@ async function buildClaudeSkillSnapshot(config: Record<string, unknown>): Promis
   const warnings: string[] = [];
 
   for (const desiredSkill of desiredSkills) {
-    if (availableByName.has(desiredSkill)) continue;
+    if (availableByKey.has(desiredSkill)) continue;
     warnings.push(`Desired skill "${desiredSkill}" is not available from the Paperclip skills directory.`);
     entries.push({
-      name: desiredSkill,
+      key: desiredSkill,
+      runtimeName: null,
       desired: true,
       managed: true,
       state: "missing",
@@ -46,7 +48,7 @@ async function buildClaudeSkillSnapshot(config: Record<string, unknown>): Promis
     });
   }
 
-  entries.sort((left, right) => left.name.localeCompare(right.name));
+  entries.sort((left, right) => left.key.localeCompare(right.key));
 
   return {
     adapterType: "claude_local",
@@ -71,7 +73,7 @@ export async function syncClaudeSkills(
 
 export function resolveClaudeDesiredSkillNames(
   config: Record<string, unknown>,
-  availableEntries: Array<{ name: string; required?: boolean }>,
+  availableEntries: Array<{ key: string; required?: boolean }>,
 ) {
   return resolvePaperclipDesiredSkillNames(config, availableEntries);
 }

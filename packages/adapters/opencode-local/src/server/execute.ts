@@ -52,16 +52,16 @@ function claudeSkillsHome(): string {
 
 async function ensureOpenCodeSkillsInjected(
   onLog: AdapterExecutionContext["onLog"],
-  skillsEntries: Array<{ name: string; source: string }>,
+  skillsEntries: Array<{ key: string; runtimeName: string; source: string }>,
   desiredSkillNames?: string[],
 ) {
   const skillsHome = claudeSkillsHome();
   await fs.mkdir(skillsHome, { recursive: true });
-  const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.name));
-  const selectedEntries = skillsEntries.filter((entry) => desiredSet.has(entry.name));
+  const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.key));
+  const selectedEntries = skillsEntries.filter((entry) => desiredSet.has(entry.key));
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
     skillsHome,
-    selectedEntries.map((entry) => entry.name),
+    selectedEntries.map((entry) => entry.runtimeName),
   );
   for (const skillName of removedSkills) {
     await onLog(
@@ -70,19 +70,19 @@ async function ensureOpenCodeSkillsInjected(
     );
   }
   for (const entry of selectedEntries) {
-    const target = path.join(skillsHome, entry.name);
+    const target = path.join(skillsHome, entry.runtimeName);
 
     try {
       const result = await ensurePaperclipSkillSymlink(entry.source, target);
       if (result === "skipped") continue;
       await onLog(
         "stderr",
-        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} OpenCode skill "${entry.name}" into ${skillsHome}\n`,
+        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} OpenCode skill "${entry.key}" into ${skillsHome}\n`,
       );
     } catch (err) {
       await onLog(
         "stderr",
-        `[paperclip] Failed to inject OpenCode skill "${entry.name}" into ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
+        `[paperclip] Failed to inject OpenCode skill "${entry.key}" into ${skillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   }

@@ -13,6 +13,7 @@ export const companySkillFileInventoryEntrySchema = z.object({
 export const companySkillSchema = z.object({
   id: z.string().uuid(),
   companyId: z.string().uuid(),
+  key: z.string().min(1),
   slug: z.string().min(1),
   name: z.string().min(1),
   description: z.string().nullable(),

@@ -31,6 +31,7 @@ async function createCustomSkill(root: string, skillName: string) {
 }
 
 describe("codex local adapter skill injection", () => {
+  const paperclipKey = "paperclipai/paperclip/paperclip";
   const cleanupDirs = new Set<string>();
 
   afterEach(async () => {
@@ -57,14 +58,18 @@ describe("codex local adapter skill injection", () => {
       },
       {
         skillsHome,
-        skillsEntries: [{ name: "paperclip", source: path.join(currentRepo, "skills", "paperclip") }],
+        skillsEntries: [{
+          key: paperclipKey,
+          runtimeName: "paperclip",
+          source: path.join(currentRepo, "skills", "paperclip"),
+        }],
       },
     );
 
     expect(await fs.realpath(path.join(skillsHome, "paperclip"))).toBe(
       await fs.realpath(path.join(currentRepo, "skills", "paperclip")),
     );
-    expect(logs.some((line) => line.includes('Repaired Codex skill "paperclip"'))).toBe(true);
+    expect(logs.some((line) => line.includes("Repaired Codex skill"))).toBe(true);
   });
 
   it("preserves a custom Codex skill symlink outside Paperclip repo checkouts", async () => {
@@ -81,7 +86,11 @@ describe("codex local adapter skill injection", () => {
 
     await ensureCodexSkillsInjected(async () => {}, {
       skillsHome,
-      skillsEntries: [{ name: "paperclip", source: path.join(currentRepo, "skills", "paperclip") }],
+      skillsEntries: [{
+        key: paperclipKey,
+        runtimeName: "paperclip",
+        source: path.join(currentRepo, "skills", "paperclip"),
+      }],
     });
 
     expect(await fs.realpath(path.join(skillsHome, "paperclip"))).toBe(

@@ -1233,7 +1233,7 @@ function AgentSkillsTab({
 }) {
   type SkillRow = {
     id: string;
-    slug: string;
+    key: string;
     name: string;
     description: string | null;
     detail: string | null;
@@ -1316,50 +1316,50 @@ function AgentSkillsTab({
     return () => window.clearTimeout(timeout);
   }, [skillDraft, skillSnapshot, syncSkills.isPending, syncSkills.mutate]);
 
-  const companySkillBySlug = useMemo(
-    () => new Map((companySkills ?? []).map((skill) => [skill.slug, skill])),
+  const companySkillByKey = useMemo(
+    () => new Map((companySkills ?? []).map((skill) => [skill.key, skill])),
     [companySkills],
   );
-  const adapterEntryByName = useMemo(
-    () => new Map((skillSnapshot?.entries ?? []).map((entry) => [entry.name, entry])),
+  const adapterEntryByKey = useMemo(
+    () => new Map((skillSnapshot?.entries ?? []).map((entry) => [entry.key, entry])),
     [skillSnapshot],
   );
   const optionalSkillRows = useMemo<SkillRow[]>(
     () =>
       (companySkills ?? [])
-        .filter((skill) => !adapterEntryByName.get(skill.slug)?.required)
+        .filter((skill) => !adapterEntryByKey.get(skill.key)?.required)
         .map((skill) => ({
           id: skill.id,
-          slug: skill.slug,
+          key: skill.key,
           name: skill.name,
           description: skill.description,
-          detail: adapterEntryByName.get(skill.slug)?.detail ?? null,
+          detail: adapterEntryByKey.get(skill.key)?.detail ?? null,
           linkTo: `/skills/${skill.id}`,
-          adapterEntry: adapterEntryByName.get(skill.slug) ?? null,
+          adapterEntry: adapterEntryByKey.get(skill.key) ?? null,
         })),
-    [adapterEntryByName, companySkills],
+    [adapterEntryByKey, companySkills],
   );
   const requiredSkillRows = useMemo<SkillRow[]>(
     () =>
       (skillSnapshot?.entries ?? [])
         .filter((entry) => entry.required)
         .map((entry) => {
-          const companySkill = companySkillBySlug.get(entry.name);
+          const companySkill = companySkillByKey.get(entry.key);
           return {
-            id: companySkill?.id ?? `required:${entry.name}`,
-            slug: entry.name,
-            name: companySkill?.name ?? entry.name,
+            id: companySkill?.id ?? `required:${entry.key}`,
+            key: entry.key,
+            name: companySkill?.name ?? entry.key,
             description: companySkill?.description ?? null,
             detail: entry.detail ?? null,
             linkTo: companySkill ? `/skills/${companySkill.id}` : null,
             adapterEntry: entry,
           };
         }),
-    [companySkillBySlug, skillSnapshot],
+    [companySkillByKey, skillSnapshot],
   );
   const desiredOnlyMissingSkills = useMemo(
-    () => skillDraft.filter((slug) => !companySkillBySlug.has(slug)),
-    [companySkillBySlug, skillDraft],
+    () => skillDraft.filter((key) => !companySkillByKey.has(key)),
+    [companySkillByKey, skillDraft],
   );
   const skillApplicationLabel = useMemo(() => {
     switch (skillSnapshot?.mode) {
@@ -1424,9 +1424,9 @@ function AgentSkillsTab({
         <>
           {(() => {
             const renderSkillRow = (skill: SkillRow) => {
-              const adapterEntry = skill.adapterEntry ?? adapterEntryByName.get(skill.slug);
+              const adapterEntry = skill.adapterEntry ?? adapterEntryByKey.get(skill.key);
               const required = Boolean(adapterEntry?.required);
-              const checked = required || skillDraft.includes(skill.slug);
+              const checked = required || skillDraft.includes(skill.key);
               const disabled = required || skillSnapshot?.mode === "unsupported";
               const checkbox = (
                 <input
@@ -1435,8 +1435,8 @@ function AgentSkillsTab({
                   disabled={disabled}
                   onChange={(event) => {
                     const next = event.target.checked
-                      ? Array.from(new Set([...skillDraft, skill.slug]))
-                      : skillDraft.filter((value) => value !== skill.slug);
+                      ? Array.from(new Set([...skillDraft, skill.key]))
+                      : skillDraft.filter((value) => value !== skill.key);
                     setSkillDraft(next);
                   }}
                   className="mt-0.5 disabled:cursor-not-allowed disabled:opacity-60"
@@ -1468,7 +1468,10 @@ function AgentSkillsTab({
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="truncate font-medium">{skill.name}</span>
+                      <div className="min-w-0">
+                        <span className="truncate font-medium">{skill.name}</span>
+                        <div className="truncate font-mono text-[11px] text-muted-foreground">{skill.key}</div>
+                      </div>
                       {skill.linkTo ? (
                         <Link
                           to={skill.linkTo}
