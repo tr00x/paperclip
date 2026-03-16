@@ -191,7 +191,14 @@ export interface CompanyPortabilityPreviewResult {
   errors: string[];
 }
 
-export interface CompanyPortabilityImportRequest extends CompanyPortabilityPreviewRequest {}
+export interface CompanyPortabilityAdapterOverride {
+  adapterType: string;
+  adapterConfig?: Record<string, unknown>;
+}
+
+export interface CompanyPortabilityImportRequest extends CompanyPortabilityPreviewRequest {
+  adapterOverrides?: Record<string, CompanyPortabilityAdapterOverride>;
+}
 
 export interface CompanyPortabilityImportResult {
   company: {

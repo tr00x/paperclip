@@ -2260,16 +2260,21 @@ export function companyPortabilityService(db: Db) {
           warnings.push(`Missing AGENTS markdown for ${manifestAgent.slug}; imported without prompt template.`);
         }
         const markdown = markdownRaw ? parseFrontmatterMarkdown(markdownRaw) : { frontmatter: {}, body: "" };
-        const adapterConfig = {
-          ...manifestAgent.adapterConfig,
-          promptTemplate: markdown.body || asString((manifestAgent.adapterConfig as Record<string, unknown>).promptTemplate) || "",
-        } as Record<string, unknown>;
+        const promptTemplate = markdown.body || asString((manifestAgent.adapterConfig as Record<string, unknown>).promptTemplate) || "";
+
+        // Apply adapter overrides from request if present
+        const adapterOverride = input.adapterOverrides?.[planAgent.slug];
+        const effectiveAdapterType = adapterOverride?.adapterType ?? manifestAgent.adapterType;
+        const baseAdapterConfig = adapterOverride?.adapterConfig
+          ? { ...adapterOverride.adapterConfig, promptTemplate }
+          : { ...manifestAgent.adapterConfig, promptTemplate } as Record<string, unknown>;
+
         const desiredSkills = manifestAgent.skills ?? [];
         const adapterConfigWithSkills = writePaperclipSkillSyncPreference(
-          adapterConfig,
+          baseAdapterConfig,
           desiredSkills,
         );
-        delete adapterConfig.instructionsFilePath;
+        delete baseAdapterConfig.instructionsFilePath;
         const patch = {
           name: planAgent.plannedName,
           role: manifestAgent.role,
@@ -2277,7 +2282,7 @@ export function companyPortabilityService(db: Db) {
           icon: manifestAgent.icon,
           capabilities: manifestAgent.capabilities,
           reportsTo: null,
-          adapterType: manifestAgent.adapterType,
+          adapterType: effectiveAdapterType,
           adapterConfig: adapterConfigWithSkills,
           runtimeConfig: manifestAgent.runtimeConfig,
           budgetMonthlyCents: manifestAgent.budgetMonthlyCents,

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CompanyPortabilityPreviewResult,
   CompanyPortabilitySource,
+  CompanyPortabilityAdapterOverride,
 } from "@paperclipai/shared";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToast } from "../context/ToastContext";
 import { companiesApi } from "../api/companies";
+import { agentsApi } from "../api/agents";
 import { queryKeys } from "../lib/queryKeys";
 import { MarkdownBody } from "../components/MarkdownBody";
 import { Button } from "@/components/ui/button";
@@ -16,12 +18,16 @@ import { cn } from "../lib/utils";
 import {
   ArrowRight,
   Check,
+  ChevronRight,
   Download,
   Github,
   Package,
   Upload,
 } from "lucide-react";
-import { Field } from "../components/agent-config-primitives";
+import { Field, adapterLabels } from "../components/agent-config-primitives";
+import { defaultCreateValues } from "../components/agent-config-defaults";
+import { getUIAdapter } from "../adapters";
+import type { CreateConfigValues } from "@paperclipai/adapter-utils";
 import {
   type FileTreeNode,
   type FrontmatterData,
@@ -434,6 +440,120 @@ function ConflictResolutionList({
   );
 }
 
+// ── Adapter type options for import ───────────────────────────────────
+
+const IMPORT_ADAPTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "claude_local", label: adapterLabels.claude_local ?? "Claude (local)" },
+  { value: "codex_local", label: adapterLabels.codex_local ?? "Codex (local)" },
+  { value: "opencode_local", label: adapterLabels.opencode_local ?? "OpenCode (local)" },
+  { value: "cursor", label: adapterLabels.cursor ?? "Cursor (local)" },
+];
+
+// ── Adapter picker for imported agents ───────────────────────────────
+
+interface AdapterPickerItem {
+  slug: string;
+  name: string;
+  adapterType: string;
+}
+
+function AdapterPickerList({
+  agents,
+  adapterOverrides,
+  expandedSlugs,
+  configValues,
+  onChangeAdapter,
+  onToggleExpand,
+  onChangeConfig,
+}: {
+  agents: AdapterPickerItem[];
+  adapterOverrides: Record<string, string>;
+  expandedSlugs: Set<string>;
+  configValues: Record<string, CreateConfigValues>;
+  onChangeAdapter: (slug: string, adapterType: string) => void;
+  onToggleExpand: (slug: string) => void;
+  onChangeConfig: (slug: string, patch: Partial<CreateConfigValues>) => void;
+}) {
+  if (agents.length === 0) return null;
+
+  return (
+    <div className="mx-5 mt-3">
+      <div className="rounded-md border border-border">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+          <h3 className="text-sm font-medium">Adapters</h3>
+          <span className="text-xs text-muted-foreground">
+            {agents.length} agent{agents.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="divide-y divide-border">
+          {agents.map((agent) => {
+            const selectedType = adapterOverrides[agent.slug] ?? agent.adapterType;
+            const isExpanded = expandedSlugs.has(agent.slug);
+            const uiAdapter = getUIAdapter(selectedType);
+            const vals = configValues[agent.slug] ?? { ...defaultCreateValues, adapterType: selectedType };
+
+            return (
+              <div key={agent.slug}>
+                <div className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                  <span className={cn(
+                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide",
+                    "text-blue-500 border-blue-500/30",
+                  )}>
+                    agent
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {agent.name}
+                  </span>
+                  <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <select
+                    className="min-w-0 flex-1 rounded-md border border-border bg-transparent px-2 py-1 text-xs outline-none focus:border-foreground"
+                    value={selectedType}
+                    onChange={(e) => onChangeAdapter(agent.slug, e.target.value)}
+                  >
+                    {IMPORT_ADAPTER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={cn(
+                      "ml-auto shrink-0 rounded-md border px-2.5 py-1 text-xs transition-colors inline-flex items-center gap-1.5",
+                      isExpanded
+                        ? "border-foreground bg-accent text-foreground"
+                        : "border-border text-muted-foreground hover:bg-accent/50",
+                    )}
+                    onClick={() => onToggleExpand(agent.slug)}
+                  >
+                    <ChevronRight className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-90")} />
+                    configure adapter
+                  </button>
+                </div>
+                {isExpanded && (
+                  <div className="border-t border-border bg-accent/10 px-4 py-3 space-y-3">
+                    <uiAdapter.ConfigFields
+                      mode="create"
+                      isCreate
+                      adapterType={selectedType}
+                      values={vals}
+                      set={(patch) => onChangeConfig(agent.slug, patch)}
+                      config={{}}
+                      eff={() => "" as any}
+                      mark={() => {}}
+                      models={[]}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────
 
 async function readLocalPackageZip(file: File): Promise<{
@@ -493,6 +613,23 @@ export function CompanyImport() {
   const [skippedSlugs, setSkippedSlugs] = useState<Set<string>>(new Set());
   const [confirmedSlugs, setConfirmedSlugs] = useState<Set<string>>(new Set());
 
+  // Adapter override state
+  const [adapterOverrides, setAdapterOverrides] = useState<Record<string, string>>({});
+  const [adapterExpandedSlugs, setAdapterExpandedSlugs] = useState<Set<string>>(new Set());
+  const [adapterConfigValues, setAdapterConfigValues] = useState<Record<string, CreateConfigValues>>({});
+
+  // Fetch current company agents to find CEO adapter type
+  const { data: companyAgents } = useQuery({
+    queryKey: selectedCompanyId ? queryKeys.agents.list(selectedCompanyId) : ["agents", "none"],
+    queryFn: () => agentsApi.list(selectedCompanyId!),
+    enabled: Boolean(selectedCompanyId),
+  });
+  const ceoAdapterType = useMemo(() => {
+    if (!companyAgents) return "claude_local";
+    const ceo = companyAgents.find((a) => a.role === "ceo");
+    return ceo?.adapterType ?? "claude_local";
+  }, [companyAgents]);
+
   useEffect(() => {
     setBreadcrumbs([
       { label: "Org Chart", href: "/org" },
@@ -547,6 +684,15 @@ export function CompanyImport() {
       setNameOverrides(defaultOverrides);
       setSkippedSlugs(new Set());
       setConfirmedSlugs(new Set());
+
+      // Initialize adapter overrides — default all agents to the CEO's adapter type
+      const defaultAdapters: Record<string, string> = {};
+      for (const agent of result.manifest.agents) {
+        defaultAdapters[agent.slug] = ceoAdapterType;
+      }
+      setAdapterOverrides(defaultAdapters);
+      setAdapterExpandedSlugs(new Set());
+      setAdapterConfigValues({});
 
       // Check all files by default, then uncheck COMPANY.md for existing company
       const allFiles = new Set(Object.keys(result.files));
@@ -620,6 +766,7 @@ export function CompanyImport() {
         collisionStrategy: "rename",
         nameOverrides: buildFinalNameOverrides(),
         selectedFiles: buildSelectedFiles(),
+        adapterOverrides: buildFinalAdapterOverrides(),
       });
     },
     onSuccess: async (result) => {
@@ -784,6 +931,59 @@ export function CompanyImport() {
 
       return next;
     });
+  }
+
+  function handleAdapterChange(slug: string, adapterType: string) {
+    setAdapterOverrides((prev) => ({ ...prev, [slug]: adapterType }));
+    // Reset config values when adapter type changes
+    setAdapterConfigValues((prev) => {
+      const next = { ...prev };
+      delete next[slug];
+      return next;
+    });
+  }
+
+  function handleAdapterToggleExpand(slug: string) {
+    setAdapterExpandedSlugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }
+
+  function handleAdapterConfigChange(slug: string, patch: Partial<CreateConfigValues>) {
+    setAdapterConfigValues((prev) => ({
+      ...prev,
+      [slug]: { ...(prev[slug] ?? { ...defaultCreateValues, adapterType: adapterOverrides[slug] ?? "claude_local" }), ...patch },
+    }));
+  }
+
+  // Build the list of agents for adapter picking
+  const adapterAgents = useMemo<AdapterPickerItem[]>(() => {
+    if (!importPreview) return [];
+    return importPreview.manifest.agents.map((a) => ({
+      slug: a.slug,
+      name: a.name,
+      adapterType: a.adapterType,
+    }));
+  }, [importPreview]);
+
+  // Build final adapterOverrides for import request
+  function buildFinalAdapterOverrides(): Record<string, CompanyPortabilityAdapterOverride> | undefined {
+    if (adapterAgents.length === 0) return undefined;
+    const overrides: Record<string, CompanyPortabilityAdapterOverride> = {};
+    for (const agent of adapterAgents) {
+      const selectedType = adapterOverrides[agent.slug] ?? agent.adapterType;
+      const configVals = adapterConfigValues[agent.slug];
+      const override: CompanyPortabilityAdapterOverride = { adapterType: selectedType };
+      if (configVals) {
+        const uiAdapter = getUIAdapter(selectedType);
+        override.adapterConfig = uiAdapter.buildAdapterConfig(configVals);
+      }
+      overrides[agent.slug] = override;
+    }
+    return Object.keys(overrides).length > 0 ? overrides : undefined;
   }
 
   const hasSource =
@@ -965,6 +1165,17 @@ export function CompanyImport() {
             onRename={handleConflictRename}
             onToggleSkip={handleConflictToggleSkip}
             onToggleConfirm={handleConflictToggleConfirm}
+          />
+
+          {/* Adapter picker list */}
+          <AdapterPickerList
+            agents={adapterAgents}
+            adapterOverrides={adapterOverrides}
+            expandedSlugs={adapterExpandedSlugs}
+            configValues={adapterConfigValues}
+            onChangeAdapter={handleAdapterChange}
+            onToggleExpand={handleAdapterToggleExpand}
+            onChangeConfig={handleAdapterConfigChange}
           />
 
           {/* Import button — below renames */}

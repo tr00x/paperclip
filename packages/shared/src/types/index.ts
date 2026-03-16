@@ -109,6 +109,7 @@ export type {
   CompanyPortabilityPreviewProjectPlan,
   CompanyPortabilityPreviewIssuePlan,
   CompanyPortabilityPreviewResult,
+  CompanyPortabilityAdapterOverride,
   CompanyPortabilityImportRequest,
   CompanyPortabilityImportResult,
   CompanyPortabilityExportRequest,

@@ -169,6 +169,13 @@ export const companyPortabilityPreviewSchema = z.object({
 
 export type CompanyPortabilityPreview = z.infer<typeof companyPortabilityPreviewSchema>;
 
-export const companyPortabilityImportSchema = companyPortabilityPreviewSchema;
+export const portabilityAdapterOverrideSchema = z.object({
+  adapterType: z.string().min(1),
+  adapterConfig: z.record(z.unknown()).optional(),
+});
+
+export const companyPortabilityImportSchema = companyPortabilityPreviewSchema.extend({
+  adapterOverrides: z.record(z.string().min(1), portabilityAdapterOverrideSchema).optional(),
+});
 
 export type CompanyPortabilityImport = z.infer<typeof companyPortabilityImportSchema>;
