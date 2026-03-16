@@ -154,6 +154,71 @@ function ProjectStatusPicker({ status, onChange }: { status: string; onChange: (
   );
 }
 
+function ArchiveDangerZone({
+  project,
+  onArchive,
+  archivePending,
+}: {
+  project: Project;
+  onArchive: (archived: boolean) => void;
+  archivePending?: boolean;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const isArchive = !project.archivedAt;
+  const action = isArchive ? "Archive" : "Unarchive";
+
+  return (
+    <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-4">
+      <p className="text-sm text-muted-foreground">
+        {isArchive
+          ? "Archive this project to hide it from the sidebar and project selectors."
+          : "Unarchive this project to restore it in the sidebar and project selectors."}
+      </p>
+      {archivePending ? (
+        <Button size="sm" variant="destructive" disabled>
+          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+          {isArchive ? "Archiving..." : "Unarchiving..."}
+        </Button>
+      ) : confirming ? (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-destructive font-medium">
+            {action} &ldquo;{project.name}&rdquo;?
+          </span>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => {
+              setConfirming(false);
+              onArchive(isArchive);
+            }}
+          >
+            Confirm
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setConfirming(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => setConfirming(true)}
+        >
+          {isArchive ? (
+            <><Archive className="h-3 w-3 mr-1" />{action} project</>
+          ) : (
+            <><ArchiveRestore className="h-3 w-3 mr-1" />{action} project</>
+          )}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSaveState, onArchive, archivePending }: ProjectPropertiesProps) {
   const { selectedCompanyId } = useCompany();
   const queryClient = useQueryClient();
@@ -962,34 +1027,11 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
             <div className="text-xs font-medium text-destructive uppercase tracking-wide">
               Danger Zone
             </div>
-            <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-4">
-              <p className="text-sm text-muted-foreground">
-                {project.archivedAt
-                  ? "Unarchive this project to restore it in the sidebar and project selectors."
-                  : "Archive this project to hide it from the sidebar and project selectors."}
-              </p>
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={archivePending}
-                onClick={() => {
-                  const action = project.archivedAt ? "Unarchive" : "Archive";
-                  const confirmed = window.confirm(
-                    `${action} project "${project.name}"?`,
-                  );
-                  if (!confirmed) return;
-                  onArchive(!project.archivedAt);
-                }}
-              >
-                {archivePending ? (
-                  <><Loader2 className="h-3 w-3 animate-spin mr-1" />{project.archivedAt ? "Unarchiving..." : "Archiving..."}</>
-                ) : project.archivedAt ? (
-                  <><ArchiveRestore className="h-3 w-3 mr-1" />Unarchive project</>
-                ) : (
-                  <><Archive className="h-3 w-3 mr-1" />Archive project</>
-                )}
-              </Button>
-            </div>
+            <ArchiveDangerZone
+              project={project}
+              onArchive={onArchive}
+              archivePending={archivePending}
+            />
           </div>
         </>
       )}
