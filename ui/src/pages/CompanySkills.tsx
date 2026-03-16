@@ -432,11 +432,13 @@ function SkillList({
                     </TooltipTrigger>
                     <TooltipContent side="top">{source.managedLabel}</TooltipContent>
                   </Tooltip>
+                  {skill.key.includes("/") && (
+                    <span className="block truncate font-mono text-[11px] leading-4 text-muted-foreground">
+                      {skill.key.split("/").slice(0, -1).join("/")}
+                    </span>
+                  )}
                   <span className="block min-w-0 overflow-hidden text-[13px] font-medium leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
                     {skill.name}
-                  </span>
-                  <span className="truncate font-mono text-[11px] text-muted-foreground">
-                    {skill.key}
                   </span>
                 </span>
               </Link>
