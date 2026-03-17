@@ -341,6 +341,7 @@ function ExportPreviewPane({
   }
 
   const isMarkdown = selectedFile.endsWith(".md");
+  const isSvg = selectedFile.endsWith(".svg");
   const parsed = isMarkdown ? parseFrontmatter(content) : null;
 
   return (
@@ -356,6 +357,11 @@ function ExportPreviewPane({
           </>
         ) : isMarkdown ? (
           <MarkdownBody>{content}</MarkdownBody>
+        ) : isSvg ? (
+          <div
+            className="flex justify-center overflow-auto rounded-lg border border-border bg-white p-4"
+            dangerouslySetInnerHTML={{ __html: content }}
+          />
         ) : (
           <pre className="overflow-x-auto whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-mono text-sm text-foreground">
             <code>{content}</code>
