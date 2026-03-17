@@ -1469,11 +1469,6 @@ function AgentSkillsTab({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        {skill.key.includes("/") && (
-                          <div className="truncate font-mono text-[11px] leading-4 text-muted-foreground">
-                            {skill.key.split("/").slice(0, -1).join("/")}
-                          </div>
-                        )}
                         <span className="truncate font-medium">{skill.name}</span>
                       </div>
                       {skill.linkTo ? (
