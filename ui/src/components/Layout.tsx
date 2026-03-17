@@ -313,6 +313,9 @@ export function Layout() {
                   <BookOpen className="h-4 w-4 shrink-0" />
                   <span className="truncate">Documentation</span>
                 </a>
+                {health?.version && (
+                  <span className="px-2 text-xs text-muted-foreground shrink-0">v{health.version}</span>
+                )}
                 <Button variant="ghost" size="icon-sm" className="text-muted-foreground shrink-0" asChild>
                   <Link
                     to={instanceSettingsTarget}
@@ -363,6 +366,9 @@ export function Layout() {
                   <BookOpen className="h-4 w-4 shrink-0" />
                   <span className="truncate">Documentation</span>
                 </a>
+                {health?.version && (
+                  <span className="px-2 text-xs text-muted-foreground shrink-0">v{health.version}</span>
+                )}
                 <Button variant="ghost" size="icon-sm" className="text-muted-foreground shrink-0" asChild>
                   <Link
                     to={instanceSettingsTarget}
