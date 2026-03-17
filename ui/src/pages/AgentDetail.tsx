@@ -16,7 +16,9 @@ import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
 import { AgentConfigForm } from "../components/AgentConfigForm";
 import { PageTabBar } from "../components/PageTabBar";
-import { adapterLabels, roleLabels } from "../components/agent-config-primitives";
+import { adapterLabels, roleLabels, help } from "../components/agent-config-primitives";
+import { MarkdownEditor } from "../components/MarkdownEditor";
+import { assetsApi } from "../api/assets";
 import { getUIAdapter, buildTranscript } from "../adapters";
 import { StatusBadge } from "../components/StatusBadge";
 import { agentStatusDot, agentStatusDotDefault } from "../lib/status-colors";
@@ -187,9 +189,10 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "dashboard" | "configuration" | "skills" | "runs" | "budget";
+type AgentDetailView = "dashboard" | "prompts" | "configuration" | "skills" | "runs" | "budget";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
+  if (value === "prompts") return value;
   if (value === "configure" || value === "configuration") return "configuration";
   if (value === "skills") return value;
   if (value === "budget") return value;
@@ -578,15 +581,17 @@ export function AgentDetail() {
       return;
     }
     const canonicalTab =
-      activeView === "configuration"
-        ? "configuration"
-        : activeView === "skills"
-          ? "skills"
-          : activeView === "runs"
-            ? "runs"
-            : activeView === "budget"
-              ? "budget"
-            : "dashboard";
+      activeView === "prompts"
+        ? "prompts"
+        : activeView === "configuration"
+          ? "configuration"
+          : activeView === "skills"
+            ? "skills"
+            : activeView === "runs"
+              ? "runs"
+              : activeView === "budget"
+                ? "budget"
+              : "dashboard";
     if (routeAgentRef !== canonicalAgentRef || urlTab !== canonicalTab) {
       navigate(`/agents/${canonicalAgentRef}/${canonicalTab}`, { replace: true });
       return;
@@ -699,6 +704,8 @@ export function AgentDetail() {
       if (urlRunId) {
         crumbs.push({ label: "Runs", href: `/agents/${canonicalAgentRef}/runs` });
         crumbs.push({ label: `Run ${urlRunId.slice(0, 8)}` });
+      } else if (activeView === "prompts") {
+        crumbs.push({ label: "Prompts" });
       } else if (activeView === "configuration") {
         crumbs.push({ label: "Configuration" });
       } else if (activeView === "skills") {
@@ -734,7 +741,7 @@ export function AgentDetail() {
     return <Navigate to={`/agents/${canonicalAgentRef}/dashboard`} replace />;
   }
   const isPendingApproval = agent.status === "pending_approval";
-  const showConfigActionBar = activeView === "configuration" && (configDirty || configSaving);
+  const showConfigActionBar = (activeView === "configuration" || activeView === "prompts") && (configDirty || configSaving);
 
   return (
     <div className={cn("space-y-6", isMobile && showConfigActionBar && "pb-24")}>
@@ -861,9 +868,9 @@ export function AgentDetail() {
           <PageTabBar
             items={[
               { value: "dashboard", label: "Dashboard" },
-              { value: "configuration", label: "Configuration" },
+              { value: "prompts", label: "Prompts" },
               { value: "skills", label: "Skills" },
-              { value: "runs", label: "Runs" },
+              { value: "configuration", label: "Configuration" },
               { value: "budget", label: "Budget" },
             ]}
             value={activeView}
@@ -939,6 +946,17 @@ export function AgentDetail() {
           runtimeState={runtimeState}
           agentId={agent.id}
           agentRouteId={canonicalAgentRef}
+        />
+      )}
+
+      {activeView === "prompts" && (
+        <PromptsTab
+          agent={agent}
+          companyId={resolvedCompanyId ?? undefined}
+          onDirtyChange={setConfigDirty}
+          onSaveActionChange={setSaveConfigAction}
+          onCancelActionChange={setCancelConfigAction}
+          onSavingChange={setConfigSaving}
         />
       )}
 
@@ -1269,6 +1287,7 @@ function AgentConfigurePage({
         onSavingChange={onSavingChange}
         updatePermissions={updatePermissions}
         companyId={companyId}
+        hidePromptTemplate
       />
       <div>
         <h3 className="text-sm font-medium mb-3">API Keys</h3>
@@ -1339,6 +1358,7 @@ function ConfigurationTab({
   onCancelActionChange,
   onSavingChange,
   updatePermissions,
+  hidePromptTemplate,
 }: {
   agent: Agent;
   companyId?: string;
@@ -1347,6 +1367,7 @@ function ConfigurationTab({
   onCancelActionChange: (cancel: (() => void) | null) => void;
   onSavingChange: (saving: boolean) => void;
   updatePermissions: { mutate: (canCreate: boolean) => void; isPending: boolean };
+  hidePromptTemplate?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [awaitingRefreshAfterSave, setAwaitingRefreshAfterSave] = useState(false);
@@ -1401,6 +1422,7 @@ function ConfigurationTab({
         onSaveActionChange={onSaveActionChange}
         onCancelActionChange={onCancelActionChange}
         hideInlineSave
+        hidePromptTemplate={hidePromptTemplate}
         sectionLayout="cards"
       />
 
@@ -1420,6 +1442,119 @@ function ConfigurationTab({
             >
               {agent.permissions?.canCreateAgents ? "Enabled" : "Disabled"}
             </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Prompts Tab ---- */
+
+function PromptsTab({
+  agent,
+  companyId,
+  onDirtyChange,
+  onSaveActionChange,
+  onCancelActionChange,
+  onSavingChange,
+}: {
+  agent: Agent;
+  companyId?: string;
+  onDirtyChange: (dirty: boolean) => void;
+  onSaveActionChange: (save: (() => void) | null) => void;
+  onCancelActionChange: (cancel: (() => void) | null) => void;
+  onSavingChange: (saving: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+  const { selectedCompanyId } = useCompany();
+  const [draft, setDraft] = useState<string | null>(null);
+  const [awaitingRefresh, setAwaitingRefresh] = useState(false);
+  const lastAgentRef = useRef(agent);
+
+  const currentValue = String(agent.adapterConfig?.promptTemplate ?? "");
+  const displayValue = draft ?? currentValue;
+  const isDirty = draft !== null && draft !== currentValue;
+
+  const isLocal =
+    agent.adapterType === "claude_local" ||
+    agent.adapterType === "codex_local" ||
+    agent.adapterType === "opencode_local" ||
+    agent.adapterType === "pi_local" ||
+    agent.adapterType === "hermes_local" ||
+    agent.adapterType === "cursor";
+
+  const updateAgent = useMutation({
+    mutationFn: (data: Record<string, unknown>) => agentsApi.update(agent.id, data, companyId),
+    onMutate: () => setAwaitingRefresh(true),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.urlKey) });
+    },
+    onError: () => setAwaitingRefresh(false),
+  });
+
+  const uploadMarkdownImage = useMutation({
+    mutationFn: async ({ file, namespace }: { file: File; namespace: string }) => {
+      if (!selectedCompanyId) throw new Error("Select a company to upload images");
+      return assetsApi.uploadImage(selectedCompanyId, file, namespace);
+    },
+  });
+
+  useEffect(() => {
+    if (awaitingRefresh && agent !== lastAgentRef.current) {
+      setAwaitingRefresh(false);
+      setDraft(null);
+    }
+    lastAgentRef.current = agent;
+  }, [agent, awaitingRefresh]);
+
+  const isSaving = updateAgent.isPending || awaitingRefresh;
+
+  useEffect(() => { onSavingChange(isSaving); }, [onSavingChange, isSaving]);
+  useEffect(() => { onDirtyChange(isDirty); }, [onDirtyChange, isDirty]);
+
+  useEffect(() => {
+    onSaveActionChange(isDirty ? () => {
+      updateAgent.mutate({ adapterConfig: { promptTemplate: draft } });
+    } : null);
+  }, [onSaveActionChange, isDirty, draft, updateAgent]);
+
+  useEffect(() => {
+    onCancelActionChange(isDirty ? () => setDraft(null) : null);
+  }, [onCancelActionChange, isDirty]);
+
+  if (!isLocal) {
+    return (
+      <div className="max-w-3xl">
+        <p className="text-sm text-muted-foreground">
+          Prompt templates are only available for local adapters.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl space-y-4">
+      <div>
+        <h3 className="text-sm font-medium mb-3">Prompt Template</h3>
+        <div className="border border-border rounded-lg p-4 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {help.promptTemplate}
+          </p>
+          <MarkdownEditor
+            value={displayValue}
+            onChange={(v) => setDraft(v ?? "")}
+            placeholder="You are agent {{ agent.name }}. Your role is {{ agent.role }}..."
+            contentClassName="min-h-[88px] text-sm font-mono"
+            imageUploadHandler={async (file) => {
+              const namespace = `agents/${agent.id}/prompt-template`;
+              const asset = await uploadMarkdownImage.mutateAsync({ file, namespace });
+              return asset.contentPath;
+            }}
+          />
+          <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            Prompt template is replayed on every heartbeat. Keep it compact and dynamic to avoid recurring token cost and cache churn.
           </div>
         </div>
       </div>
