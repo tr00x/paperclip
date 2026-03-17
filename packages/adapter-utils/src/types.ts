@@ -216,6 +216,7 @@ export interface ServerAdapterModule {
   execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult>;
   testEnvironment(ctx: AdapterEnvironmentTestContext): Promise<AdapterEnvironmentTestResult>;
   sessionCodec?: AdapterSessionCodec;
+  sessionManagement?: import("./session-compaction.js").AdapterSessionManagement;
   supportsLocalAgentJwt?: boolean;
   models?: AdapterModel[];
   listModels?: () => Promise<AdapterModel[]>;
