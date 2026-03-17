@@ -165,7 +165,7 @@ Current file:
 
 - `.github/CODEOWNERS`
 
-If `@dotta` is not the right reviewer identity in the public repo, change it before enabling enforcement.
+If `@cryppadotta` is not the right reviewer identity in the public repo, change it before enabling enforcement.
 
 ## 9. Protect Release Infrastructure Specifically
 
