@@ -377,7 +377,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
         : "Delete this workspace repo?",
     );
     if (!confirmed) return;
-    if (primaryCodebaseWorkspace) {
+    if (primaryCodebaseWorkspace && hasLocalFolder) {
       updateWorkspace.mutate({
         workspaceId: primaryCodebaseWorkspace.id,
         data: { repoUrl: null, repoRef: null, defaultRef: null, sourceType: deriveSourceType(codebase.localFolder, null) },
