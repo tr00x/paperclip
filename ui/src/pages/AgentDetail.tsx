@@ -185,11 +185,12 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "dashboard" | "configuration" | "runs" | "budget";
+type AgentDetailView = "dashboard" | "configuration" | "skills" | "runs" | "budget";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
   if (value === "configure" || value === "configuration") return "configuration";
-  if (value === "budget") return "budget";
+  if (value === "skills") return value;
+  if (value === "budget") return value;
   if (value === "runs") return value;
   return "dashboard";
 }
@@ -364,10 +365,12 @@ export function AgentDetail() {
     const canonicalTab =
       activeView === "configuration"
         ? "configuration"
-        : activeView === "runs"
-          ? "runs"
-          : activeView === "budget"
-            ? "budget"
+        : activeView === "skills"
+          ? "skills"
+          : activeView === "runs"
+            ? "runs"
+            : activeView === "budget"
+              ? "budget"
             : "dashboard";
     if (routeAgentRef !== canonicalAgentRef || urlTab !== canonicalTab) {
       navigate(`/agents/${canonicalAgentRef}/${canonicalTab}`, { replace: true });
@@ -483,6 +486,8 @@ export function AgentDetail() {
         crumbs.push({ label: `Run ${urlRunId.slice(0, 8)}` });
       } else if (activeView === "configuration") {
         crumbs.push({ label: "Configuration" });
+      } else if (activeView === "skills") {
+        crumbs.push({ label: "Skills" });
       } else if (activeView === "runs") {
         crumbs.push({ label: "Runs" });
       } else if (activeView === "budget") {
@@ -642,6 +647,7 @@ export function AgentDetail() {
             items={[
               { value: "dashboard", label: "Dashboard" },
               { value: "configuration", label: "Configuration" },
+              { value: "skills", label: "Skills" },
               { value: "runs", label: "Runs" },
               { value: "budget", label: "Budget" },
             ]}
@@ -731,6 +737,13 @@ export function AgentDetail() {
           onCancelActionChange={setCancelConfigAction}
           onSavingChange={setConfigSaving}
           updatePermissions={updatePermissions}
+        />
+      )}
+
+      {activeView === "skills" && (
+        <SkillsTab
+          agent={agent}
+          companyId={resolvedCompanyId ?? undefined}
         />
       )}
 
@@ -1193,6 +1206,36 @@ function ConfigurationTab({
             >
               {agent.permissions?.canCreateAgents ? "Enabled" : "Disabled"}
             </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkillsTab({ agent }: { agent: Agent; companyId?: string }) {
+  const instructionsPath =
+    typeof agent.adapterConfig?.instructionsFilePath === "string" && agent.adapterConfig.instructionsFilePath.trim().length > 0
+      ? agent.adapterConfig.instructionsFilePath
+      : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="border border-border rounded-lg p-4 space-y-2">
+        <h3 className="text-sm font-medium">Skills</h3>
+        <p className="text-sm text-muted-foreground">
+          Skills are reusable instruction bundles the agent can invoke from its local tool environment.
+          This view keeps the tab compile-safe and shows the current instructions file path while the broader skills listing work continues elsewhere in the tree.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Agent: <span className="font-mono">{agent.name}</span>
+        </p>
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+            Instructions file
+          </div>
+          <div className="font-mono break-all">
+            {instructionsPath ?? "No instructions file configured for this agent."}
           </div>
         </div>
       </div>
