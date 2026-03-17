@@ -35,6 +35,7 @@ import {
 import { notFound, unprocessable } from "../errors.js";
 import { accessService } from "./access.js";
 import { agentService } from "./agents.js";
+import { generateOrgChartSvg, generateReadme } from "./company-export-readme.js";
 import { companySkillService } from "./company-skills.js";
 import { companyService } from "./companies.js";
 import { issueService } from "./issues.js";
@@ -1937,6 +1938,18 @@ export function companyPortabilityService(db: Db) {
     resolved.manifest.includes = include;
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
+
+    // Generate org chart SVG and README.md
+    const orgChartSvg = generateOrgChartSvg(resolved.manifest);
+    if (orgChartSvg) {
+      files["images/org-chart.svg"] = orgChartSvg;
+    }
+    files["README.md"] = generateReadme(resolved.manifest, {
+      companyName: company.name,
+      companyDescription: company.description ?? null,
+      hasOrgChart: orgChartSvg !== null,
+    });
+
     return {
       rootPath,
       manifest: resolved.manifest,
