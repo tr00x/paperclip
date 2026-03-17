@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { CompanyPortabilityExportResult, CompanyPortabilityManifest } from "@paperclipai/shared";
+import { useNavigate, useLocation } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToast } from "../context/ToastContext";
@@ -495,10 +496,33 @@ function ExportPreviewPane({
 
 // ── Main page ─────────────────────────────────────────────────────────
 
+/** Extract the file path from the current URL pathname (after /company/export/files/) */
+function filePathFromLocation(pathname: string): string | null {
+  const marker = "/company/export/files/";
+  const idx = pathname.indexOf(marker);
+  if (idx === -1) return null;
+  const filePath = decodeURIComponent(pathname.slice(idx + marker.length));
+  return filePath || null;
+}
+
+/** Expand all ancestor directories for a given file path */
+function expandAncestors(filePath: string): string[] {
+  const parts = filePath.split("/").slice(0, -1);
+  const dirs: string[] = [];
+  let current = "";
+  for (const part of parts) {
+    current = current ? `${current}/${part}` : part;
+    dirs.push(current);
+  }
+  return dirs;
+}
+
 export function CompanyExport() {
   const { selectedCompanyId, selectedCompany } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const { pushToast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [exportData, setExportData] = useState<CompanyPortabilityExportResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -507,6 +531,38 @@ export function CompanyExport() {
   const [treeSearch, setTreeSearch] = useState("");
   const [taskLimit, setTaskLimit] = useState(TASKS_PAGE_SIZE);
   const savedExpandedRef = useRef<Set<string> | null>(null);
+  const initialFileFromUrl = useRef(filePathFromLocation(location.pathname));
+
+  // Navigate-aware file selection: updates state + URL without page reload.
+  // `replace` = true skips history entry (used for initial load); false = pushes (used for clicks).
+  const selectFile = useCallback(
+    (filePath: string | null, replace = false) => {
+      setSelectedFile(filePath);
+      if (filePath) {
+        navigate(`/company/export/files/${encodeURI(filePath)}`, { replace });
+      } else {
+        navigate("/company/export", { replace });
+      }
+    },
+    [navigate],
+  );
+
+  // Sync selectedFile from URL on browser back/forward
+  useEffect(() => {
+    if (!exportData) return;
+    const urlFile = filePathFromLocation(location.pathname);
+    if (urlFile && urlFile in exportData.files && urlFile !== selectedFile) {
+      setSelectedFile(urlFile);
+      // Expand ancestors so the file is visible in the tree
+      setExpandedDirs((prev) => {
+        const next = new Set(prev);
+        for (const dir of expandAncestors(urlFile)) next.add(dir);
+        return next;
+      });
+    } else if (!urlFile && selectedFile) {
+      setSelectedFile(null);
+    }
+  }, [location.pathname, exportData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setBreadcrumbs([
@@ -535,10 +591,21 @@ export function CompanyExport() {
       for (const node of tree) {
         if (node.kind === "dir") topDirs.add(node.path);
       }
-      setExpandedDirs(topDirs);
-      // Select first file
-      const firstFile = Object.keys(result.files)[0];
-      if (firstFile) setSelectedFile(firstFile);
+
+      // If URL contains a deep-linked file path, select it and expand ancestors
+      const urlFile = initialFileFromUrl.current;
+      if (urlFile && urlFile in result.files) {
+        setSelectedFile(urlFile);
+        const ancestors = expandAncestors(urlFile);
+        setExpandedDirs(new Set([...topDirs, ...ancestors]));
+      } else {
+        // Select first file and update URL
+        const firstFile = Object.keys(result.files)[0];
+        if (firstFile) {
+          selectFile(firstFile, true);
+        }
+        setExpandedDirs(topDirs);
+      }
     },
     onError: (err) => {
       pushToast({
@@ -690,7 +757,7 @@ export function CompanyExport() {
     );
     const skillPath = manifestSkill?.path ?? `skills/${skillKey}/SKILL.md`;
     if (!(skillPath in exportData.files)) return;
-    setSelectedFile(skillPath);
+    selectFile(skillPath);
     setExpandedDirs((prev) => {
       const next = new Set(prev);
       next.add("skills");
@@ -791,7 +858,7 @@ export function CompanyExport() {
               expandedDirs={expandedDirs}
               checkedFiles={checkedFiles}
               onToggleDir={handleToggleDir}
-              onSelectFile={setSelectedFile}
+              onSelectFile={selectFile}
               onToggleCheck={handleToggleCheck}
             />
             {totalTaskChildren > visibleTaskChildren && !treeSearch && (
