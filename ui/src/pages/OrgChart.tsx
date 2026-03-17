@@ -268,8 +268,8 @@ export function OrgChart() {
   }
 
   return (
-    <>
-    <div className="mb-4 flex items-center justify-start gap-2">
+    <div className="flex flex-col h-[calc(100dvh-6rem)]">
+    <div className="mb-2 flex items-center justify-start gap-2 shrink-0">
       <Link to="/company/import">
         <Button variant="outline" size="sm">
           <Upload className="mr-1.5 h-3.5 w-3.5" />
@@ -285,7 +285,7 @@ export function OrgChart() {
     </div>
     <div
       ref={containerRef}
-      className="w-full h-[calc(100dvh-6rem)] overflow-hidden relative bg-muted/20 border border-border rounded-lg"
+      className="w-full flex-1 min-h-0 overflow-hidden relative bg-muted/20 border border-border rounded-lg"
       style={{ cursor: dragging ? "grabbing" : "grab" }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -435,7 +435,7 @@ export function OrgChart() {
         })}
       </div>
     </div>
-    </>
+    </div>
   );
 }
 
