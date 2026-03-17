@@ -35,6 +35,7 @@ import {
 import { notFound, unprocessable } from "../errors.js";
 import { accessService } from "./access.js";
 import { agentService } from "./agents.js";
+import { agentInstructionsService } from "./agent-instructions.js";
 import { generateReadme } from "./company-export-readme.js";
 import { companySkillService } from "./company-skills.js";
 import { companyService } from "./companies.js";
@@ -380,7 +381,11 @@ function normalizePortableConfig(
     if (
       key === "cwd" ||
       key === "instructionsFilePath" ||
+      key === "instructionsBundleMode" ||
+      key === "instructionsRootPath" ||
+      key === "instructionsEntryFile" ||
       key === "promptTemplate" ||
+      key === "bootstrapPromptTemplate" ||
       key === "paperclipSkillSync"
     ) continue;
     if (key === "env") continue;
@@ -1471,54 +1476,10 @@ function resolveRawGitHubUrl(owner: string, repo: string, ref: string, filePath:
   return `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${normalizedFilePath}`;
 }
 
-async function readAgentInstructions(agent: AgentLike): Promise<{ body: string; warning: string | null }> {
-  const config = agent.adapterConfig as Record<string, unknown>;
-  const instructionsFilePath = asString(config.instructionsFilePath);
-  if (instructionsFilePath) {
-    const workspaceCwd = asString(process.env.PAPERCLIP_WORKSPACE_CWD);
-    const candidates = new Set<string>();
-    if (path.isAbsolute(instructionsFilePath)) {
-      candidates.add(instructionsFilePath);
-    } else {
-      if (workspaceCwd) candidates.add(path.resolve(workspaceCwd, instructionsFilePath));
-      candidates.add(path.resolve(process.cwd(), instructionsFilePath));
-    }
-
-    for (const candidate of candidates) {
-      try {
-        const stat = await fs.stat(candidate);
-        if (!stat.isFile() || stat.size > 1024 * 1024) continue;
-        const body = await Promise.race([
-          fs.readFile(candidate, "utf8"),
-          new Promise<string>((_, reject) => {
-            setTimeout(() => reject(new Error("timed out reading instructions file")), 1500);
-          }),
-        ]);
-        return { body, warning: null };
-      } catch {
-        // try next candidate
-      }
-    }
-  }
-  const promptTemplate = asString(config.promptTemplate);
-  if (promptTemplate) {
-    const warning = instructionsFilePath
-      ? `Agent ${agent.name} instructionsFilePath was not readable; fell back to promptTemplate.`
-      : null;
-    return {
-      body: promptTemplate,
-      warning,
-    };
-  }
-  return {
-    body: "_No AGENTS instructions were resolved from current agent config._",
-    warning: `Agent ${agent.name} has no resolvable instructionsFilePath/promptTemplate; exported placeholder AGENTS.md.`,
-  };
-}
-
 export function companyPortabilityService(db: Db) {
   const companies = companyService(db);
   const agents = agentService(db);
+  const instructions = agentInstructionsService();
   const access = accessService(db);
   const projects = projectService(db);
   const issues = issueService(db);
@@ -1783,9 +1744,8 @@ export function companyPortabilityService(db: Db) {
     if (include.agents) {
       for (const agent of agentRows) {
         const slug = idToSlug.get(agent.id)!;
-        const instructions = await readAgentInstructions(agent);
-        if (instructions.warning) warnings.push(instructions.warning);
-        const agentPath = `agents/${slug}/AGENTS.md`;
+        const exportedInstructions = await instructions.exportFiles(agent);
+        warnings.push(...exportedInstructions.warnings);
 
         const envInputsStart = envInputs.length;
         const exportedEnvInputs = extractPortableEnvInputs(
@@ -1825,16 +1785,22 @@ export function companyPortabilityService(db: Db) {
           warnings.push(`Agent ${slug} command ${commandValue} was omitted from export because it is system-dependent.`);
           delete portableAdapterConfig.command;
         }
-
-        files[agentPath] = buildMarkdown(
-          stripEmptyValues({
-            name: agent.name,
-            title: agent.title ?? null,
-            reportsTo: reportsToSlug,
-            skills: desiredSkills.length > 0 ? desiredSkills : undefined,
-          }) as Record<string, unknown>,
-          instructions.body,
-        );
+        for (const [relativePath, content] of Object.entries(exportedInstructions.files)) {
+          const targetPath = `agents/${slug}/${relativePath}`;
+          if (relativePath === exportedInstructions.entryFile) {
+            files[targetPath] = buildMarkdown(
+              stripEmptyValues({
+                name: agent.name,
+                title: agent.title ?? null,
+                reportsTo: reportsToSlug,
+                skills: desiredSkills.length > 0 ? desiredSkills : undefined,
+              }) as Record<string, unknown>,
+              content,
+            );
+          } else {
+            files[targetPath] = content;
+          }
+        }
 
         const extension = stripEmptyValues({
           role: agent.role !== "agent" ? agent.role : undefined,
@@ -2346,26 +2312,39 @@ export function companyPortabilityService(db: Db) {
           continue;
         }
 
-        const markdownRaw = plan.source.files[manifestAgent.path];
-        if (!markdownRaw) {
-          warnings.push(`Missing AGENTS markdown for ${manifestAgent.slug}; imported without prompt template.`);
+        const bundlePrefix = `agents/${manifestAgent.slug}/`;
+        const bundleFiles = Object.fromEntries(
+          Object.entries(plan.source.files)
+            .filter(([filePath]) => filePath.startsWith(bundlePrefix))
+            .map(([filePath, content]) => [normalizePortablePath(filePath.slice(bundlePrefix.length)), content]),
+        );
+        const markdownRaw = bundleFiles["AGENTS.md"] ?? plan.source.files[manifestAgent.path];
+        const fallbackPromptTemplate = asString((manifestAgent.adapterConfig as Record<string, unknown>).promptTemplate) || "";
+        if (!markdownRaw && fallbackPromptTemplate) {
+          bundleFiles["AGENTS.md"] = fallbackPromptTemplate;
         }
-        const markdown = markdownRaw ? parseFrontmatterMarkdown(markdownRaw) : { frontmatter: {}, body: "" };
-        const promptTemplate = markdown.body || asString((manifestAgent.adapterConfig as Record<string, unknown>).promptTemplate) || "";
+        if (!markdownRaw && !fallbackPromptTemplate) {
+          warnings.push(`Missing AGENTS markdown for ${manifestAgent.slug}; imported with an empty managed bundle.`);
+        }
 
         // Apply adapter overrides from request if present
         const adapterOverride = input.adapterOverrides?.[planAgent.slug];
         const effectiveAdapterType = adapterOverride?.adapterType ?? manifestAgent.adapterType;
         const baseAdapterConfig = adapterOverride?.adapterConfig
-          ? { ...adapterOverride.adapterConfig, promptTemplate }
-          : { ...manifestAgent.adapterConfig, promptTemplate } as Record<string, unknown>;
+          ? { ...adapterOverride.adapterConfig }
+          : { ...manifestAgent.adapterConfig } as Record<string, unknown>;
 
         const desiredSkills = manifestAgent.skills ?? [];
         const adapterConfigWithSkills = writePaperclipSkillSyncPreference(
           baseAdapterConfig,
           desiredSkills,
         );
+        delete adapterConfigWithSkills.promptTemplate;
+        delete adapterConfigWithSkills.bootstrapPromptTemplate;
         delete adapterConfigWithSkills.instructionsFilePath;
+        delete adapterConfigWithSkills.instructionsBundleMode;
+        delete adapterConfigWithSkills.instructionsRootPath;
+        delete adapterConfigWithSkills.instructionsEntryFile;
         const patch = {
           name: planAgent.plannedName,
           role: manifestAgent.role,
@@ -2382,7 +2361,7 @@ export function companyPortabilityService(db: Db) {
         };
 
         if (planAgent.action === "update" && planAgent.existingAgentId) {
-          const updated = await agents.update(planAgent.existingAgentId, patch);
+          let updated = await agents.update(planAgent.existingAgentId, patch);
           if (!updated) {
             warnings.push(`Skipped update for missing agent ${planAgent.existingAgentId}.`);
             resultAgents.push({
@@ -2393,6 +2372,15 @@ export function companyPortabilityService(db: Db) {
               reason: "Existing target agent not found.",
             });
             continue;
+          }
+          try {
+            const materialized = await instructions.materializeManagedBundle(updated, bundleFiles, {
+              clearLegacyPromptTemplate: true,
+              replaceExisting: true,
+            });
+            updated = await agents.update(updated.id, { adapterConfig: materialized.adapterConfig }) ?? updated;
+          } catch (err) {
+            warnings.push(`Failed to materialize instructions bundle for ${manifestAgent.slug}: ${err instanceof Error ? err.message : String(err)}`);
           }
           importedSlugToAgentId.set(planAgent.slug, updated.id);
           existingSlugToAgentId.set(normalizeAgentUrlKey(updated.name) ?? updated.id, updated.id);
@@ -2406,7 +2394,16 @@ export function companyPortabilityService(db: Db) {
           continue;
         }
 
-        const created = await agents.create(targetCompany.id, patch);
+        let created = await agents.create(targetCompany.id, patch);
+        try {
+          const materialized = await instructions.materializeManagedBundle(created, bundleFiles, {
+            clearLegacyPromptTemplate: true,
+            replaceExisting: true,
+          });
+          created = await agents.update(created.id, { adapterConfig: materialized.adapterConfig }) ?? created;
+        } catch (err) {
+          warnings.push(`Failed to materialize instructions bundle for ${manifestAgent.slug}: ${err instanceof Error ? err.message : String(err)}`);
+        }
         importedSlugToAgentId.set(planAgent.slug, created.id);
         existingSlugToAgentId.set(normalizeAgentUrlKey(created.name) ?? created.id, created.id);
         resultAgents.push({

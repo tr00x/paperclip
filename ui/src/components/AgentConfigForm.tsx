@@ -735,36 +735,6 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                     )}
                 </>
               )}
-              <Field label="Bootstrap prompt (first run)" hint={help.bootstrapPrompt}>
-                <MarkdownEditor
-                  value={
-                    isCreate
-                      ? val!.bootstrapPrompt
-                      : eff(
-                          "adapterConfig",
-                          "bootstrapPromptTemplate",
-                          String(config.bootstrapPromptTemplate ?? ""),
-                        )
-                  }
-                  onChange={(v) =>
-                    isCreate
-                      ? set!({ bootstrapPrompt: v })
-                      : mark("adapterConfig", "bootstrapPromptTemplate", v || undefined)
-                  }
-                  placeholder="Optional initial setup prompt for the first run"
-                  contentClassName="min-h-[44px] text-sm font-mono"
-                  imageUploadHandler={async (file) => {
-                    const namespace = isCreate
-                      ? "agents/drafts/bootstrap-prompt"
-                      : `agents/${props.agent.id}/bootstrap-prompt`;
-                    const asset = await uploadMarkdownImage.mutateAsync({ file, namespace });
-                    return asset.contentPath;
-                  }}
-                />
-              </Field>
-              <div className="rounded-md border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-xs text-sky-100">
-                Bootstrap prompt is only sent for fresh sessions. Put stable setup, habits, and longer reusable guidance here. Frequent changes reduce the value of session reuse because new sessions must replay it.
-              </div>
               {adapterType === "claude_local" && (
                 <ClaudeLocalAdvancedFields {...adapterFieldProps} />
               )}

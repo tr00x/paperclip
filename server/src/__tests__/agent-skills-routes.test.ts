@@ -20,6 +20,16 @@ const mockBudgetService = vi.hoisted(() => ({}));
 const mockHeartbeatService = vi.hoisted(() => ({}));
 const mockIssueApprovalService = vi.hoisted(() => ({}));
 const mockWorkspaceOperationService = vi.hoisted(() => ({}));
+const mockAgentInstructionsService = vi.hoisted(() => ({
+  getBundle: vi.fn(),
+  readFile: vi.fn(),
+  updateBundle: vi.fn(),
+  writeFile: vi.fn(),
+  deleteFile: vi.fn(),
+  exportFiles: vi.fn(),
+  ensureManagedBundle: vi.fn(),
+  materializeManagedBundle: vi.fn(),
+}));
 
 const mockCompanySkillService = vi.hoisted(() => ({
   listRuntimeSkillEntries: vi.fn(),
@@ -27,6 +37,7 @@ const mockCompanySkillService = vi.hoisted(() => ({
 
 const mockSecretService = vi.hoisted(() => ({
   resolveAdapterConfigForRuntime: vi.fn(),
+  normalizeAdapterConfigForPersistence: vi.fn(async (_companyId: string, config: Record<string, unknown>) => config),
 }));
 
 const mockLogActivity = vi.hoisted(() => vi.fn());
@@ -38,6 +49,7 @@ const mockAdapter = vi.hoisted(() => ({
 
 vi.mock("../services/index.js", () => ({
   agentService: () => mockAgentService,
+  agentInstructionsService: () => mockAgentInstructionsService,
   accessService: () => mockAccessService,
   approvalService: () => mockApprovalService,
   companySkillService: () => mockCompanySkillService,
@@ -47,6 +59,7 @@ vi.mock("../services/index.js", () => ({
   issueService: () => ({}),
   logActivity: mockLogActivity,
   secretService: () => mockSecretService,
+  syncInstructionsBundleConfigFromFilePath: vi.fn((_agent, config) => config),
   workspaceOperationService: () => mockWorkspaceOperationService,
 }));
 

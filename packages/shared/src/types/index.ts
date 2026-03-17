@@ -31,6 +31,10 @@ export type {
 export type {
   Agent,
   AgentPermissions,
+  AgentInstructionsBundleMode,
+  AgentInstructionsFileSummary,
+  AgentInstructionsFileDetail,
+  AgentInstructionsBundle,
   AgentKeyCreated,
   AgentConfigRevision,
   AdapterEnvironmentCheckLevel,

@@ -36,6 +36,11 @@ const companySkillSvc = {
   importPackageFiles: vi.fn(),
 };
 
+const agentInstructionsSvc = {
+  exportFiles: vi.fn(),
+  materializeManagedBundle: vi.fn(),
+};
+
 vi.mock("../services/companies.js", () => ({
   companyService: () => companySvc,
 }));
@@ -58,6 +63,10 @@ vi.mock("../services/issues.js", () => ({
 
 vi.mock("../services/company-skills.js", () => ({
   companySkillService: () => companySkillSvc,
+}));
+
+vi.mock("../services/agent-instructions.js", () => ({
+  agentInstructionsService: () => agentInstructionsSvc,
 }));
 
 const { companyPortabilityService } = await import("../services/company-portability.js");
@@ -231,6 +240,21 @@ describe("company portability", () => {
       };
     });
     companySkillSvc.importPackageFiles.mockResolvedValue([]);
+    agentInstructionsSvc.exportFiles.mockImplementation(async (agent: { name: string }) => ({
+      files: { "AGENTS.md": agent.name === "CMO" ? "You are CMO." : "You are ClaudeCoder." },
+      entryFile: "AGENTS.md",
+      warnings: [],
+    }));
+    agentInstructionsSvc.materializeManagedBundle.mockImplementation(async (agent: { adapterConfig: Record<string, unknown> }) => ({
+      bundle: null,
+      adapterConfig: {
+        ...agent.adapterConfig,
+        instructionsBundleMode: "managed",
+        instructionsRootPath: `/tmp/${agent.id}`,
+        instructionsEntryFile: "AGENTS.md",
+        instructionsFilePath: `/tmp/${agent.id}/AGENTS.md`,
+      },
+    }));
   });
 
   it("exports referenced skills as stubs by default with sanitized Paperclip extension data", async () => {
@@ -536,14 +560,24 @@ describe("company portability", () => {
     expect(agentSvc.create).toHaveBeenCalledWith("company-imported", expect.objectContaining({
       adapterType: "codex_local",
       adapterConfig: expect.objectContaining({
-        promptTemplate: "You are ClaudeCoder.",
         dangerouslyBypassApprovalsAndSandbox: true,
       }),
     }));
     expect(agentSvc.create).toHaveBeenCalledWith("company-imported", expect.objectContaining({
       adapterConfig: expect.not.objectContaining({
         instructionsFilePath: expect.anything(),
+        promptTemplate: expect.anything(),
       }),
     }));
+    expect(agentInstructionsSvc.materializeManagedBundle).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "ClaudeCoder" }),
+      expect.objectContaining({
+        "AGENTS.md": expect.stringContaining("You are ClaudeCoder."),
+      }),
+      expect.objectContaining({
+        clearLegacyPromptTemplate: true,
+        replaceExisting: true,
+      }),
+    );
   });
 });

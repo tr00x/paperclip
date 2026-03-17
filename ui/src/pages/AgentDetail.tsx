@@ -118,6 +118,10 @@ function redactEnvValue(key: string, value: unknown): string {
   }
 }
 
+function isMarkdown(pathValue: string) {
+  return pathValue.toLowerCase().endsWith(".md");
+}
+
 function formatEnvForDisplay(envValue: unknown): string {
   const env = asRecord(envValue);
   if (!env) return "<unable-to-parse>";
@@ -1300,6 +1304,7 @@ function AgentConfigurePage({
         updatePermissions={updatePermissions}
         companyId={companyId}
         hidePromptTemplate
+        hideInstructionsFile
       />
       <div>
         <h3 className="text-sm font-medium mb-3">API Keys</h3>
@@ -1371,6 +1376,7 @@ function ConfigurationTab({
   onSavingChange,
   updatePermissions,
   hidePromptTemplate,
+  hideInstructionsFile,
 }: {
   agent: Agent;
   companyId?: string;
@@ -1380,6 +1386,7 @@ function ConfigurationTab({
   onSavingChange: (saving: boolean) => void;
   updatePermissions: { mutate: (canCreate: boolean) => void; isPending: boolean };
   hidePromptTemplate?: boolean;
+  hideInstructionsFile?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [awaitingRefreshAfterSave, setAwaitingRefreshAfterSave] = useState(false);
@@ -1434,6 +1441,7 @@ function ConfigurationTab({
         onCancelActionChange={onCancelActionChange}
         hideInlineSave
         hidePromptTemplate={hidePromptTemplate}
+        hideInstructionsFile={hideInstructionsFile}
         sectionLayout="cards"
       />
 
@@ -1479,13 +1487,16 @@ function PromptsTab({
 }) {
   const queryClient = useQueryClient();
   const { selectedCompanyId } = useCompany();
+  const [selectedFile, setSelectedFile] = useState<string>("AGENTS.md");
   const [draft, setDraft] = useState<string | null>(null);
+  const [bundleDraft, setBundleDraft] = useState<{
+    mode: "managed" | "external";
+    rootPath: string;
+    entryFile: string;
+  } | null>(null);
+  const [newFilePath, setNewFilePath] = useState("");
   const [awaitingRefresh, setAwaitingRefresh] = useState(false);
-  const lastAgentRef = useRef(agent);
-
-  const currentValue = String(agent.adapterConfig?.promptTemplate ?? "");
-  const displayValue = draft ?? currentValue;
-  const isDirty = draft !== null && draft !== currentValue;
+  const lastFileVersionRef = useRef<string | null>(null);
 
   const isLocal =
     agent.adapterType === "claude_local" ||
@@ -1495,10 +1506,60 @@ function PromptsTab({
     agent.adapterType === "hermes_local" ||
     agent.adapterType === "cursor";
 
-  const updateAgent = useMutation({
-    mutationFn: (data: Record<string, unknown>) => agentsApi.update(agent.id, data, companyId),
+  const { data: bundle, isLoading: bundleLoading } = useQuery({
+    queryKey: queryKeys.agents.instructionsBundle(agent.id),
+    queryFn: () => agentsApi.instructionsBundle(agent.id, companyId),
+    enabled: Boolean(companyId && isLocal),
+  });
+
+  const currentMode = bundleDraft?.mode ?? bundle?.mode ?? "managed";
+  const currentEntryFile = bundleDraft?.entryFile ?? bundle?.entryFile ?? "AGENTS.md";
+  const currentRootPath = bundleDraft?.rootPath ?? bundle?.rootPath ?? "";
+  const fileOptions = bundle?.files.map((file) => file.path) ?? [];
+  const selectedOrEntryFile = selectedFile || currentEntryFile;
+  const selectedFileExists = fileOptions.includes(selectedOrEntryFile);
+
+  const { data: selectedFileDetail, isLoading: fileLoading } = useQuery({
+    queryKey: queryKeys.agents.instructionsFile(agent.id, selectedOrEntryFile),
+    queryFn: () => agentsApi.instructionsFile(agent.id, selectedOrEntryFile, companyId),
+    enabled: Boolean(companyId && isLocal && selectedFileExists),
+  });
+
+  const updateBundle = useMutation({
+    mutationFn: (data: {
+      mode?: "managed" | "external";
+      rootPath?: string | null;
+      entryFile?: string;
+      clearLegacyPromptTemplate?: boolean;
+    }) => agentsApi.updateInstructionsBundle(agent.id, data, companyId),
     onMutate: () => setAwaitingRefresh(true),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.instructionsBundle(agent.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.urlKey) });
+    },
+    onError: () => setAwaitingRefresh(false),
+  });
+
+  const saveFile = useMutation({
+    mutationFn: (data: { path: string; content: string; clearLegacyPromptTemplate?: boolean }) =>
+      agentsApi.saveInstructionsFile(agent.id, data, companyId),
+    onMutate: () => setAwaitingRefresh(true),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.instructionsBundle(agent.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.instructionsFile(agent.id, variables.path) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.urlKey) });
+    },
+    onError: () => setAwaitingRefresh(false),
+  });
+
+  const deleteFile = useMutation({
+    mutationFn: (relativePath: string) => agentsApi.deleteInstructionsFile(agent.id, relativePath, companyId),
+    onMutate: () => setAwaitingRefresh(true),
+    onSuccess: (_, relativePath) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.instructionsBundle(agent.id) });
+      queryClient.removeQueries({ queryKey: queryKeys.agents.instructionsFile(agent.id, relativePath) });
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.urlKey) });
     },
@@ -1513,60 +1574,339 @@ function PromptsTab({
   });
 
   useEffect(() => {
-    if (awaitingRefresh && agent !== lastAgentRef.current) {
-      setAwaitingRefresh(false);
-      setDraft(null);
+    if (!bundle) return;
+    const availablePaths = bundle.files.map((file) => file.path);
+    if (availablePaths.length === 0) {
+      if (selectedFile !== bundle.entryFile) setSelectedFile(bundle.entryFile);
+      return;
     }
-    lastAgentRef.current = agent;
-  }, [agent, awaitingRefresh]);
+    if (!availablePaths.includes(selectedFile)) {
+      setSelectedFile(availablePaths.includes(bundle.entryFile) ? bundle.entryFile : availablePaths[0]!);
+    }
+  }, [bundle, selectedFile]);
 
-  const isSaving = updateAgent.isPending || awaitingRefresh;
+  useEffect(() => {
+    const versionKey = selectedFileDetail ? `${selectedFileDetail.path}:${selectedFileDetail.content}` : `draft:${selectedOrEntryFile}`;
+    if (awaitingRefresh) {
+      setAwaitingRefresh(false);
+      setBundleDraft(null);
+      setDraft(null);
+      lastFileVersionRef.current = versionKey;
+      return;
+    }
+    if (lastFileVersionRef.current !== versionKey) {
+      setDraft(null);
+      lastFileVersionRef.current = versionKey;
+    }
+  }, [awaitingRefresh, selectedFileDetail, selectedOrEntryFile]);
+
+  useEffect(() => {
+    if (!bundle) return;
+    setBundleDraft((current) => {
+      if (current) return current;
+      return {
+        mode: bundle.mode ?? "managed",
+        rootPath: bundle.rootPath ?? "",
+        entryFile: bundle.entryFile,
+      };
+    });
+  }, [bundle]);
+
+  const currentContent = selectedFileExists ? (selectedFileDetail?.content ?? "") : "";
+  const displayValue = draft ?? currentContent;
+  const bundleDirty = Boolean(
+    bundleDraft &&
+      (
+        bundleDraft.mode !== (bundle?.mode ?? "managed") ||
+        bundleDraft.rootPath !== (bundle?.rootPath ?? "") ||
+        bundleDraft.entryFile !== (bundle?.entryFile ?? "AGENTS.md")
+      ),
+  );
+  const fileDirty = draft !== null && draft !== currentContent;
+  const isDirty = bundleDirty || fileDirty;
+  const isSaving = updateBundle.isPending || saveFile.isPending || deleteFile.isPending || awaitingRefresh;
 
   useEffect(() => { onSavingChange(isSaving); }, [onSavingChange, isSaving]);
   useEffect(() => { onDirtyChange(isDirty); }, [onDirtyChange, isDirty]);
 
   useEffect(() => {
     onSaveActionChange(isDirty ? () => {
-      updateAgent.mutate({ adapterConfig: { promptTemplate: draft } });
+      const save = async () => {
+        const shouldClearLegacy =
+          Boolean(bundle?.legacyPromptTemplateActive) || Boolean(bundle?.legacyBootstrapPromptTemplateActive);
+        if (bundleDirty && bundleDraft) {
+          await updateBundle.mutateAsync({
+            mode: bundleDraft.mode,
+            rootPath: bundleDraft.mode === "external" ? bundleDraft.rootPath : null,
+            entryFile: bundleDraft.entryFile,
+          });
+        }
+        if (fileDirty) {
+          await saveFile.mutateAsync({
+            path: selectedOrEntryFile,
+            content: displayValue,
+            clearLegacyPromptTemplate: shouldClearLegacy,
+          });
+        }
+      };
+      void save().catch(() => undefined);
     } : null);
-  }, [onSaveActionChange, isDirty, draft, updateAgent]);
+  }, [
+    bundle,
+    bundleDirty,
+    bundleDraft,
+    displayValue,
+    fileDirty,
+    isDirty,
+    onSaveActionChange,
+    saveFile,
+    selectedOrEntryFile,
+    updateBundle,
+  ]);
 
   useEffect(() => {
-    onCancelActionChange(isDirty ? () => setDraft(null) : null);
-  }, [onCancelActionChange, isDirty]);
+    onCancelActionChange(isDirty ? () => {
+      setDraft(null);
+      if (bundle) {
+        setBundleDraft({
+          mode: bundle.mode ?? "managed",
+          rootPath: bundle.rootPath ?? "",
+          entryFile: bundle.entryFile,
+        });
+      }
+    } : null);
+  }, [bundle, isDirty, onCancelActionChange]);
 
   if (!isLocal) {
     return (
       <div className="max-w-3xl">
         <p className="text-sm text-muted-foreground">
-          Prompt templates are only available for local adapters.
+          Instructions bundles are only available for local adapters.
         </p>
       </div>
     );
   }
 
+  if (bundleLoading && !bundle) {
+    return <div className="max-w-5xl text-sm text-muted-foreground">Loading instructions bundle…</div>;
+  }
+
   return (
-    <div className="max-w-3xl space-y-4">
-      <div>
-        <h3 className="text-sm font-medium mb-3">Prompt Template</h3>
-        <div className="border border-border rounded-lg p-4 space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {help.promptTemplate}
-          </p>
-          <MarkdownEditor
-            value={displayValue}
-            onChange={(v) => setDraft(v ?? "")}
-            placeholder="You are agent {{ agent.name }}. Your role is {{ agent.role }}..."
-            contentClassName="min-h-[88px] text-sm font-mono"
-            imageUploadHandler={async (file) => {
-              const namespace = `agents/${agent.id}/prompt-template`;
-              const asset = await uploadMarkdownImage.mutateAsync({ file, namespace });
-              return asset.contentPath;
-            }}
-          />
-          <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-            Prompt template is replayed on every heartbeat. Keep it compact and dynamic to avoid recurring token cost and cache churn.
+    <div className="max-w-6xl space-y-4">
+      <div className="border border-border rounded-lg p-4 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-medium">Instructions Bundle</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              `AGENTS.md` is the entry file. Sibling files like `HEARTBEAT.md`, `SOUL.md`, `TOOLS.md`, and arbitrary custom files live in the same bundle.
+            </p>
           </div>
+          <div className="text-xs text-muted-foreground">
+            {bundle?.files.length ?? 0} files
+          </div>
+        </div>
+
+        {(bundle?.legacyPromptTemplateActive || bundle?.legacyBootstrapPromptTemplateActive) && (
+          <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            Legacy inline prompt fields are still active for this agent. The next bundle save will migrate behavior into file-backed instructions and clear those legacy fields.
+          </div>
+        )}
+
+        {(bundle?.warnings ?? []).map((warning) => (
+          <div key={warning} className="rounded-md border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-xs text-sky-100">
+            {warning}
+          </div>
+        ))}
+
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">Mode</span>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={currentMode === "managed" ? "default" : "outline"}
+                onClick={() => setBundleDraft((current) => ({
+                  mode: "managed",
+                  rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
+                  entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
+                }))}
+              >
+                Managed
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={currentMode === "external" ? "default" : "outline"}
+                onClick={() => setBundleDraft((current) => ({
+                  mode: "external",
+                  rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
+                  entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
+                }))}
+              >
+                External
+              </Button>
+            </div>
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">Entry file</span>
+            <Input
+              value={currentEntryFile}
+              onChange={(event) => {
+                const nextEntryFile = event.target.value || "AGENTS.md";
+                if (selectedOrEntryFile === currentEntryFile) {
+                  setSelectedFile(nextEntryFile);
+                }
+                setBundleDraft((current) => ({
+                  mode: current?.mode ?? bundle?.mode ?? "managed",
+                  rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
+                  entryFile: nextEntryFile,
+                }));
+              }}
+              className="font-mono text-sm"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">Root path</span>
+            <Input
+              value={currentRootPath}
+              onChange={(event) => setBundleDraft((current) => ({
+                mode: current?.mode ?? bundle?.mode ?? "managed",
+                rootPath: event.target.value,
+                entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
+              }))}
+              disabled={currentMode === "managed"}
+              className="font-mono text-sm"
+              placeholder={currentMode === "managed" ? "Managed by Paperclip" : "/absolute/path/to/agent/prompts"}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <div className="border border-border rounded-lg p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">Files</h4>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const candidate = newFilePath.trim();
+                if (!candidate) return;
+                setSelectedFile(candidate);
+                setDraft("");
+                setNewFilePath("");
+              }}
+              disabled={!newFilePath.trim()}
+            >
+              Add
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={newFilePath}
+              onChange={(event) => setNewFilePath(event.target.value)}
+              placeholder="docs/TOOLS.md"
+              className="font-mono text-sm"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {["HEARTBEAT.md", "SOUL.md", "TOOLS.md"].map((filePath) => (
+              <Button
+                key={filePath}
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setSelectedFile(filePath);
+                  if (!fileOptions.includes(filePath)) setDraft("");
+                }}
+              >
+                {filePath}
+              </Button>
+            ))}
+          </div>
+          <div className="space-y-1">
+            {[...new Set([currentEntryFile, ...fileOptions])].map((filePath) => {
+              const file = bundle?.files.find((entry) => entry.path === filePath);
+              return (
+                <button
+                  key={filePath}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm",
+                    filePath === selectedOrEntryFile ? "border-foreground/30 bg-accent/30" : "border-border",
+                  )}
+                  onClick={() => {
+                    setSelectedFile(filePath);
+                    if (!fileOptions.includes(filePath)) setDraft("");
+                  }}
+                >
+                  <span className="truncate font-mono">{filePath}</span>
+                  <span className="ml-3 shrink-0 text-[11px] text-muted-foreground">
+                    {file?.isEntryFile ? "entry" : file ? `${file.size}b` : "new"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border border-border rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-medium font-mono">{selectedOrEntryFile}</h4>
+              <p className="text-xs text-muted-foreground">
+                {selectedFileExists
+                  ? `${selectedFileDetail?.language ?? "text"} file`
+                  : "New file in this bundle"}
+              </p>
+            </div>
+            {selectedFileExists && selectedOrEntryFile !== currentEntryFile && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (confirm(`Delete ${selectedOrEntryFile}?`)) {
+                    deleteFile.mutate(selectedOrEntryFile, {
+                      onSuccess: () => {
+                        setSelectedFile(currentEntryFile);
+                        setDraft(null);
+                      },
+                    });
+                  }
+                }}
+                disabled={deleteFile.isPending}
+              >
+                Delete
+              </Button>
+            )}
+          </div>
+
+          {selectedFileExists && fileLoading && !selectedFileDetail ? (
+            <p className="text-sm text-muted-foreground">Loading file…</p>
+          ) : isMarkdown(selectedOrEntryFile) ? (
+            <MarkdownEditor
+              value={displayValue}
+              onChange={(value) => setDraft(value ?? "")}
+              placeholder="# Agent instructions"
+              contentClassName="min-h-[420px] text-sm font-mono"
+              imageUploadHandler={async (file) => {
+                const namespace = `agents/${agent.id}/instructions/${selectedOrEntryFile.replaceAll("/", "-")}`;
+                const asset = await uploadMarkdownImage.mutateAsync({ file, namespace });
+                return asset.contentPath;
+              }}
+            />
+          ) : (
+            <textarea
+              value={displayValue}
+              onChange={(event) => setDraft(event.target.value)}
+              className="min-h-[420px] w-full rounded-md border border-border bg-transparent px-3 py-2 font-mono text-sm outline-none"
+              placeholder="File contents"
+            />
+          )}
         </div>
       </div>
     </div>

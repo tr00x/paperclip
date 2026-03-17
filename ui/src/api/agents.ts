@@ -1,5 +1,7 @@
 import type {
   Agent,
+  AgentInstructionsBundle,
+  AgentInstructionsFileDetail,
   AgentSkillSnapshot,
   AdapterEnvironmentTestResult,
   AgentKeyCreated,
@@ -103,6 +105,31 @@ export const agentsApi = {
     api.patch<Agent>(agentPath(id, companyId), data),
   updatePermissions: (id: string, data: { canCreateAgents: boolean }, companyId?: string) =>
     api.patch<Agent>(agentPath(id, companyId, "/permissions"), data),
+  instructionsBundle: (id: string, companyId?: string) =>
+    api.get<AgentInstructionsBundle>(agentPath(id, companyId, "/instructions-bundle")),
+  updateInstructionsBundle: (
+    id: string,
+    data: {
+      mode?: "managed" | "external";
+      rootPath?: string | null;
+      entryFile?: string;
+      clearLegacyPromptTemplate?: boolean;
+    },
+    companyId?: string,
+  ) => api.patch<AgentInstructionsBundle>(agentPath(id, companyId, "/instructions-bundle"), data),
+  instructionsFile: (id: string, relativePath: string, companyId?: string) =>
+    api.get<AgentInstructionsFileDetail>(
+      agentPath(id, companyId, `/instructions-bundle/file?path=${encodeURIComponent(relativePath)}`),
+    ),
+  saveInstructionsFile: (
+    id: string,
+    data: { path: string; content: string; clearLegacyPromptTemplate?: boolean },
+    companyId?: string,
+  ) => api.put<AgentInstructionsFileDetail>(agentPath(id, companyId, "/instructions-bundle/file"), data),
+  deleteInstructionsFile: (id: string, relativePath: string, companyId?: string) =>
+    api.delete<AgentInstructionsBundle>(
+      agentPath(id, companyId, `/instructions-bundle/file?path=${encodeURIComponent(relativePath)}`),
+    ),
   pause: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/pause"), {}),
   resume: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/resume"), {}),
   terminate: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/terminate"), {}),
