@@ -39,4 +39,23 @@ describe("claude local skill sync", () => {
     expect(snapshot.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("configured");
     expect(snapshot.entries.find((entry) => entry.key === createAgentKey)?.state).toBe("configured");
   });
+
+  it("normalizes legacy flat Paperclip skill refs to canonical keys", async () => {
+    const snapshot = await listClaudeSkills({
+      agentId: "agent-3",
+      companyId: "company-1",
+      adapterType: "claude_local",
+      config: {
+        paperclipSkillSync: {
+          desiredSkills: ["paperclip"],
+        },
+      },
+    });
+
+    expect(snapshot.warnings).toEqual([]);
+    expect(snapshot.desiredSkills).toContain(paperclipKey);
+    expect(snapshot.desiredSkills).not.toContain("paperclip");
+    expect(snapshot.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("configured");
+    expect(snapshot.entries.find((entry) => entry.key === "paperclip")).toBeUndefined();
+  });
 });

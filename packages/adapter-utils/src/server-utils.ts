@@ -391,9 +391,32 @@ export function readPaperclipSkillSyncPreference(config: Record<string, unknown>
   };
 }
 
+function canonicalizeDesiredPaperclipSkillReference(
+  reference: string,
+  availableEntries: Array<{ key: string; runtimeName?: string | null }>,
+): string {
+  const normalizedReference = reference.trim().toLowerCase();
+  if (!normalizedReference) return "";
+
+  const exactKey = availableEntries.find((entry) => entry.key.trim().toLowerCase() === normalizedReference);
+  if (exactKey) return exactKey.key;
+
+  const byRuntimeName = availableEntries.filter((entry) =>
+    typeof entry.runtimeName === "string" && entry.runtimeName.trim().toLowerCase() === normalizedReference,
+  );
+  if (byRuntimeName.length === 1) return byRuntimeName[0]!.key;
+
+  const slugMatches = availableEntries.filter((entry) =>
+    entry.key.trim().toLowerCase().split("/").pop() === normalizedReference,
+  );
+  if (slugMatches.length === 1) return slugMatches[0]!.key;
+
+  return normalizedReference;
+}
+
 export function resolvePaperclipDesiredSkillNames(
   config: Record<string, unknown>,
-  availableEntries: Array<{ key: string; required?: boolean }>,
+  availableEntries: Array<{ key: string; runtimeName?: string | null; required?: boolean }>,
 ): string[] {
   const preference = readPaperclipSkillSyncPreference(config);
   const requiredSkills = availableEntries
@@ -402,7 +425,10 @@ export function resolvePaperclipDesiredSkillNames(
   if (!preference.explicit) {
     return Array.from(new Set(requiredSkills));
   }
-  return Array.from(new Set([...requiredSkills, ...preference.desiredSkills]));
+  const desiredSkills = preference.desiredSkills
+    .map((reference) => canonicalizeDesiredPaperclipSkillReference(reference, availableEntries))
+    .filter(Boolean);
+  return Array.from(new Set([...requiredSkills, ...desiredSkills]));
 }
 
 export function writePaperclipSkillSyncPreference(
