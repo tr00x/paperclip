@@ -16,6 +16,7 @@ Note:
 
 - the release workflows intentionally use `pnpm install --no-frozen-lockfile`
 - this matches the repo's current policy where `pnpm-lock.yaml` is refreshed by GitHub automation after manifest changes land on `master`
+- the publish jobs then restore `pnpm-lock.yaml` before running `scripts/release.sh`, so the release script still sees a clean worktree
 
 ## 1. Merge the Repo Changes First
 
