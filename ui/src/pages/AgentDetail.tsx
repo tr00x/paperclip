@@ -34,6 +34,7 @@ import { ScrollToBottom } from "../components/ScrollToBottom";
 import { formatCents, formatDate, relativeTime, formatTokens, visibleRunCostUsd } from "../lib/utils";
 import { cn } from "../lib/utils";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -215,6 +216,14 @@ function usageNumber(usage: Record<string, unknown> | null, ...keys: string[]) {
     if (typeof value === "number" && Number.isFinite(value)) return value;
   }
   return 0;
+}
+
+function setsEqual<T>(left: Set<T>, right: Set<T>) {
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
 }
 
 function runMetrics(run: HeartbeatRun) {
@@ -1517,7 +1526,10 @@ function PromptsTab({
   const currentMode = bundleDraft?.mode ?? bundle?.mode ?? "managed";
   const currentEntryFile = bundleDraft?.entryFile ?? bundle?.entryFile ?? "AGENTS.md";
   const currentRootPath = bundleDraft?.rootPath ?? bundle?.rootPath ?? "";
-  const fileOptions = bundle?.files.map((file) => file.path) ?? [];
+  const fileOptions = useMemo(
+    () => bundle?.files.map((file) => file.path) ?? [],
+    [bundle],
+  );
   const visibleFilePaths = useMemo(
     () => [...new Set([currentEntryFile, ...fileOptions])],
     [currentEntryFile, fileOptions],
@@ -1606,7 +1618,7 @@ function PromptsTab({
         nextExpanded.add(currentPath);
       }
     }
-    setExpandedDirs(nextExpanded);
+    setExpandedDirs((current) => (setsEqual(current, nextExpanded) ? current : nextExpanded));
   }, [visibleFilePaths]);
 
   useEffect(() => {
@@ -1712,7 +1724,7 @@ function PromptsTab({
   }
 
   if (bundleLoading && !bundle) {
-    return <div className="max-w-5xl text-sm text-muted-foreground">Loading instructions bundle…</div>;
+    return <PromptsTabSkeleton />;
   }
 
   return (
@@ -1922,7 +1934,7 @@ function PromptsTab({
           </div>
 
           {selectedFileExists && fileLoading && !selectedFileDetail ? (
-            <p className="text-sm text-muted-foreground">Loading file…</p>
+            <PromptEditorSkeleton />
           ) : isMarkdown(selectedOrEntryFile) ? (
             <MarkdownEditor
               value={displayValue}
@@ -1945,6 +1957,60 @@ function PromptsTab({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function PromptsTabSkeleton() {
+  return (
+    <div className="max-w-5xl space-y-4">
+      <div className="rounded-lg border border-border p-4 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-[30rem] max-w-full" />
+          </div>
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <div className="rounded-lg border border-border p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-8 w-16" />
+          </div>
+          <Skeleton className="h-10 w-full" />
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="h-9 w-full rounded-none" />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+          <PromptEditorSkeleton />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PromptEditorSkeleton() {
+  return (
+    <div className="space-y-3">
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-[420px] w-full" />
     </div>
   );
 }
