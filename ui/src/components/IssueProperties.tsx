@@ -662,16 +662,38 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
               )}
 
               {issue.currentExecutionWorkspace && (
-                <div className="text-[11px] text-muted-foreground">
-                  Current:{" "}
-                  <Link
-                    to={`/execution-workspaces/${issue.currentExecutionWorkspace.id}`}
-                    className="hover:text-foreground hover:underline"
-                  >
-                    {issue.currentExecutionWorkspace.name}
-                  </Link>
-                  {" · "}
-                  {issue.currentExecutionWorkspace.status}
+                <div className="text-[11px] text-muted-foreground space-y-0.5">
+                  <div>
+                    Current:{" "}
+                    <Link
+                      to={`/execution-workspaces/${issue.currentExecutionWorkspace.id}`}
+                      className="hover:text-foreground hover:underline"
+                    >
+                      {issue.currentExecutionWorkspace.name}
+                    </Link>
+                    {" · "}
+                    {issue.currentExecutionWorkspace.status}
+                  </div>
+                  {issue.currentExecutionWorkspace.cwd && (
+                    <div className="font-mono truncate" title={issue.currentExecutionWorkspace.cwd}>
+                      {issue.currentExecutionWorkspace.cwd}
+                    </div>
+                  )}
+                  {issue.currentExecutionWorkspace.branchName && (
+                    <div className="truncate">
+                      Branch: {issue.currentExecutionWorkspace.branchName}
+                    </div>
+                  )}
+                  {issue.currentExecutionWorkspace.repoUrl && (
+                    <div className="truncate" title={issue.currentExecutionWorkspace.repoUrl}>
+                      Repo: {issue.currentExecutionWorkspace.repoUrl}
+                    </div>
+                  )}
+                </div>
+              )}
+              {!issue.currentExecutionWorkspace && currentProject?.primaryWorkspace?.cwd && (
+                <div className="text-[11px] text-muted-foreground font-mono truncate" title={currentProject.primaryWorkspace.cwd}>
+                  {currentProject.primaryWorkspace.cwd}
                 </div>
               )}
             </div>
