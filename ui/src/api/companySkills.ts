@@ -5,6 +5,8 @@ import type {
   CompanySkillFileDetail,
   CompanySkillImportResult,
   CompanySkillListItem,
+  CompanySkillProjectScanRequest,
+  CompanySkillProjectScanResult,
   CompanySkillUpdateStatus,
 } from "@paperclipai/shared";
 import { api } from "./client";
@@ -38,6 +40,11 @@ export const companySkillsApi = {
     api.post<CompanySkillImportResult>(
       `/companies/${encodeURIComponent(companyId)}/skills/import`,
       { source },
+    ),
+  scanProjects: (companyId: string, payload: CompanySkillProjectScanRequest = {}) =>
+    api.post<CompanySkillProjectScanResult>(
+      `/companies/${encodeURIComponent(companyId)}/skills/scan-projects`,
+      payload,
     ),
   installUpdate: (companyId: string, skillId: string) =>
     api.post<CompanySkill>(

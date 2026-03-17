@@ -16,6 +16,10 @@ import type {
   CompanySkillFileInventoryEntry,
   CompanySkillImportResult,
   CompanySkillListItem,
+  CompanySkillProjectScanConflict,
+  CompanySkillProjectScanRequest,
+  CompanySkillProjectScanResult,
+  CompanySkillProjectScanSkipped,
   CompanySkillSourceBadge,
   CompanySkillSourceType,
   CompanySkillTrustLevel,
@@ -27,6 +31,7 @@ import { findServerAdapter } from "../adapters/index.js";
 import { resolvePaperclipInstanceRoot } from "../home-paths.js";
 import { notFound, unprocessable } from "../errors.js";
 import { agentService } from "./agents.js";
+import { projectService } from "./projects.js";
 import { secretService } from "./secrets.js";
 
 type CompanySkillRow = typeof companySkills.$inferSelect;
@@ -61,7 +66,65 @@ type SkillSourceMeta = {
   ref?: string;
   trackingRef?: string;
   repoSkillDir?: string;
+  projectId?: string;
+  projectName?: string;
+  workspaceId?: string;
+  workspaceName?: string;
+  workspaceCwd?: string;
 };
+
+export type LocalSkillInventoryMode = "full" | "project_root";
+
+export type ProjectSkillScanTarget = {
+  projectId: string;
+  projectName: string;
+  workspaceId: string;
+  workspaceName: string;
+  workspaceCwd: string;
+};
+
+const PROJECT_SCAN_DIRECTORY_ROOTS = [
+  "skills",
+  "skills/.curated",
+  "skills/.experimental",
+  "skills/.system",
+  ".agents/skills",
+  ".agent/skills",
+  ".augment/skills",
+  ".claude/skills",
+  ".codebuddy/skills",
+  ".commandcode/skills",
+  ".continue/skills",
+  ".cortex/skills",
+  ".crush/skills",
+  ".factory/skills",
+  ".goose/skills",
+  ".junie/skills",
+  ".iflow/skills",
+  ".kilocode/skills",
+  ".kiro/skills",
+  ".kode/skills",
+  ".mcpjam/skills",
+  ".vibe/skills",
+  ".mux/skills",
+  ".openhands/skills",
+  ".pi/skills",
+  ".qoder/skills",
+  ".qwen/skills",
+  ".roo/skills",
+  ".trae/skills",
+  ".windsurf/skills",
+  ".zencoder/skills",
+  ".neovate/skills",
+  ".pochi/skills",
+  ".adal/skills",
+] as const;
+
+const PROJECT_ROOT_SKILL_SUBDIRECTORIES = [
+  "references",
+  "scripts",
+  "assets",
+] as const;
 
 function asString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -631,6 +694,123 @@ async function walkLocalFiles(root: string, current: string, out: string[]) {
   }
 }
 
+async function statPath(targetPath: string) {
+  return fs.stat(targetPath).catch(() => null);
+}
+
+async function collectLocalSkillInventory(
+  skillDir: string,
+  mode: LocalSkillInventoryMode = "full",
+): Promise<CompanySkillFileInventoryEntry[]> {
+  const skillFilePath = path.join(skillDir, "SKILL.md");
+  const skillFileStat = await statPath(skillFilePath);
+  if (!skillFileStat?.isFile()) {
+    throw unprocessable(`No SKILL.md file was found in ${skillDir}.`);
+  }
+
+  const allFiles = new Set<string>(["SKILL.md"]);
+  if (mode === "full") {
+    const discoveredFiles: string[] = [];
+    await walkLocalFiles(skillDir, skillDir, discoveredFiles);
+    for (const relativePath of discoveredFiles) {
+      allFiles.add(relativePath);
+    }
+  } else {
+    for (const relativeDir of PROJECT_ROOT_SKILL_SUBDIRECTORIES) {
+      const absoluteDir = path.join(skillDir, relativeDir);
+      const dirStat = await statPath(absoluteDir);
+      if (!dirStat?.isDirectory()) continue;
+      const discoveredFiles: string[] = [];
+      await walkLocalFiles(skillDir, absoluteDir, discoveredFiles);
+      for (const relativePath of discoveredFiles) {
+        allFiles.add(relativePath);
+      }
+    }
+  }
+
+  return Array.from(allFiles)
+    .map((relativePath) => ({
+      path: normalizePortablePath(relativePath),
+      kind: classifyInventoryKind(relativePath),
+    }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+export async function readLocalSkillImportFromDirectory(
+  companyId: string,
+  skillDir: string,
+  options?: {
+    inventoryMode?: LocalSkillInventoryMode;
+    metadata?: Record<string, unknown> | null;
+  },
+): Promise<ImportedSkill> {
+  const resolvedSkillDir = path.resolve(skillDir);
+  const skillFilePath = path.join(resolvedSkillDir, "SKILL.md");
+  const markdown = await fs.readFile(skillFilePath, "utf8");
+  const parsed = parseFrontmatterMarkdown(markdown);
+  const slug = deriveImportedSkillSlug(parsed.frontmatter, path.basename(resolvedSkillDir));
+  const skillKey = readCanonicalSkillKey(
+    parsed.frontmatter,
+    isPlainRecord(parsed.frontmatter.metadata) ? parsed.frontmatter.metadata : null,
+  );
+  const metadata = {
+    ...(skillKey ? { skillKey } : {}),
+    sourceKind: "local_path",
+    ...(options?.metadata ?? {}),
+  };
+  const inventory = await collectLocalSkillInventory(resolvedSkillDir, options?.inventoryMode ?? "full");
+
+  return {
+    key: deriveCanonicalSkillKey(companyId, {
+      slug,
+      sourceType: "local_path",
+      sourceLocator: resolvedSkillDir,
+      metadata,
+    }),
+    slug,
+    name: asString(parsed.frontmatter.name) ?? slug,
+    description: asString(parsed.frontmatter.description),
+    markdown,
+    packageDir: resolvedSkillDir,
+    sourceType: "local_path",
+    sourceLocator: resolvedSkillDir,
+    sourceRef: null,
+    trustLevel: deriveTrustLevel(inventory),
+    compatibility: "compatible",
+    fileInventory: inventory,
+    metadata,
+  };
+}
+
+export async function discoverProjectWorkspaceSkillDirectories(target: ProjectSkillScanTarget): Promise<Array<{
+  skillDir: string;
+  inventoryMode: LocalSkillInventoryMode;
+}>> {
+  const discovered = new Map<string, LocalSkillInventoryMode>();
+  const rootSkillPath = path.join(target.workspaceCwd, "SKILL.md");
+  if ((await statPath(rootSkillPath))?.isFile()) {
+    discovered.set(path.resolve(target.workspaceCwd), "project_root");
+  }
+
+  for (const relativeRoot of PROJECT_SCAN_DIRECTORY_ROOTS) {
+    const absoluteRoot = path.join(target.workspaceCwd, relativeRoot);
+    const rootStat = await statPath(absoluteRoot);
+    if (!rootStat?.isDirectory()) continue;
+
+    const entries = await fs.readdir(absoluteRoot, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const absoluteSkillDir = path.resolve(absoluteRoot, entry.name);
+      if (!(await statPath(path.join(absoluteSkillDir, "SKILL.md")))?.isFile()) continue;
+      discovered.set(absoluteSkillDir, "full");
+    }
+  }
+
+  return Array.from(discovered.entries())
+    .map(([skillDir, inventoryMode]) => ({ skillDir, inventoryMode }))
+    .sort((left, right) => left.skillDir.localeCompare(right.skillDir));
+}
+
 async function readLocalSkillImports(companyId: string, sourcePath: string): Promise<ImportedSkill[]> {
   const resolvedPath = path.resolve(sourcePath);
   const stat = await fs.stat(resolvedPath).catch(() => null);
@@ -686,17 +866,6 @@ async function readLocalSkillImports(companyId: string, sourcePath: string): Pro
   const imports: ImportedSkill[] = [];
   for (const skillPath of skillPaths) {
     const skillDir = path.posix.dirname(skillPath);
-    const markdown = await fs.readFile(path.join(root, skillPath), "utf8");
-    const parsed = parseFrontmatterMarkdown(markdown);
-    const slug = deriveImportedSkillSlug(parsed.frontmatter, path.posix.basename(skillDir));
-    const skillKey = readCanonicalSkillKey(
-      parsed.frontmatter,
-      isPlainRecord(parsed.frontmatter.metadata) ? parsed.frontmatter.metadata : null,
-    );
-    const metadata = {
-      ...(skillKey ? { skillKey } : {}),
-      sourceKind: "local_path",
-    };
     const inventory = allFiles
       .filter((entry) => entry === skillPath || entry.startsWith(`${skillDir}/`))
       .map((entry) => {
@@ -707,26 +876,10 @@ async function readLocalSkillImports(companyId: string, sourcePath: string): Pro
         };
       })
       .sort((left, right) => left.path.localeCompare(right.path));
-    imports.push({
-      key: deriveCanonicalSkillKey(companyId, {
-        slug,
-        sourceType: "local_path",
-        sourceLocator: path.join(root, skillDir),
-        metadata,
-      }),
-      slug,
-      name: asString(parsed.frontmatter.name) ?? slug,
-      description: asString(parsed.frontmatter.description),
-      markdown,
-      packageDir: path.join(root, skillDir),
-      sourceType: "local_path",
-      sourceLocator: path.join(root, skillDir),
-      sourceRef: null,
-      trustLevel: deriveTrustLevel(inventory),
-      compatibility: "compatible",
-      fileInventory: inventory,
-      metadata,
-    });
+    const imported = await readLocalSkillImportFromDirectory(companyId, path.join(root, skillDir));
+    imported.fileInventory = inventory;
+    imported.trustLevel = deriveTrustLevel(inventory);
+    imports.push(imported);
   }
 
   return imports;
@@ -942,6 +1095,12 @@ function normalizeSkillDirectory(skill: CompanySkill) {
   return resolved;
 }
 
+function normalizeSourceLocatorDirectory(sourceLocator: string | null) {
+  if (!sourceLocator) return null;
+  const resolved = path.resolve(sourceLocator);
+  return path.basename(resolved).toLowerCase() === "skill.md" ? path.dirname(resolved) : resolved;
+}
+
 function resolveManagedSkillsRoot(companyId: string) {
   return path.resolve(resolvePaperclipInstanceRoot(), "skills", companyId);
 }
@@ -1019,6 +1178,9 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
 
   if (skill.sourceType === "local_path") {
     const managedRoot = resolveManagedSkillsRoot(skill.companyId);
+    const projectName = asString(metadata.projectName);
+    const workspaceName = asString(metadata.workspaceName);
+    const isProjectScan = metadata.sourceKind === "project_scan";
     if (localSkillDir && localSkillDir.startsWith(managedRoot)) {
       return {
         editable: true,
@@ -1031,7 +1193,10 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
     return {
       editable: true,
       editableReason: null,
-      sourceLabel: skill.sourceLocator,
+      sourceLabel: isProjectScan
+        ? [projectName, workspaceName].filter((value): value is string => Boolean(value)).join(" / ")
+          || skill.sourceLocator
+        : skill.sourceLocator,
       sourceBadge: "local",
     };
   }
@@ -1081,6 +1246,7 @@ function toCompanySkillListItem(skill: CompanySkill, attachedAgentCount: number)
 
 export function companySkillService(db: Db) {
   const agents = agentService(db);
+  const projects = projectService(db);
   const secretsSvc = secretService(db);
 
   async function ensureBundledSkills(companyId: string) {
@@ -1409,6 +1575,183 @@ export function companySkillService(db: Db) {
     return imported[0] ?? null;
   }
 
+  async function scanProjectWorkspaces(
+    companyId: string,
+    input: CompanySkillProjectScanRequest = {},
+  ): Promise<CompanySkillProjectScanResult> {
+    await ensureBundledSkills(companyId);
+    const projectRows = input.projectIds?.length
+      ? await projects.listByIds(companyId, input.projectIds)
+      : await projects.list(companyId);
+    const workspaceFilter = new Set(input.workspaceIds ?? []);
+    const skipped: CompanySkillProjectScanSkipped[] = [];
+    const conflicts: CompanySkillProjectScanConflict[] = [];
+    const warnings: string[] = [];
+    const imported: CompanySkill[] = [];
+    const updated: CompanySkill[] = [];
+    const availableSkills = await listFull(companyId);
+    const acceptedSkills = [...availableSkills];
+    const acceptedByKey = new Map(acceptedSkills.map((skill) => [skill.key, skill]));
+    const scanTargets: ProjectSkillScanTarget[] = [];
+    const scannedProjectIds = new Set<string>();
+    let discovered = 0;
+
+    const trackWarning = (message: string) => {
+      warnings.push(message);
+      return message;
+    };
+    const upsertAcceptedSkill = (skill: CompanySkill) => {
+      const nextIndex = acceptedSkills.findIndex((entry) => entry.id === skill.id || entry.key === skill.key);
+      if (nextIndex >= 0) acceptedSkills[nextIndex] = skill;
+      else acceptedSkills.push(skill);
+      acceptedByKey.set(skill.key, skill);
+    };
+
+    for (const project of projectRows) {
+      for (const workspace of project.workspaces) {
+        if (workspaceFilter.size > 0 && !workspaceFilter.has(workspace.id)) continue;
+        const workspaceCwd = asString(workspace.cwd);
+        if (!workspaceCwd) {
+          skipped.push({
+            projectId: project.id,
+            projectName: project.name,
+            workspaceId: workspace.id,
+            workspaceName: workspace.name,
+            path: null,
+            reason: trackWarning(`Skipped ${project.name} / ${workspace.name}: no local workspace path is configured.`),
+          });
+          continue;
+        }
+
+        const workspaceStat = await statPath(workspaceCwd);
+        if (!workspaceStat?.isDirectory()) {
+          skipped.push({
+            projectId: project.id,
+            projectName: project.name,
+            workspaceId: workspace.id,
+            workspaceName: workspace.name,
+            path: workspaceCwd,
+            reason: trackWarning(`Skipped ${project.name} / ${workspace.name}: local workspace path is not available at ${workspaceCwd}.`),
+          });
+          continue;
+        }
+
+        scanTargets.push({
+          projectId: project.id,
+          projectName: project.name,
+          workspaceId: workspace.id,
+          workspaceName: workspace.name,
+          workspaceCwd,
+        });
+      }
+    }
+
+    for (const target of scanTargets) {
+      scannedProjectIds.add(target.projectId);
+      const directories = await discoverProjectWorkspaceSkillDirectories(target);
+
+      for (const directory of directories) {
+        discovered += 1;
+
+        let nextSkill: ImportedSkill;
+        try {
+          nextSkill = await readLocalSkillImportFromDirectory(companyId, directory.skillDir, {
+            inventoryMode: directory.inventoryMode,
+            metadata: {
+              sourceKind: "project_scan",
+              projectId: target.projectId,
+              projectName: target.projectName,
+              workspaceId: target.workspaceId,
+              workspaceName: target.workspaceName,
+              workspaceCwd: target.workspaceCwd,
+            },
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          skipped.push({
+            projectId: target.projectId,
+            projectName: target.projectName,
+            workspaceId: target.workspaceId,
+            workspaceName: target.workspaceName,
+            path: directory.skillDir,
+            reason: trackWarning(`Skipped ${directory.skillDir}: ${message}`),
+          });
+          continue;
+        }
+
+        const normalizedSourceDir = normalizeSourceLocatorDirectory(nextSkill.sourceLocator);
+        const existingByKey = acceptedByKey.get(nextSkill.key) ?? null;
+        if (existingByKey) {
+          const existingSourceDir = normalizeSkillDirectory(existingByKey);
+          if (
+            existingByKey.sourceType !== "local_path"
+            || !existingSourceDir
+            || !normalizedSourceDir
+            || existingSourceDir !== normalizedSourceDir
+          ) {
+            conflicts.push({
+              slug: nextSkill.slug,
+              key: nextSkill.key,
+              projectId: target.projectId,
+              projectName: target.projectName,
+              workspaceId: target.workspaceId,
+              workspaceName: target.workspaceName,
+              path: directory.skillDir,
+              existingSkillId: existingByKey.id,
+              existingSkillKey: existingByKey.key,
+              existingSourceLocator: existingByKey.sourceLocator,
+              reason: `Skill key ${nextSkill.key} already points at ${existingByKey.sourceLocator ?? "another source"}.`,
+            });
+            continue;
+          }
+
+          const persisted = (await upsertImportedSkills(companyId, [nextSkill]))[0];
+          if (!persisted) continue;
+          updated.push(persisted);
+          upsertAcceptedSkill(persisted);
+          continue;
+        }
+
+        const slugConflict = acceptedSkills.find((skill) => {
+          if (skill.slug !== nextSkill.slug) return false;
+          return normalizeSkillDirectory(skill) !== normalizedSourceDir;
+        });
+        if (slugConflict) {
+          conflicts.push({
+            slug: nextSkill.slug,
+            key: nextSkill.key,
+            projectId: target.projectId,
+            projectName: target.projectName,
+            workspaceId: target.workspaceId,
+            workspaceName: target.workspaceName,
+            path: directory.skillDir,
+            existingSkillId: slugConflict.id,
+            existingSkillKey: slugConflict.key,
+            existingSourceLocator: slugConflict.sourceLocator,
+            reason: `Slug ${nextSkill.slug} is already in use by ${slugConflict.sourceLocator ?? slugConflict.key}.`,
+          });
+          continue;
+        }
+
+        const persisted = (await upsertImportedSkills(companyId, [nextSkill]))[0];
+        if (!persisted) continue;
+        imported.push(persisted);
+        upsertAcceptedSkill(persisted);
+      }
+    }
+
+    return {
+      scannedProjects: scannedProjectIds.size,
+      scannedWorkspaces: scanTargets.length,
+      discovered,
+      imported,
+      updated,
+      skipped,
+      conflicts,
+      warnings,
+    };
+  }
+
   async function materializeCatalogSkillFiles(
     companyId: string,
     skill: ImportedSkill,
@@ -1601,6 +1944,7 @@ export function companySkillService(db: Db) {
     updateFile,
     createLocalSkill,
     importFromSource,
+    scanProjectWorkspaces,
     importPackageFiles,
     installUpdate,
     listRuntimeSkillEntries,

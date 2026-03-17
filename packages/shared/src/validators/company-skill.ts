@@ -68,6 +68,45 @@ export const companySkillImportSchema = z.object({
   source: z.string().min(1),
 });
 
+export const companySkillProjectScanRequestSchema = z.object({
+  projectIds: z.array(z.string().uuid()).optional(),
+  workspaceIds: z.array(z.string().uuid()).optional(),
+});
+
+export const companySkillProjectScanSkippedSchema = z.object({
+  projectId: z.string().uuid(),
+  projectName: z.string().min(1),
+  workspaceId: z.string().uuid().nullable(),
+  workspaceName: z.string().nullable(),
+  path: z.string().nullable(),
+  reason: z.string().min(1),
+});
+
+export const companySkillProjectScanConflictSchema = z.object({
+  slug: z.string().min(1),
+  key: z.string().min(1),
+  projectId: z.string().uuid(),
+  projectName: z.string().min(1),
+  workspaceId: z.string().uuid(),
+  workspaceName: z.string().min(1),
+  path: z.string().min(1),
+  existingSkillId: z.string().uuid(),
+  existingSkillKey: z.string().min(1),
+  existingSourceLocator: z.string().nullable(),
+  reason: z.string().min(1),
+});
+
+export const companySkillProjectScanResultSchema = z.object({
+  scannedProjects: z.number().int().nonnegative(),
+  scannedWorkspaces: z.number().int().nonnegative(),
+  discovered: z.number().int().nonnegative(),
+  imported: z.array(companySkillSchema),
+  updated: z.array(companySkillSchema),
+  skipped: z.array(companySkillProjectScanSkippedSchema),
+  conflicts: z.array(companySkillProjectScanConflictSchema),
+  warnings: z.array(z.string()),
+});
+
 export const companySkillCreateSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1).nullable().optional(),
@@ -91,5 +130,6 @@ export const companySkillFileUpdateSchema = z.object({
 });
 
 export type CompanySkillImport = z.infer<typeof companySkillImportSchema>;
+export type CompanySkillProjectScan = z.infer<typeof companySkillProjectScanRequestSchema>;
 export type CompanySkillCreate = z.infer<typeof companySkillCreateSchema>;
 export type CompanySkillFileUpdate = z.infer<typeof companySkillFileUpdateSchema>;

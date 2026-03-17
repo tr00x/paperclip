@@ -88,6 +88,45 @@ export interface CompanySkillImportResult {
   warnings: string[];
 }
 
+export interface CompanySkillProjectScanRequest {
+  projectIds?: string[];
+  workspaceIds?: string[];
+}
+
+export interface CompanySkillProjectScanSkipped {
+  projectId: string;
+  projectName: string;
+  workspaceId: string | null;
+  workspaceName: string | null;
+  path: string | null;
+  reason: string;
+}
+
+export interface CompanySkillProjectScanConflict {
+  slug: string;
+  key: string;
+  projectId: string;
+  projectName: string;
+  workspaceId: string;
+  workspaceName: string;
+  path: string;
+  existingSkillId: string;
+  existingSkillKey: string;
+  existingSourceLocator: string | null;
+  reason: string;
+}
+
+export interface CompanySkillProjectScanResult {
+  scannedProjects: number;
+  scannedWorkspaces: number;
+  discovered: number;
+  imported: CompanySkill[];
+  updated: CompanySkill[];
+  skipped: CompanySkillProjectScanSkipped[];
+  conflicts: CompanySkillProjectScanConflict[];
+  warnings: string[];
+}
+
 export interface CompanySkillCreateRequest {
   name: string;
   slug?: string | null;

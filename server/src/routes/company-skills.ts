@@ -4,6 +4,7 @@ import {
   companySkillCreateSchema,
   companySkillFileUpdateSchema,
   companySkillImportSchema,
+  companySkillProjectScanRequestSchema,
 } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
 import { companySkillService, logActivity } from "../services/index.js";
@@ -147,6 +148,39 @@ export function companySkillRoutes(db: Db) {
       });
 
       res.status(201).json(result);
+    },
+  );
+
+  router.post(
+    "/companies/:companyId/skills/scan-projects",
+    validate(companySkillProjectScanRequestSchema),
+    async (req, res) => {
+      const companyId = req.params.companyId as string;
+      assertCompanyAccess(req, companyId);
+      const result = await svc.scanProjectWorkspaces(companyId, req.body);
+
+      const actor = getActorInfo(req);
+      await logActivity(db, {
+        companyId,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        agentId: actor.agentId,
+        runId: actor.runId,
+        action: "company.skills_scanned",
+        entityType: "company",
+        entityId: companyId,
+        details: {
+          scannedProjects: result.scannedProjects,
+          scannedWorkspaces: result.scannedWorkspaces,
+          discovered: result.discovered,
+          importedCount: result.imported.length,
+          updatedCount: result.updated.length,
+          conflictCount: result.conflicts.length,
+          warningCount: result.warnings.length,
+        },
+      });
+
+      res.json(result);
     },
   );
 
