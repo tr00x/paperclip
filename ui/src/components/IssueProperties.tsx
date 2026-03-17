@@ -545,7 +545,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
 
         {currentProjectSupportsExecutionWorkspace && (
           <PropertyRow label="Workspace">
-            <div className="flex items-center justify-between gap-3 rounded-md border border-border px-2 py-1.5 w-full">
+            <div className="flex items-center justify-between gap-3 w-full">
               <div className="min-w-0">
                 <div className="text-sm">
                   {usesIsolatedExecutionWorkspace ? "Isolated issue checkout" : "Project primary checkout"}

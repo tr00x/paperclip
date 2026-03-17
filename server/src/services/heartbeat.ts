@@ -42,6 +42,11 @@ import {
   resolveExecutionWorkspaceMode,
 } from "./execution-workspace-policy.js";
 import { redactCurrentUserText, redactCurrentUserValue } from "../log-redaction.js";
+import {
+  hasSessionCompactionThresholds,
+  resolveSessionCompactionPolicy,
+  type SessionCompactionPolicy,
+} from "@paperclipai/adapter-utils";
 
 const MAX_LIVE_LOG_CHUNK_BYTES = 8 * 1024;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = 1;
@@ -49,14 +54,6 @@ const HEARTBEAT_MAX_CONCURRENT_RUNS_MAX = 10;
 const DEFERRED_WAKE_CONTEXT_KEY = "_paperclipWakeContext";
 const startLocksByAgent = new Map<string, Promise<void>>();
 const REPO_ONLY_CWD_SENTINEL = "/__paperclip_repo_only__";
-const SESSIONED_LOCAL_ADAPTERS = new Set([
-  "claude_local",
-  "codex_local",
-  "cursor",
-  "gemini_local",
-  "opencode_local",
-  "pi_local",
-]);
 
 const heartbeatRunListColumns = {
   id: heartbeatRuns.id,
@@ -131,13 +128,6 @@ type UsageTotals = {
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
-};
-
-type SessionCompactionPolicy = {
-  enabled: boolean;
-  maxSessionRuns: number;
-  maxRawInputTokens: number;
-  maxSessionAgeHours: number;
 };
 
 type SessionCompactionDecision = {
@@ -296,23 +286,8 @@ function formatCount(value: number | null | undefined) {
   return value.toLocaleString("en-US");
 }
 
-function parseSessionCompactionPolicy(agent: typeof agents.$inferSelect): SessionCompactionPolicy {
-  const runtimeConfig = parseObject(agent.runtimeConfig);
-  const heartbeat = parseObject(runtimeConfig.heartbeat);
-  const compaction = parseObject(
-    heartbeat.sessionCompaction ?? heartbeat.sessionRotation ?? runtimeConfig.sessionCompaction,
-  );
-  const supportsSessions = SESSIONED_LOCAL_ADAPTERS.has(agent.adapterType);
-  const enabled = compaction.enabled === undefined
-    ? supportsSessions
-    : asBoolean(compaction.enabled, supportsSessions);
-
-  return {
-    enabled,
-    maxSessionRuns: Math.max(0, Math.floor(asNumber(compaction.maxSessionRuns, 200))),
-    maxRawInputTokens: Math.max(0, Math.floor(asNumber(compaction.maxRawInputTokens, 2_000_000))),
-    maxSessionAgeHours: Math.max(0, Math.floor(asNumber(compaction.maxSessionAgeHours, 72))),
-  };
+export function parseSessionCompactionPolicy(agent: typeof agents.$inferSelect): SessionCompactionPolicy {
+  return resolveSessionCompactionPolicy(agent.adapterType, agent.runtimeConfig).policy;
 }
 
 export function resolveRuntimeSessionParamsForWorkspace(input: {
@@ -743,7 +718,7 @@ export function heartbeatService(db: Db) {
     }
 
     const policy = parseSessionCompactionPolicy(agent);
-    if (!policy.enabled) {
+    if (!policy.enabled || !hasSessionCompactionThresholds(policy)) {
       return {
         rotate: false,
         reason: null,

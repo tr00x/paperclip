@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useNavigate, Link, Navigate, useBeforeUnload } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { agentsApi, type AgentKey, type ClaudeLoginResult } from "../api/agents";
+import { agentsApi, type AgentKey, type ClaudeLoginResult, type AvailableSkill } from "../api/agents";
 import { budgetsApi } from "../api/budgets";
 import { heartbeatsApi } from "../api/heartbeats";
 import { ApiError } from "../api/client";
@@ -30,6 +30,7 @@ import { ScrollToBottom } from "../components/ScrollToBottom";
 import { formatCents, formatDate, relativeTime, formatTokens, visibleRunCostUsd } from "../lib/utils";
 import { cn } from "../lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
 import {
   Popover,
@@ -185,11 +186,12 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "dashboard" | "configuration" | "runs" | "budget";
+type AgentDetailView = "dashboard" | "configuration" | "skills" | "runs" | "budget";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
   if (value === "configure" || value === "configuration") return "configuration";
-  if (value === "budget") return "budget";
+  if (value === "skills") return value;
+  if (value === "budget") return value;
   if (value === "runs") return value;
   return "dashboard";
 }
@@ -364,10 +366,12 @@ export function AgentDetail() {
     const canonicalTab =
       activeView === "configuration"
         ? "configuration"
-        : activeView === "runs"
-          ? "runs"
-          : activeView === "budget"
-            ? "budget"
+        : activeView === "skills"
+          ? "skills"
+          : activeView === "runs"
+            ? "runs"
+            : activeView === "budget"
+              ? "budget"
             : "dashboard";
     if (routeAgentRef !== canonicalAgentRef || urlTab !== canonicalTab) {
       navigate(`/agents/${canonicalAgentRef}/${canonicalTab}`, { replace: true });
@@ -483,6 +487,8 @@ export function AgentDetail() {
         crumbs.push({ label: `Run ${urlRunId.slice(0, 8)}` });
       } else if (activeView === "configuration") {
         crumbs.push({ label: "Configuration" });
+      } else if (activeView === "skills") {
+        crumbs.push({ label: "Skills" });
       } else if (activeView === "runs") {
         crumbs.push({ label: "Runs" });
       } else if (activeView === "budget") {
@@ -642,6 +648,7 @@ export function AgentDetail() {
             items={[
               { value: "dashboard", label: "Dashboard" },
               { value: "configuration", label: "Configuration" },
+              { value: "skills", label: "Skills" },
               { value: "runs", label: "Runs" },
               { value: "budget", label: "Budget" },
             ]}
@@ -659,14 +666,9 @@ export function AgentDetail() {
       )}
 
       {/* Floating Save/Cancel (desktop) */}
-      {!isMobile && (
+      {!isMobile && showConfigActionBar && (
         <div
-          className={cn(
-            "sticky top-6 z-10 float-right transition-opacity duration-150",
-            showConfigActionBar
-              ? "opacity-100"
-              : "opacity-0 pointer-events-none"
-          )}
+          className="sticky top-6 z-10 float-right transition-opacity duration-150"
         >
           <div className="flex items-center gap-2 bg-background/90 backdrop-blur-sm border border-border rounded-lg px-3 py-1.5 shadow-lg">
             <Button
@@ -736,6 +738,12 @@ export function AgentDetail() {
           onCancelActionChange={setCancelConfigAction}
           onSavingChange={setConfigSaving}
           updatePermissions={updatePermissions}
+        />
+      )}
+
+      {activeView === "skills" && (
+        <SkillsTab
+          agent={agent}
         />
       )}
 
@@ -1201,6 +1209,78 @@ function ConfigurationTab({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SkillsTab({ agent }: { agent: Agent }) {
+  const instructionsPath =
+    typeof agent.adapterConfig?.instructionsFilePath === "string" && agent.adapterConfig.instructionsFilePath.trim().length > 0
+      ? agent.adapterConfig.instructionsFilePath
+      : null;
+  const { data, isLoading, error } = useQuery({
+    queryKey: queryKeys.skills.available,
+    queryFn: () => agentsApi.availableSkills(),
+  });
+  const skills = data?.skills ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="border border-border rounded-lg p-4 space-y-2">
+        <h3 className="text-sm font-medium">Skills</h3>
+        <p className="text-sm text-muted-foreground">
+          Skills are reusable instruction bundles the agent can invoke from its local tool environment.
+          This view shows the current instructions file and the skills currently visible to the local agent runtime.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Agent: <span className="font-mono">{agent.name}</span>
+        </p>
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+            Instructions file
+          </div>
+          <div className="font-mono break-all">
+            {instructionsPath ?? "No instructions file configured for this agent."}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Available skills
+          </div>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading available skills…</p>
+          ) : error ? (
+            <p className="text-sm text-destructive">
+              {error instanceof Error ? error.message : "Failed to load available skills."}
+            </p>
+          ) : skills.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No local skills were found.</p>
+          ) : (
+            <div className="space-y-2">
+              {skills.map((skill) => (
+                <SkillRow key={skill.name} skill={skill} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkillRow({ skill }: { skill: AvailableSkill }) {
+  return (
+    <div className="rounded-md border border-border bg-muted/20 px-3 py-2 space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-sm">{skill.name}</span>
+        <Badge variant={skill.isPaperclipManaged ? "secondary" : "outline"}>
+          {skill.isPaperclipManaged ? "Paperclip" : "Local"}
+        </Badge>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {skill.description || "No description available."}
+      </p>
     </div>
   );
 }
