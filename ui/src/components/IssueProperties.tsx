@@ -129,8 +129,20 @@ function PropertyPicker({
   );
 }
 
-/** Displays a path/value with a copy-to-clipboard icon and "Copied!" feedback. */
-function CopyablePath({ value, label, className }: { value: string; label?: string; className?: string }) {
+/** Splits a string at `/` and `-` boundaries, inserting <wbr> for natural line breaks. */
+function BreakablePath({ text }: { text: string }) {
+  const parts: React.ReactNode[] = [];
+  // Split on path separators and hyphens, keeping them in the output
+  const segments = text.split(/(?<=[\/-])/);
+  for (let i = 0; i < segments.length; i++) {
+    if (i > 0) parts.push(<wbr key={i} />);
+    parts.push(segments[i]);
+  }
+  return <>{parts}</>;
+}
+
+/** Displays a value with a copy-to-clipboard icon and "Copied!" feedback. */
+function CopyableValue({ value, label, mono, className }: { value: string; label?: string; mono?: boolean; className?: string }) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const handleCopy = useCallback(async () => {
@@ -144,15 +156,15 @@ function CopyablePath({ value, label, className }: { value: string; label?: stri
 
   return (
     <div className={cn("flex items-start gap-1 group", className)}>
-      <span className="break-all min-w-0">
+      <span className="min-w-0" style={{ overflowWrap: "anywhere" }}>
         {label && <span className="text-muted-foreground">{label} </span>}
-        <span className="font-mono">{value}</span>
+        <span className={mono ? "font-mono" : undefined}><BreakablePath text={value} /></span>
       </span>
       <button
         type="button"
         className="shrink-0 mt-0.5 p-0.5 rounded hover:bg-accent/50 transition-colors text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 focus:opacity-100"
         onClick={handleCopy}
-        title={copied ? "Copied!" : "Copy"}
+        title={copied ? "Copied!" : "Copy to clipboard"}
       >
         {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
       </button>
@@ -694,30 +706,30 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
 
               {issue.currentExecutionWorkspace && (
                 <div className="text-[11px] text-muted-foreground space-y-0.5">
-                  <div>
+                  <div style={{ overflowWrap: "anywhere" }}>
                     Current:{" "}
                     <Link
                       to={`/execution-workspaces/${issue.currentExecutionWorkspace.id}`}
                       className="hover:text-foreground hover:underline"
                     >
-                      {issue.currentExecutionWorkspace.name}
+                      <BreakablePath text={issue.currentExecutionWorkspace.name} />
                     </Link>
                     {" · "}
                     {issue.currentExecutionWorkspace.status}
                   </div>
                   {issue.currentExecutionWorkspace.cwd && (
-                    <CopyablePath value={issue.currentExecutionWorkspace.cwd} className="text-[11px]" />
+                    <CopyableValue value={issue.currentExecutionWorkspace.cwd} mono className="text-[11px]" />
                   )}
                   {issue.currentExecutionWorkspace.branchName && (
-                    <CopyablePath value={issue.currentExecutionWorkspace.branchName} label="Branch:" className="text-[11px]" />
+                    <CopyableValue value={issue.currentExecutionWorkspace.branchName} label="Branch:" className="text-[11px]" />
                   )}
                   {issue.currentExecutionWorkspace.repoUrl && (
-                    <CopyablePath value={issue.currentExecutionWorkspace.repoUrl} label="Repo:" className="text-[11px]" />
+                    <CopyableValue value={issue.currentExecutionWorkspace.repoUrl} label="Repo:" mono className="text-[11px]" />
                   )}
                 </div>
               )}
               {!issue.currentExecutionWorkspace && currentProject?.primaryWorkspace?.cwd && (
-                <CopyablePath value={currentProject.primaryWorkspace.cwd} className="text-[11px] text-muted-foreground" />
+                <CopyableValue value={currentProject.primaryWorkspace.cwd} mono className="text-[11px] text-muted-foreground" />
               )}
             </div>
           </PropertyRow>
