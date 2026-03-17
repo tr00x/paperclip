@@ -7,6 +7,7 @@ import type {
   CompanySkillFileDetail,
   CompanySkillFileInventoryEntry,
   CompanySkillListItem,
+  CompanySkillProjectScanResult,
   CompanySkillSourceBadge,
   CompanySkillUpdateStatus,
 } from "@paperclipai/shared";
@@ -165,6 +166,17 @@ function sourceMeta(sourceBadge: CompanySkillSourceBadge, sourceLabel: string | 
 function shortRef(ref: string | null | undefined) {
   if (!ref) return null;
   return ref.slice(0, 7);
+}
+
+function formatProjectScanSummary(result: CompanySkillProjectScanResult) {
+  const parts = [
+    `${result.discovered} found`,
+    `${result.imported.length} imported`,
+    `${result.updated.length} updated`,
+  ];
+  if (result.conflicts.length > 0) parts.push(`${result.conflicts.length} conflicts`);
+  if (result.skipped.length > 0) parts.push(`${result.skipped.length} skipped`);
+  return `${parts.join(", ")} across ${result.scannedWorkspaces} workspace${result.scannedWorkspaces === 1 ? "" : "s"}.`;
 }
 
 function fileIcon(kind: CompanySkillFileInventoryEntry["kind"]) {
@@ -542,11 +554,6 @@ function SkillPane({
       <div className="border-b border-border px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            {detail.key.includes("/") && (
-              <div className="truncate font-mono text-xs text-muted-foreground">
-                {detail.key.split("/").slice(0, -1).join("/")}
-              </div>
-            )}
             <h1 className="flex items-center gap-2 truncate text-2xl font-semibold">
               <SourceIcon className="h-5 w-5 shrink-0 text-muted-foreground" />
               {detail.name}
@@ -734,6 +741,7 @@ export function CompanySkills() {
   const [draft, setDraft] = useState("");
   const [displayedDetail, setDisplayedDetail] = useState<CompanySkillDetail | null>(null);
   const [displayedFile, setDisplayedFile] = useState<CompanySkillFileDetail | null>(null);
+  const [scanStatusMessage, setScanStatusMessage] = useState<string | null>(null);
   const parsedRoute = useMemo(() => parseSkillRoute(routePath), [routePath]);
   const routeSkillId = parsedRoute.skillId;
   const selectedPath = parsedRoute.filePath;
@@ -876,6 +884,45 @@ export function CompanySkills() {
     },
   });
 
+  const scanProjects = useMutation({
+    mutationFn: () => companySkillsApi.scanProjects(selectedCompanyId!),
+    onMutate: () => {
+      setScanStatusMessage("Scanning project workspaces for skills...");
+    },
+    onSuccess: async (result) => {
+      setScanStatusMessage("Refreshing skills list...");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.companySkills.list(selectedCompanyId!) });
+      const summary = formatProjectScanSummary(result);
+      setScanStatusMessage(summary);
+      pushToast({
+        tone: "success",
+        title: "Project skill scan complete",
+        body: summary,
+      });
+      if (result.conflicts[0]) {
+        pushToast({
+          tone: "warn",
+          title: "Skill conflicts found",
+          body: result.conflicts[0].reason,
+        });
+      } else if (result.warnings[0]) {
+        pushToast({
+          tone: "warn",
+          title: "Scan warnings",
+          body: result.warnings[0],
+        });
+      }
+    },
+    onError: (error) => {
+      setScanStatusMessage(null);
+      pushToast({
+        tone: "error",
+        title: "Project skill scan failed",
+        body: error instanceof Error ? error.message : "Failed to scan project workspaces.",
+      });
+    },
+  });
+
   const saveFile = useMutation({
     mutationFn: () => companySkillsApi.updateFile(
       selectedCompanyId!,
@@ -1002,10 +1049,11 @@ export function CompanySkills() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.companySkills.list(selectedCompanyId) })}
-                  disabled={skillsQuery.isLoading}
+                  onClick={() => scanProjects.mutate()}
+                  disabled={scanProjects.isPending}
+                  title="Scan project workspaces for skills"
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className={cn("h-4 w-4", scanProjects.isPending && "animate-spin")} />
                 </Button>
                 <Button variant="ghost" size="icon-sm" onClick={() => setCreateOpen((value) => !value)}>
                   <Plus className="h-4 w-4" />
@@ -1039,6 +1087,11 @@ export function CompanySkills() {
                 {importSkill.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Add"}
               </Button>
             </div>
+            {scanStatusMessage && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {scanStatusMessage}
+              </p>
+            )}
           </div>
 
           {createOpen && (
