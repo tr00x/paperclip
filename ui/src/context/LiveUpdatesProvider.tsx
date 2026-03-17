@@ -361,6 +361,8 @@ function invalidateActivityQueries(
 
   if (entityType === "issue") {
     queryClient.invalidateQueries({ queryKey: queryKeys.issues.list(companyId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.issues.listTouchedByMe(companyId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.issues.listUnreadTouchedByMe(companyId) });
     if (entityId) {
       const details = readRecord(payload.details);
       const issueRefs = resolveIssueQueryRefs(queryClient, companyId, entityId, details);
@@ -509,6 +511,10 @@ function handleLiveEvent(
     if (toast) gatedPushToast(gate, pushToast, `activity:${action ?? "unknown"}`, toast);
   }
 }
+
+export const __liveUpdatesTestUtils = {
+  invalidateActivityQueries,
+};
 
 export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
   const { selectedCompanyId } = useCompany();
