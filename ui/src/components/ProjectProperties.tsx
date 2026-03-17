@@ -223,7 +223,13 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
 
   const removeWorkspace = useMutation({
     mutationFn: (workspaceId: string) => projectsApi.removeWorkspace(project.id, workspaceId),
-    onSuccess: invalidateProject,
+    onSuccess: () => {
+      setWorkspaceCwd("");
+      setWorkspaceRepoUrl("");
+      setWorkspaceMode(null);
+      setWorkspaceError(null);
+      invalidateProject();
+    },
   });
   const updateWorkspace = useMutation({
     mutationFn: ({ workspaceId, data }: { workspaceId: string; data: Record<string, unknown> }) =>
@@ -322,6 +328,11 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
 
   const submitLocalWorkspace = () => {
     const cwd = workspaceCwd.trim();
+    if (!cwd) {
+      setWorkspaceError(null);
+      persistCodebase({ cwd: null });
+      return;
+    }
     if (!isAbsolutePath(cwd)) {
       setWorkspaceError("Local folder must be a full absolute path.");
       return;
@@ -332,6 +343,11 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
 
   const submitRepoWorkspace = () => {
     const repoUrl = workspaceRepoUrl.trim();
+    if (!repoUrl) {
+      setWorkspaceError(null);
+      persistCodebase({ repoUrl: null });
+      return;
+    }
     if (!isGitHubRepoUrl(repoUrl)) {
       setWorkspaceError("Repo must use a valid GitHub repo URL.");
       return;
@@ -678,7 +694,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
                   variant="outline"
                   size="xs"
                   className="h-6 px-2"
-                  disabled={!workspaceCwd.trim() || createWorkspace.isPending || updateWorkspace.isPending}
+                  disabled={(!workspaceCwd.trim() && !primaryCodebaseWorkspace) || createWorkspace.isPending || updateWorkspace.isPending}
                   onClick={submitLocalWorkspace}
                 >
                   Save
@@ -711,7 +727,7 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
                   variant="outline"
                   size="xs"
                   className="h-6 px-2"
-                  disabled={!workspaceRepoUrl.trim() || createWorkspace.isPending || updateWorkspace.isPending}
+                  disabled={(!workspaceRepoUrl.trim() && !primaryCodebaseWorkspace) || createWorkspace.isPending || updateWorkspace.isPending}
                   onClick={submitRepoWorkspace}
                 >
                   Save
