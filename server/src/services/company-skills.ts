@@ -83,6 +83,10 @@ export type ProjectSkillScanTarget = {
   workspaceCwd: string;
 };
 
+type RuntimeSkillEntryOptions = {
+  materializeMissing?: boolean;
+};
+
 const PROJECT_SCAN_DIRECTORY_ROOTS = [
   "skills",
   "skills/.curated",
@@ -1795,7 +1799,15 @@ export function companySkillService(db: Db) {
     return skillDir;
   }
 
-  async function listRuntimeSkillEntries(companyId: string): Promise<PaperclipSkillEntry[]> {
+  function resolveRuntimeSkillMaterializedPath(companyId: string, skill: CompanySkill) {
+    const runtimeRoot = path.resolve(resolveManagedSkillsRoot(companyId), "__runtime__");
+    return path.resolve(runtimeRoot, buildSkillRuntimeName(skill.key, skill.slug));
+  }
+
+  async function listRuntimeSkillEntries(
+    companyId: string,
+    options: RuntimeSkillEntryOptions = {},
+  ): Promise<PaperclipSkillEntry[]> {
     await ensureBundledSkills(companyId);
     const rows = await db
       .select()
@@ -1809,7 +1821,9 @@ export function companySkillService(db: Db) {
       const sourceKind = asString(getSkillMeta(skill).sourceKind);
       let source = normalizeSkillDirectory(skill);
       if (!source) {
-        source = await materializeRuntimeSkillFiles(companyId, skill).catch(() => null);
+        source = options.materializeMissing === false
+          ? resolveRuntimeSkillMaterializedPath(companyId, skill)
+          : await materializeRuntimeSkillFiles(companyId, skill).catch(() => null);
       }
       if (!source) continue;
 

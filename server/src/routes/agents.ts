@@ -360,8 +360,18 @@ export function agentRoutes(db: Db) {
     };
   }
 
-  async function buildRuntimeSkillConfig(companyId: string, config: Record<string, unknown>) {
-    const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(companyId);
+  function shouldMaterializeRuntimeSkillsForAdapter(adapterType: string) {
+    return adapterType !== "claude_local";
+  }
+
+  async function buildRuntimeSkillConfig(
+    companyId: string,
+    adapterType: string,
+    config: Record<string, unknown>,
+  ) {
+    const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(companyId, {
+      materializeMissing: shouldMaterializeRuntimeSkillsForAdapter(adapterType),
+    });
     return {
       ...config,
       paperclipRuntimeSkills: runtimeSkillEntries,
@@ -507,7 +517,9 @@ export function agentRoutes(db: Db) {
       const preference = readPaperclipSkillSyncPreference(
         agent.adapterConfig as Record<string, unknown>,
       );
-      const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId);
+      const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId, {
+        materializeMissing: false,
+      });
       const requiredSkills = runtimeSkillEntries.filter((entry) => entry.required).map((entry) => entry.key);
       res.json(buildUnsupportedSkillSnapshot(agent.adapterType, Array.from(new Set([...requiredSkills, ...preference.desiredSkills]))));
       return;
@@ -517,7 +529,11 @@ export function agentRoutes(db: Db) {
       agent.companyId,
       agent.adapterConfig,
     );
-    const runtimeSkillConfig = await buildRuntimeSkillConfig(agent.companyId, runtimeConfig);
+    const runtimeSkillConfig = await buildRuntimeSkillConfig(
+      agent.companyId,
+      agent.adapterType,
+      runtimeConfig,
+    );
     const snapshot = await adapter.listSkills({
       agentId: agent.id,
       companyId: agent.companyId,
@@ -546,7 +562,9 @@ export function agentRoutes(db: Db) {
             .filter(Boolean),
         ),
       );
-      const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId);
+      const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId, {
+        materializeMissing: shouldMaterializeRuntimeSkillsForAdapter(agent.adapterType),
+      });
       const requiredSkills = runtimeSkillEntries.filter((entry) => entry.required).map((entry) => entry.key);
       const desiredSkills = Array.from(new Set([...requiredSkills, ...requestedSkills]));
       const nextAdapterConfig = writePaperclipSkillSyncPreference(
