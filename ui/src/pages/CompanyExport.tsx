@@ -331,6 +331,36 @@ const ROLE_LABELS: Record<string, string> = {
   vp: "VP", manager: "Manager", engineer: "Engineer", agent: "Agent",
 };
 
+/** Sanitize slug for use as a Mermaid node ID. */
+function mermaidId(slug: string): string {
+  return slug.replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+/** Escape text for Mermaid node labels. */
+function mermaidEscape(s: string): string {
+  return s.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Generate a Mermaid org chart from the selected agents. */
+function generateOrgChartMermaid(agents: CompanyPortabilityManifest["agents"]): string | null {
+  if (agents.length === 0) return null;
+  const lines: string[] = [];
+  lines.push("```mermaid");
+  lines.push("graph TD");
+  for (const agent of agents) {
+    const roleLabel = ROLE_LABELS[agent.role] ?? agent.role;
+    lines.push(`    ${mermaidId(agent.slug)}["${mermaidEscape(agent.name)}<br/><small>${mermaidEscape(roleLabel)}</small>"]`);
+  }
+  const slugSet = new Set(agents.map((a) => a.slug));
+  for (const agent of agents) {
+    if (agent.reportsToSlug && slugSet.has(agent.reportsToSlug)) {
+      lines.push(`    ${mermaidId(agent.reportsToSlug)} --> ${mermaidId(agent.slug)}`);
+    }
+  }
+  lines.push("```");
+  return lines.join("\n");
+}
+
 /**
  * Regenerate README.md content based on the currently checked files.
  * Only counts/lists entities whose files are in the checked set.
@@ -342,7 +372,6 @@ function generateReadmeFromSelection(
   companyDescription: string | null,
 ): string {
   const slugs = checkedSlugs(checkedFiles);
-  const hasOrgChart = checkedFiles.has("images/org-chart.svg");
 
   const agents = manifest.agents.filter((a) => slugs.agents.has(a.slug));
   const projects = manifest.projects.filter((p) => slugs.projects.has(p.slug));
@@ -359,8 +388,10 @@ function generateReadmeFromSelection(
     lines.push(`> ${companyDescription}`);
     lines.push("");
   }
-  if (hasOrgChart) {
-    lines.push(`![Org Chart](images/org-chart.svg)`);
+  // Org chart as Mermaid diagram
+  const mermaid = generateOrgChartMermaid(agents);
+  if (mermaid) {
+    lines.push(mermaid);
     lines.push("");
   }
 
@@ -422,35 +453,15 @@ function generateReadmeFromSelection(
   return lines.join("\n");
 }
 
-/**
- * Resolve relative image paths in markdown content using the export files map.
- * Converts SVG references to inline data URIs so they render in the preview.
- */
-function resolveMarkdownImages(markdown: string, files: Record<string, string>): string {
-  return markdown.replace(
-    /!\[([^\]]*)\]\(([^)]+)\)/g,
-    (_match, alt: string, src: string) => {
-      const svgContent = files[src];
-      if (svgContent && src.endsWith(".svg")) {
-        const dataUri = `data:image/svg+xml;base64,${btoa(svgContent)}`;
-        return `![${alt}](${dataUri})`;
-      }
-      return _match;
-    },
-  );
-}
-
 // ── Preview pane ──────────────────────────────────────────────────────
 
 function ExportPreviewPane({
   selectedFile,
   content,
-  files,
   onSkillClick,
 }: {
   selectedFile: string | null;
   content: string | null;
-  files: Record<string, string>;
   onSkillClick?: (skill: string) => void;
 }) {
   if (!selectedFile || content === null) {
@@ -460,11 +471,7 @@ function ExportPreviewPane({
   }
 
   const isMarkdown = selectedFile.endsWith(".md");
-  const isSvg = selectedFile.endsWith(".svg");
   const parsed = isMarkdown ? parseFrontmatter(content) : null;
-  // Resolve relative image paths (e.g. images/org-chart.svg) for markdown preview
-  const resolvedBody = parsed?.body ? resolveMarkdownImages(parsed.body, files) : null;
-  const resolvedContent = isMarkdown && !parsed ? resolveMarkdownImages(content, files) : content;
 
   return (
     <div className="min-w-0">
@@ -475,15 +482,10 @@ function ExportPreviewPane({
         {parsed ? (
           <>
             <FrontmatterCard data={parsed.data} onSkillClick={onSkillClick} />
-            {resolvedBody?.trim() && <MarkdownBody>{resolvedBody}</MarkdownBody>}
+            {parsed.body.trim() && <MarkdownBody>{parsed.body}</MarkdownBody>}
           </>
         ) : isMarkdown ? (
-          <MarkdownBody>{resolvedContent}</MarkdownBody>
-        ) : isSvg ? (
-          <div
-            className="flex justify-center overflow-auto rounded-lg border border-border bg-white p-4"
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
+          <MarkdownBody>{content}</MarkdownBody>
         ) : (
           <pre className="overflow-x-auto whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-mono text-sm text-foreground">
             <code>{content}</code>
@@ -875,7 +877,7 @@ export function CompanyExport() {
           </div>
         </aside>
         <div className="min-w-0 overflow-y-auto pl-6">
-          <ExportPreviewPane selectedFile={selectedFile} content={previewContent} files={effectiveFiles} onSkillClick={handleSkillClick} />
+          <ExportPreviewPane selectedFile={selectedFile} content={previewContent} onSkillClick={handleSkillClick} />
         </div>
       </div>
     </div>

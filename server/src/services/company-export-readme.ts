@@ -1,94 +1,7 @@
 /**
- * Generates README.md and org chart SVG for company exports.
+ * Generates README.md with Mermaid org chart for company exports.
  */
 import type { CompanyPortabilityManifest } from "@paperclipai/shared";
-
-// ── Org chart layout (mirrors ui/src/pages/OrgChart.tsx) ────────────────
-
-const CARD_W = 200;
-const CARD_H = 72;
-const GAP_X = 32;
-const GAP_Y = 64;
-const PADDING = 40;
-
-interface OrgNode {
-  id: string;
-  name: string;
-  role: string;
-  reports: OrgNode[];
-}
-
-interface LayoutNode {
-  id: string;
-  name: string;
-  role: string;
-  x: number;
-  y: number;
-  children: LayoutNode[];
-}
-
-function subtreeWidth(node: OrgNode): number {
-  if (node.reports.length === 0) return CARD_W;
-  const childrenW = node.reports.reduce((sum, c) => sum + subtreeWidth(c), 0);
-  const gaps = (node.reports.length - 1) * GAP_X;
-  return Math.max(CARD_W, childrenW + gaps);
-}
-
-function layoutTree(node: OrgNode, x: number, y: number): LayoutNode {
-  const totalW = subtreeWidth(node);
-  const layoutChildren: LayoutNode[] = [];
-
-  if (node.reports.length > 0) {
-    const childrenW = node.reports.reduce((sum, c) => sum + subtreeWidth(c), 0);
-    const gaps = (node.reports.length - 1) * GAP_X;
-    let cx = x + (totalW - childrenW - gaps) / 2;
-
-    for (const child of node.reports) {
-      const cw = subtreeWidth(child);
-      layoutChildren.push(layoutTree(child, cx, y + CARD_H + GAP_Y));
-      cx += cw + GAP_X;
-    }
-  }
-
-  return {
-    id: node.id,
-    name: node.name,
-    role: node.role,
-    x: x + (totalW - CARD_W) / 2,
-    y,
-    children: layoutChildren,
-  };
-}
-
-function flattenLayout(nodes: LayoutNode[]): LayoutNode[] {
-  const result: LayoutNode[] = [];
-  function walk(n: LayoutNode) {
-    result.push(n);
-    n.children.forEach(walk);
-  }
-  nodes.forEach(walk);
-  return result;
-}
-
-function collectEdges(nodes: LayoutNode[]): Array<{ parent: LayoutNode; child: LayoutNode }> {
-  const edges: Array<{ parent: LayoutNode; child: LayoutNode }> = [];
-  function walk(n: LayoutNode) {
-    for (const c of n.children) {
-      edges.push({ parent: n, child: c });
-      walk(c);
-    }
-  }
-  nodes.forEach(walk);
-  return edges;
-}
-
-function escapeXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function truncate(s: string, max: number): string {
-  return s.length > max ? s.slice(0, max - 1) + "\u2026" : s;
-}
 
 const ROLE_LABELS: Record<string, string> = {
   ceo: "CEO",
@@ -103,105 +16,43 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 /**
- * Build an org-tree from the manifest agent list using reportsToSlug.
- */
-function buildOrgTree(agents: CompanyPortabilityManifest["agents"]): OrgNode[] {
-  const bySlug = new Map(agents.map((a) => [a.slug, a]));
-  const childrenOf = new Map<string | null, OrgNode[]>();
-
-  for (const agent of agents) {
-    const node: OrgNode = {
-      id: agent.slug,
-      name: agent.name,
-      role: agent.role,
-      reports: [],
-    };
-    const parentKey = agent.reportsToSlug ?? null;
-    const siblings = childrenOf.get(parentKey) ?? [];
-    siblings.push(node);
-    childrenOf.set(parentKey, siblings);
-  }
-
-  // Build tree recursively
-  function attach(nodes: OrgNode[]): OrgNode[] {
-    for (const node of nodes) {
-      node.reports = childrenOf.get(node.id) ?? [];
-      attach(node.reports);
-    }
-    return nodes;
-  }
-
-  // Roots are agents whose reportsToSlug is null or points to a non-existent agent
-  const roots: OrgNode[] = [];
-  for (const [parentKey, children] of childrenOf.entries()) {
-    if (parentKey === null || !bySlug.has(parentKey)) {
-      roots.push(...children);
-    }
-  }
-  return attach(roots);
-}
-
-/**
- * Generate an SVG org chart from the manifest agents.
+ * Generate a Mermaid flowchart (TD = top-down) representing the org chart.
  * Returns null if there are no agents.
  */
-export function generateOrgChartSvg(manifest: CompanyPortabilityManifest): string | null {
-  if (manifest.agents.length === 0) return null;
-
-  const roots = buildOrgTree(manifest.agents);
-  if (roots.length === 0) return null;
-
-  // Layout all roots side by side
-  const layoutRoots: LayoutNode[] = [];
-  let x = PADDING;
-  for (const root of roots) {
-    const w = subtreeWidth(root);
-    layoutRoots.push(layoutTree(root, x, PADDING));
-    x += w + GAP_X;
-  }
-
-  const allNodes = flattenLayout(layoutRoots);
-  const edges = collectEdges(layoutRoots);
-
-  // Compute canvas bounds
-  let maxX = 0;
-  let maxY = 0;
-  for (const n of allNodes) {
-    maxX = Math.max(maxX, n.x + CARD_W);
-    maxY = Math.max(maxY, n.y + CARD_H);
-  }
-  const svgW = maxX + PADDING;
-  const svgH = maxY + PADDING;
+export function generateOrgChartMermaid(agents: CompanyPortabilityManifest["agents"]): string | null {
+  if (agents.length === 0) return null;
 
   const lines: string[] = [];
-  lines.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">`);
-  lines.push(`<style>`);
-  lines.push(`  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }`);
-  lines.push(`</style>`);
-  lines.push(`<rect width="${svgW}" height="${svgH}" fill="#ffffff" rx="8"/>`);
+  lines.push("```mermaid");
+  lines.push("graph TD");
 
-  // Draw edges (bezier connectors)
-  for (const { parent, child } of edges) {
-    const x1 = parent.x + CARD_W / 2;
-    const y1 = parent.y + CARD_H;
-    const x2 = child.x + CARD_W / 2;
-    const y2 = child.y;
-    const midY = (y1 + y2) / 2;
-    lines.push(`<path d="M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}" fill="none" stroke="#d1d5db" stroke-width="2"/>`);
+  // Node definitions with role labels
+  for (const agent of agents) {
+    const roleLabel = ROLE_LABELS[agent.role] ?? agent.role;
+    const id = mermaidId(agent.slug);
+    lines.push(`    ${id}["${mermaidEscape(agent.name)}<br/><small>${mermaidEscape(roleLabel)}</small>"]`);
   }
 
-  // Draw cards
-  for (const node of allNodes) {
-    const roleLabel = ROLE_LABELS[node.role] ?? node.role;
-    lines.push(`<g transform="translate(${node.x},${node.y})">`);
-    lines.push(`  <rect width="${CARD_W}" height="${CARD_H}" rx="8" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1.5"/>`);
-    lines.push(`  <text x="${CARD_W / 2}" y="28" text-anchor="middle" font-size="14" font-weight="600" fill="#111827">${escapeXml(truncate(node.name, 22))}</text>`);
-    lines.push(`  <text x="${CARD_W / 2}" y="48" text-anchor="middle" font-size="12" fill="#6b7280">${escapeXml(roleLabel)}</text>`);
-    lines.push(`</g>`);
+  // Edges from parent to child
+  const slugSet = new Set(agents.map((a) => a.slug));
+  for (const agent of agents) {
+    if (agent.reportsToSlug && slugSet.has(agent.reportsToSlug)) {
+      lines.push(`    ${mermaidId(agent.reportsToSlug)} --> ${mermaidId(agent.slug)}`);
+    }
   }
 
-  lines.push(`</svg>`);
+  lines.push("```");
   return lines.join("\n");
+}
+
+/** Sanitize slug for use as a Mermaid node ID (alphanumeric + underscore). */
+function mermaidId(slug: string): string {
+  return slug.replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+/** Escape text for Mermaid node labels. */
+function mermaidEscape(s: string): string {
+  return s.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /**
@@ -212,7 +63,6 @@ export function generateReadme(
   options: {
     companyName: string;
     companyDescription: string | null;
-    hasOrgChart: boolean;
   },
 ): string {
   const lines: string[] = [];
@@ -224,8 +74,10 @@ export function generateReadme(
     lines.push("");
   }
 
-  if (options.hasOrgChart) {
-    lines.push(`![Org Chart](images/org-chart.svg)`);
+  // Org chart as Mermaid diagram
+  const mermaid = generateOrgChartMermaid(manifest.agents);
+  if (mermaid) {
+    lines.push(mermaid);
     lines.push("");
   }
 
