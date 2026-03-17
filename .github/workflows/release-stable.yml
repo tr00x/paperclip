@@ -1,0 +1,165 @@
+name: Release Stable
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Commit SHA, branch, or tag to publish as stable
+        required: true
+        type: string
+        default: master
+      stable_date:
+        description: Stable release date in UTC (YYYY-MM-DD). Defaults to today.
+        required: false
+        type: string
+      dry_run:
+        description: Preview the stable release without publishing
+        required: true
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-stable
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Run tests
+        run: pnpm test:run
+
+      - name: Build
+        run: pnpm build
+
+  preview:
+    if: inputs.dry_run
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Dry-run stable release
+        env:
+          GITHUB_ACTIONS: "true"
+        run: |
+          args=(stable --skip-verify --dry-run)
+          if [ -n "${{ inputs.stable_date }}" ]; then
+            args+=(--date "${{ inputs.stable_date }}")
+          fi
+          ./scripts/release.sh "${args[@]}"
+
+  publish:
+    if: ${{ !inputs.dry_run }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: npm-stable
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Configure git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish stable
+        env:
+          GITHUB_ACTIONS: "true"
+        run: |
+          args=(stable --skip-verify)
+          if [ -n "${{ inputs.stable_date }}" ]; then
+            args+=(--date "${{ inputs.stable_date }}")
+          fi
+          ./scripts/release.sh "${args[@]}"
+
+      - name: Push stable tag
+        run: |
+          tag="$(git tag --points-at HEAD | grep '^v' | head -1)"
+          if [ -z "$tag" ]; then
+            echo "Error: no stable tag points at HEAD after release." >&2
+            exit 1
+          fi
+          git push origin "refs/tags/${tag}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(git tag --points-at HEAD | grep '^v' | head -1 | sed 's/^v//')"
+          if [ -z "$version" ]; then
+            echo "Error: no v* tag points at HEAD after stable release." >&2
+            exit 1
+          fi
+          ./scripts/create-github-release.sh "$version"

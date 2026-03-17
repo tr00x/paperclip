@@ -1,0 +1,10 @@
+# Replace @dotta if a different maintainer or team should own release infrastructure.
+
+.github/workflows/release-*.yml @dotta
+scripts/release*.sh @dotta
+scripts/release-*.mjs @dotta
+scripts/create-github-release.sh @dotta
+scripts/rollback-latest.sh @dotta
+doc/RELEASING.md @dotta
+doc/PUBLISHING.md @dotta
+doc/RELEASE-AUTOMATION-SETUP.md @dotta
