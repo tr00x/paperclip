@@ -284,6 +284,16 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
     }
   };
 
+  const isSafeExternalUrl = (value: string | null | undefined) => {
+    if (!value) return false;
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
   const formatRepoUrl = (value: string) => {
     try {
       const parsed = new URL(value);
@@ -539,16 +549,23 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Repo</div>
               {codebase.repoUrl ? (
                 <div className="flex items-center justify-between gap-2">
-                  <a
-                    href={codebase.repoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
-                  >
-                    <Github className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{formatRepoUrl(codebase.repoUrl)}</span>
-                    <ExternalLink className="h-3 w-3 shrink-0" />
-                  </a>
+                  {isSafeExternalUrl(codebase.repoUrl) ? (
+                    <a
+                      href={codebase.repoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      <Github className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{formatRepoUrl(codebase.repoUrl)}</span>
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
+                  ) : (
+                    <div className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <Github className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{codebase.repoUrl}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1">
                     <Button
                       variant="outline"

@@ -218,6 +218,50 @@ describe("realizeExecutionWorkspace", () => {
     await expect(fs.readFile(path.join(reused.cwd, ".paperclip-provision-created"), "utf8")).resolves.toBe("false\n");
   });
 
+  it("reuses an existing branch without resetting it when recreating a missing worktree", async () => {
+    const repoRoot = await createTempRepo();
+    const branchName = "PAP-450-recreate-missing-worktree";
+
+    await runGit(repoRoot, ["checkout", "-b", branchName]);
+    await fs.writeFile(path.join(repoRoot, "feature.txt"), "preserve me\n", "utf8");
+    await runGit(repoRoot, ["add", "feature.txt"]);
+    await runGit(repoRoot, ["commit", "-m", "Add preserved feature"]);
+    const expectedHead = (await execFileAsync("git", ["rev-parse", branchName], { cwd: repoRoot })).stdout.trim();
+    await runGit(repoRoot, ["checkout", "main"]);
+
+    const workspace = await realizeExecutionWorkspace({
+      base: {
+        baseCwd: repoRoot,
+        source: "project_primary",
+        projectId: "project-1",
+        workspaceId: "workspace-1",
+        repoUrl: null,
+        repoRef: "HEAD",
+      },
+      config: {
+        workspaceStrategy: {
+          type: "git_worktree",
+          branchTemplate: "{{issue.identifier}}-{{slug}}",
+        },
+      },
+      issue: {
+        id: "issue-1",
+        identifier: "PAP-450",
+        title: "Recreate missing worktree",
+      },
+      agent: {
+        id: "agent-1",
+        name: "Codex Coder",
+        companyId: "company-1",
+      },
+    });
+
+    expect(workspace.branchName).toBe(branchName);
+    await expect(fs.readFile(path.join(workspace.cwd, "feature.txt"), "utf8")).resolves.toBe("preserve me\n");
+    const actualHead = (await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: workspace.cwd })).stdout.trim();
+    expect(actualHead).toBe(expectedHead);
+  });
+
   it("removes a created git worktree and branch during cleanup", async () => {
     const repoRoot = await createTempRepo();
 
@@ -277,6 +321,72 @@ describe("realizeExecutionWorkspace", () => {
       execFileAsync("git", ["branch", "--list", workspace.branchName!], { cwd: repoRoot }),
     ).resolves.toMatchObject({
       stdout: "",
+    });
+  });
+
+  it("keeps an unmerged runtime-created branch and warns instead of force deleting it", async () => {
+    const repoRoot = await createTempRepo();
+
+    const workspace = await realizeExecutionWorkspace({
+      base: {
+        baseCwd: repoRoot,
+        source: "project_primary",
+        projectId: "project-1",
+        workspaceId: "workspace-1",
+        repoUrl: null,
+        repoRef: "HEAD",
+      },
+      config: {
+        workspaceStrategy: {
+          type: "git_worktree",
+          branchTemplate: "{{issue.identifier}}-{{slug}}",
+        },
+      },
+      issue: {
+        id: "issue-1",
+        identifier: "PAP-451",
+        title: "Keep unmerged branch",
+      },
+      agent: {
+        id: "agent-1",
+        name: "Codex Coder",
+        companyId: "company-1",
+      },
+    });
+
+    await fs.writeFile(path.join(workspace.cwd, "unmerged.txt"), "still here\n", "utf8");
+    await runGit(workspace.cwd, ["add", "unmerged.txt"]);
+    await runGit(workspace.cwd, ["commit", "-m", "Keep unmerged work"]);
+
+    const cleanup = await cleanupExecutionWorkspaceArtifacts({
+      workspace: {
+        id: "execution-workspace-1",
+        cwd: workspace.cwd,
+        providerType: "git_worktree",
+        providerRef: workspace.worktreePath,
+        branchName: workspace.branchName,
+        repoUrl: workspace.repoUrl,
+        baseRef: workspace.repoRef,
+        projectId: workspace.projectId,
+        projectWorkspaceId: workspace.workspaceId,
+        sourceIssueId: "issue-1",
+        metadata: {
+          createdByRuntime: true,
+        },
+      },
+      projectWorkspace: {
+        cwd: repoRoot,
+        cleanupCommand: null,
+      },
+    });
+
+    expect(cleanup.cleaned).toBe(true);
+    expect(cleanup.warnings).toHaveLength(1);
+    expect(cleanup.warnings[0]).toContain(`Skipped deleting branch "${workspace.branchName}"`);
+    await expect(
+      execFileAsync("git", ["branch", "--list", workspace.branchName!], { cwd: repoRoot }),
+    ).resolves.toMatchObject({
+      stdout: expect.stringContaining(workspace.branchName!),
     });
   });
 });
@@ -513,6 +623,65 @@ describe("ensureRuntimeServicesForRun", () => {
     await new Promise((resolve) => setTimeout(resolve, 250));
 
     await expect(fetch(services[0]!.url!)).rejects.toThrow();
+  });
+
+  it("does not stop services in sibling directories when matching by workspace cwd", async () => {
+    const workspaceParent = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-runtime-sibling-"));
+    const targetWorkspaceRoot = path.join(workspaceParent, "project");
+    const siblingWorkspaceRoot = path.join(workspaceParent, "project-extended", "service");
+    await fs.mkdir(targetWorkspaceRoot, { recursive: true });
+    await fs.mkdir(siblingWorkspaceRoot, { recursive: true });
+
+    const siblingWorkspace = buildWorkspace(siblingWorkspaceRoot);
+    const runId = "run-sibling";
+    leasedRunIds.add(runId);
+
+    const services = await ensureRuntimeServicesForRun({
+      runId,
+      agent: {
+        id: "agent-1",
+        name: "Codex Coder",
+        companyId: "company-1",
+      },
+      issue: null,
+      workspace: siblingWorkspace,
+      executionWorkspaceId: "execution-workspace-sibling",
+      config: {
+        workspaceRuntime: {
+          services: [
+            {
+              name: "web",
+              command:
+                "node -e \"require('node:http').createServer((req,res)=>res.end('ok')).listen(Number(process.env.PORT), '127.0.0.1')\"",
+              port: { type: "auto" },
+              readiness: {
+                type: "http",
+                urlTemplate: "http://127.0.0.1:{{port}}",
+                timeoutSec: 10,
+                intervalMs: 100,
+              },
+              lifecycle: "shared",
+              reuseScope: "execution_workspace",
+              stopPolicy: {
+                type: "manual",
+              },
+            },
+          ],
+        },
+      },
+      adapterEnv: {},
+    });
+
+    await stopRuntimeServicesForExecutionWorkspace({
+      executionWorkspaceId: "execution-workspace-target",
+      workspaceCwd: targetWorkspaceRoot,
+    });
+
+    const response = await fetch(services[0]!.url!);
+    expect(await response.text()).toBe("ok");
+
+    await releaseRuntimeServicesForRun(runId);
+    leasedRunIds.delete(runId);
   });
 });
 

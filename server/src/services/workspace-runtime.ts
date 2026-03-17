@@ -245,6 +245,11 @@ async function runGit(args: string[], cwd: string): Promise<string> {
   return proc.stdout.trim();
 }
 
+function gitErrorIncludes(error: unknown, needle: string) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes(needle.toLowerCase());
+}
+
 async function directoryExists(value: string) {
   return fs.stat(value).then((stats) => stats.isDirectory()).catch(() => false);
 }
@@ -472,7 +477,14 @@ export async function realizeExecutionWorkspace(input: {
     throw new Error(`Configured worktree path "${worktreePath}" already exists and is not a git worktree.`);
   }
 
-  await runGit(["worktree", "add", "-B", branchName, worktreePath, baseRef], repoRoot);
+  try {
+    await runGit(["worktree", "add", "-b", branchName, worktreePath, baseRef], repoRoot);
+  } catch (error) {
+    if (!gitErrorIncludes(error, "already exists")) {
+      throw error;
+    }
+    await runGit(["worktree", "add", worktreePath, branchName], repoRoot);
+  }
   await provisionExecutionWorktree({
     strategy: rawStrategy,
     base: input.base,
@@ -564,9 +576,10 @@ export async function cleanupExecutionWorkspaceArtifacts(input: {
         warnings.push(`Could not resolve git repo root to delete branch "${input.workspace.branchName}".`);
       } else {
         try {
-          await runGit(["branch", "-D", input.workspace.branchName], repoRoot);
+          await runGit(["branch", "-d", input.workspace.branchName], repoRoot);
         } catch (err) {
-          warnings.push(err instanceof Error ? err.message : String(err));
+          const message = err instanceof Error ? err.message : String(err);
+          warnings.push(`Skipped deleting branch "${input.workspace.branchName}": ${message}`);
         }
       }
     }
@@ -1131,7 +1144,11 @@ export async function stopRuntimeServicesForExecutionWorkspace(input: {
     .filter((record) => {
       if (record.executionWorkspaceId === input.executionWorkspaceId) return true;
       if (!normalizedWorkspaceCwd || !record.cwd) return false;
-      return path.resolve(record.cwd).startsWith(normalizedWorkspaceCwd);
+      const resolvedCwd = path.resolve(record.cwd);
+      return (
+        resolvedCwd === normalizedWorkspaceCwd ||
+        resolvedCwd.startsWith(`${normalizedWorkspaceCwd}${path.sep}`)
+      );
     })
     .map((record) => record.id);
 
