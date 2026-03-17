@@ -17,11 +17,13 @@ export interface AgentInstructionsFileSummary {
   language: string;
   markdown: boolean;
   isEntryFile: boolean;
+  editable: boolean;
+  deprecated: boolean;
+  virtual: boolean;
 }
 
 export interface AgentInstructionsFileDetail extends AgentInstructionsFileSummary {
   content: string;
-  editable: boolean;
 }
 
 export interface AgentInstructionsBundle {

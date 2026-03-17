@@ -29,6 +29,7 @@ import { EntityRow } from "../components/EntityRow";
 import { Identity } from "../components/Identity";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { BudgetPolicyCard } from "../components/BudgetPolicyCard";
+import { PackageFileTree, buildFileTree } from "../components/PackageFileTree";
 import { ScrollToBottom } from "../components/ScrollToBottom";
 import { formatCents, formatDate, relativeTime, formatTokens, visibleRunCostUsd } from "../lib/utils";
 import { cn } from "../lib/utils";
@@ -1495,6 +1496,7 @@ function PromptsTab({
     entryFile: string;
   } | null>(null);
   const [newFilePath, setNewFilePath] = useState("");
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [awaitingRefresh, setAwaitingRefresh] = useState(false);
   const lastFileVersionRef = useRef<string | null>(null);
 
@@ -1516,8 +1518,17 @@ function PromptsTab({
   const currentEntryFile = bundleDraft?.entryFile ?? bundle?.entryFile ?? "AGENTS.md";
   const currentRootPath = bundleDraft?.rootPath ?? bundle?.rootPath ?? "";
   const fileOptions = bundle?.files.map((file) => file.path) ?? [];
+  const visibleFilePaths = useMemo(
+    () => [...new Set([currentEntryFile, ...fileOptions])],
+    [currentEntryFile, fileOptions],
+  );
+  const fileTree = useMemo(
+    () => buildFileTree(Object.fromEntries(visibleFilePaths.map((filePath) => [filePath, ""]))),
+    [visibleFilePaths],
+  );
   const selectedOrEntryFile = selectedFile || currentEntryFile;
   const selectedFileExists = fileOptions.includes(selectedOrEntryFile);
+  const selectedFileSummary = bundle?.files.find((file) => file.path === selectedOrEntryFile) ?? null;
 
   const { data: selectedFileDetail, isLoading: fileLoading } = useQuery({
     queryKey: queryKeys.agents.instructionsFile(agent.id, selectedOrEntryFile),
@@ -1584,6 +1595,19 @@ function PromptsTab({
       setSelectedFile(availablePaths.includes(bundle.entryFile) ? bundle.entryFile : availablePaths[0]!);
     }
   }, [bundle, selectedFile]);
+
+  useEffect(() => {
+    const nextExpanded = new Set<string>();
+    for (const filePath of visibleFilePaths) {
+      const parts = filePath.split("/");
+      let currentPath = "";
+      for (let i = 0; i < parts.length - 1; i++) {
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i]!;
+        nextExpanded.add(currentPath);
+      }
+    }
+    setExpandedDirs(nextExpanded);
+  }, [visibleFilePaths]);
 
   useEffect(() => {
     const versionKey = selectedFileDetail ? `${selectedFileDetail.path}:${selectedFileDetail.content}` : `draft:${selectedOrEntryFile}`;
@@ -1708,7 +1732,7 @@ function PromptsTab({
 
         {(bundle?.legacyPromptTemplateActive || bundle?.legacyBootstrapPromptTemplateActive) && (
           <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-            Legacy inline prompt fields are still active for this agent. The next bundle save will migrate behavior into file-backed instructions and clear those legacy fields.
+            Legacy inline prompt state is still present. `promptTemplate` now appears as a deprecated virtual file entry so it is visible without masquerading as the live `AGENTS.md`.
           </div>
         )}
 
@@ -1827,30 +1851,40 @@ function PromptsTab({
               </Button>
             ))}
           </div>
-          <div className="space-y-1">
-            {[...new Set([currentEntryFile, ...fileOptions])].map((filePath) => {
-              const file = bundle?.files.find((entry) => entry.path === filePath);
-              return (
-                <button
-                  key={filePath}
-                  type="button"
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm",
-                    filePath === selectedOrEntryFile ? "border-foreground/30 bg-accent/30" : "border-border",
-                  )}
-                  onClick={() => {
-                    setSelectedFile(filePath);
-                    if (!fileOptions.includes(filePath)) setDraft("");
-                  }}
-                >
-                  <span className="truncate font-mono">{filePath}</span>
-                  <span className="ml-3 shrink-0 text-[11px] text-muted-foreground">
-                    {file?.isEntryFile ? "entry" : file ? `${file.size}b` : "new"}
-                  </span>
-                </button>
-              );
+          <PackageFileTree
+            nodes={fileTree}
+            selectedFile={selectedOrEntryFile}
+            expandedDirs={expandedDirs}
+            checkedFiles={new Set()}
+            onToggleDir={(dirPath) => setExpandedDirs((current) => {
+              const next = new Set(current);
+              if (next.has(dirPath)) next.delete(dirPath);
+              else next.add(dirPath);
+              return next;
             })}
-          </div>
+            onSelectFile={(filePath) => {
+              setSelectedFile(filePath);
+              if (!fileOptions.includes(filePath)) setDraft("");
+            }}
+            onToggleCheck={() => {}}
+            showCheckboxes={false}
+            renderFileExtra={(node) => {
+              const file = bundle?.files.find((entry) => entry.path === node.path);
+              if (!file) return null;
+              return (
+                <span
+                  className={cn(
+                    "ml-3 shrink-0 rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide",
+                    file.deprecated
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                      : "border-border text-muted-foreground",
+                  )}
+                >
+                  {file.deprecated ? "deprecated" : file.isEntryFile ? "entry" : `${file.size}b`}
+                </span>
+              );
+            }}
+          />
         </div>
 
         <div className="border border-border rounded-lg p-4 space-y-3">
@@ -1859,11 +1893,13 @@ function PromptsTab({
               <h4 className="text-sm font-medium font-mono">{selectedOrEntryFile}</h4>
               <p className="text-xs text-muted-foreground">
                 {selectedFileExists
-                  ? `${selectedFileDetail?.language ?? "text"} file`
+                  ? selectedFileSummary?.deprecated
+                    ? "Deprecated virtual file"
+                    : `${selectedFileDetail?.language ?? "text"} file`
                   : "New file in this bundle"}
               </p>
             </div>
-            {selectedFileExists && selectedOrEntryFile !== currentEntryFile && (
+            {selectedFileExists && !selectedFileSummary?.deprecated && selectedOrEntryFile !== currentEntryFile && (
               <Button
                 type="button"
                 size="sm"

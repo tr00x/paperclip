@@ -175,49 +175,57 @@ export function PackageFileTree({
   onToggleCheck,
   renderFileExtra,
   fileRowClassName,
+  showCheckboxes = true,
   depth = 0,
 }: {
   nodes: FileTreeNode[];
   selectedFile: string | null;
   expandedDirs: Set<string>;
-  checkedFiles: Set<string>;
+  checkedFiles?: Set<string>;
   onToggleDir: (path: string) => void;
   onSelectFile: (path: string) => void;
-  onToggleCheck: (path: string, kind: "file" | "dir") => void;
+  onToggleCheck?: (path: string, kind: "file" | "dir") => void;
   /** Optional extra content rendered at the end of each file row (e.g. action badge) */
   renderFileExtra?: (node: FileTreeNode, checked: boolean) => ReactNode;
   /** Optional additional className for file rows */
   fileRowClassName?: (node: FileTreeNode, checked: boolean) => string | undefined;
+  showCheckboxes?: boolean;
   depth?: number;
 }) {
+  const effectiveCheckedFiles = checkedFiles ?? new Set<string>();
+
   return (
     <div>
       {nodes.map((node) => {
         const expanded = node.kind === "dir" && expandedDirs.has(node.path);
         if (node.kind === "dir") {
           const childFiles = collectAllPaths(node.children, "file");
-          const allChecked = [...childFiles].every((p) => checkedFiles.has(p));
-          const someChecked = [...childFiles].some((p) => checkedFiles.has(p));
+          const allChecked = [...childFiles].every((p) => effectiveCheckedFiles.has(p));
+          const someChecked = [...childFiles].some((p) => effectiveCheckedFiles.has(p));
           return (
             <div key={node.path}>
               <div
                 className={cn(
-                  "group grid w-full grid-cols-[auto_minmax(0,1fr)_2.25rem] items-center gap-x-1 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground",
+                  showCheckboxes
+                    ? "group grid w-full grid-cols-[auto_minmax(0,1fr)_2.25rem] items-center gap-x-1 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground"
+                    : "group grid w-full grid-cols-[minmax(0,1fr)_2.25rem] items-center gap-x-1 pr-3 text-left text-sm text-muted-foreground hover:bg-accent/30 hover:text-foreground",
                   TREE_ROW_HEIGHT_CLASS,
                 )}
                 style={{
                   paddingInlineStart: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT - 8}px`,
                 }}
               >
-                <label className="flex items-center pl-2">
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    ref={(el) => { if (el) el.indeterminate = someChecked && !allChecked; }}
-                    onChange={() => onToggleCheck(node.path, "dir")}
-                    className="mr-2 accent-foreground"
-                  />
-                </label>
+                {showCheckboxes && (
+                  <label className="flex items-center pl-2">
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      ref={(el) => { if (el) el.indeterminate = someChecked && !allChecked; }}
+                      onChange={() => onToggleCheck?.(node.path, "dir")}
+                      className="mr-2 accent-foreground"
+                    />
+                  </label>
+                )}
                 <button
                   type="button"
                   className="flex min-w-0 items-center gap-2 py-1 text-left"
@@ -249,12 +257,13 @@ export function PackageFileTree({
                   nodes={node.children}
                   selectedFile={selectedFile}
                   expandedDirs={expandedDirs}
-                  checkedFiles={checkedFiles}
+                  checkedFiles={effectiveCheckedFiles}
                   onToggleDir={onToggleDir}
                   onSelectFile={onSelectFile}
                   onToggleCheck={onToggleCheck}
                   renderFileExtra={renderFileExtra}
                   fileRowClassName={fileRowClassName}
+                  showCheckboxes={showCheckboxes}
                   depth={depth + 1}
                 />
               )}
@@ -263,7 +272,7 @@ export function PackageFileTree({
         }
 
         const FileIcon = fileIcon(node.name);
-        const checked = checkedFiles.has(node.path);
+        const checked = effectiveCheckedFiles.has(node.path);
         const extraClassName = fileRowClassName?.(node, checked);
         return (
           <div
@@ -278,14 +287,16 @@ export function PackageFileTree({
               paddingInlineStart: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT - 8}px`,
             }}
           >
-            <label className="flex items-center pl-2">
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => onToggleCheck(node.path, "file")}
-                className="mr-2 accent-foreground"
-              />
-            </label>
+            {showCheckboxes && (
+              <label className="flex items-center pl-2">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggleCheck?.(node.path, "file")}
+                  className="mr-2 accent-foreground"
+                />
+              </label>
+            )}
             <button
               type="button"
               className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left"

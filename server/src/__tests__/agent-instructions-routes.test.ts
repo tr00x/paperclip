@@ -109,7 +109,16 @@ describe("agent instructions bundle routes", () => {
       warnings: [],
       legacyPromptTemplateActive: false,
       legacyBootstrapPromptTemplateActive: false,
-      files: [{ path: "AGENTS.md", size: 12, language: "markdown", markdown: true, isEntryFile: true }],
+      files: [{
+        path: "AGENTS.md",
+        size: 12,
+        language: "markdown",
+        markdown: true,
+        isEntryFile: true,
+        editable: true,
+        deprecated: false,
+        virtual: false,
+      }],
     });
     mockAgentInstructionsService.readFile.mockResolvedValue({
       path: "AGENTS.md",
@@ -118,6 +127,8 @@ describe("agent instructions bundle routes", () => {
       markdown: true,
       isEntryFile: true,
       editable: true,
+      deprecated: false,
+      virtual: false,
       content: "# Agent\n",
     });
     mockAgentInstructionsService.writeFile.mockResolvedValue({
@@ -129,6 +140,8 @@ describe("agent instructions bundle routes", () => {
         markdown: true,
         isEntryFile: true,
         editable: true,
+        deprecated: false,
+        virtual: false,
         content: "# Updated Agent\n",
       },
       adapterConfig: {

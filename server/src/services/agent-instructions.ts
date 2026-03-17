@@ -10,6 +10,7 @@ const ENTRY_KEY = "instructionsEntryFile";
 const FILE_KEY = "instructionsFilePath";
 const PROMPT_KEY = "promptTemplate";
 const BOOTSTRAP_PROMPT_KEY = "bootstrapPromptTemplate";
+const LEGACY_PROMPT_TEMPLATE_PATH = "promptTemplate.legacy.md";
 
 type BundleMode = "managed" | "external";
 
@@ -26,6 +27,9 @@ type AgentInstructionsFileSummary = {
   language: string;
   markdown: boolean;
   isEntryFile: boolean;
+  editable: boolean;
+  deprecated: boolean;
+  virtual: boolean;
 };
 
 type AgentInstructionsFileDetail = AgentInstructionsFileSummary & {
@@ -171,6 +175,9 @@ async function readFileSummary(rootPath: string, relativePath: string, entryFile
     language: inferLanguage(relativePath),
     markdown: isMarkdown(relativePath),
     isEntryFile: relativePath === entryFile,
+    editable: true,
+    deprecated: false,
+    virtual: false,
   };
 }
 
@@ -239,6 +246,21 @@ function deriveBundleState(agent: AgentLike): BundleState {
 }
 
 function toBundle(agent: AgentLike, state: BundleState, files: AgentInstructionsFileSummary[]): AgentInstructionsBundle {
+  const nextFiles = [...files];
+  if (state.legacyPromptTemplateActive && !nextFiles.some((file) => file.path === LEGACY_PROMPT_TEMPLATE_PATH)) {
+    const legacyPromptTemplate = asString(state.config[PROMPT_KEY]) ?? "";
+    nextFiles.push({
+      path: LEGACY_PROMPT_TEMPLATE_PATH,
+      size: legacyPromptTemplate.length,
+      language: "markdown",
+      markdown: true,
+      isEntryFile: false,
+      editable: true,
+      deprecated: true,
+      virtual: true,
+    });
+  }
+  nextFiles.sort((left, right) => left.path.localeCompare(right.path));
   return {
     agentId: agent.id,
     companyId: agent.companyId,
@@ -250,7 +272,7 @@ function toBundle(agent: AgentLike, state: BundleState, files: AgentInstructions
     warnings: state.warnings,
     legacyPromptTemplateActive: state.legacyPromptTemplateActive,
     legacyBootstrapPromptTemplateActive: state.legacyBootstrapPromptTemplateActive,
-    files,
+    files: nextFiles,
   };
 }
 
@@ -317,6 +339,21 @@ export function agentInstructionsService() {
 
   async function readFile(agent: AgentLike, relativePath: string): Promise<AgentInstructionsFileDetail> {
     const state = deriveBundleState(agent);
+    if (relativePath === LEGACY_PROMPT_TEMPLATE_PATH) {
+      const content = asString(state.config[PROMPT_KEY]);
+      if (content === null) throw notFound("Instructions file not found");
+      return {
+        path: LEGACY_PROMPT_TEMPLATE_PATH,
+        size: content.length,
+        language: "markdown",
+        markdown: true,
+        isEntryFile: false,
+        editable: true,
+        deprecated: true,
+        virtual: true,
+        content,
+      };
+    }
     if (!state.rootPath) throw notFound("Agent instructions bundle is not configured");
     const absolutePath = resolvePathWithinRoot(state.rootPath, relativePath);
     const [content, stat] = await Promise.all([
@@ -331,12 +368,14 @@ export function agentInstructionsService() {
       language: inferLanguage(normalizedPath),
       markdown: isMarkdown(normalizedPath),
       isEntryFile: normalizedPath === state.entryFile,
-      content,
       editable: true,
+      deprecated: false,
+      virtual: false,
+      content,
     };
   }
 
-  async function ensureManagedBundle(
+  async function ensureWritableBundle(
     agent: AgentLike,
     options?: { clearLegacyPromptTemplate?: boolean },
   ): Promise<{ adapterConfig: Record<string, unknown>; state: BundleState }> {
@@ -421,7 +460,21 @@ export function agentInstructionsService() {
     file: AgentInstructionsFileDetail;
     adapterConfig: Record<string, unknown>;
   }> {
-    const prepared = await ensureManagedBundle(agent, options);
+    const current = deriveBundleState(agent);
+    if (relativePath === LEGACY_PROMPT_TEMPLATE_PATH) {
+      const adapterConfig: Record<string, unknown> = {
+        ...current.config,
+        [PROMPT_KEY]: content,
+      };
+      const nextAgent = { ...agent, adapterConfig };
+      const [bundle, file] = await Promise.all([
+        getBundle(nextAgent),
+        readFile(nextAgent, LEGACY_PROMPT_TEMPLATE_PATH),
+      ]);
+      return { bundle, file, adapterConfig };
+    }
+
+    const prepared = await ensureWritableBundle(agent, options);
     const absolutePath = resolvePathWithinRoot(prepared.state.rootPath!, relativePath);
     await fs.mkdir(path.dirname(absolutePath), { recursive: true });
     await fs.writeFile(absolutePath, content, "utf8");
@@ -438,6 +491,9 @@ export function agentInstructionsService() {
     adapterConfig: Record<string, unknown>;
   }> {
     const state = deriveBundleState(agent);
+    if (relativePath === LEGACY_PROMPT_TEMPLATE_PATH) {
+      throw unprocessable("Cannot delete the legacy promptTemplate pseudo-file");
+    }
     if (!state.rootPath) throw notFound("Agent instructions bundle is not configured");
     const normalizedPath = normalizeRelativeFilePath(relativePath);
     if (normalizedPath === state.entryFile) {
@@ -525,7 +581,7 @@ export function agentInstructionsService() {
     writeFile,
     deleteFile,
     exportFiles,
-    ensureManagedBundle,
+    ensureManagedBundle: ensureWritableBundle,
     materializeManagedBundle,
   };
 }
