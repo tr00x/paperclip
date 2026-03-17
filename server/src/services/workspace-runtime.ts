@@ -10,6 +10,7 @@ import { workspaceRuntimeServices } from "@paperclipai/db";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { asNumber, asString, parseObject, renderTemplate } from "../adapters/utils.js";
 import { resolveHomeAwarePath } from "../home-paths.js";
+import type { WorkspaceOperationRecorder } from "./workspace-operations.js";
 
 export interface ExecutionWorkspaceInput {
   baseCwd: string;
@@ -221,12 +222,23 @@ function resolveConfiguredPath(value: string, baseDir: string): string {
   return path.resolve(baseDir, value);
 }
 
-async function runGit(args: string[], cwd: string): Promise<string> {
+function formatCommandForDisplay(command: string, args: string[]) {
+  return [command, ...args]
+    .map((part) => (/^[A-Za-z0-9_./:-]+$/.test(part) ? part : JSON.stringify(part)))
+    .join(" ");
+}
+
+async function executeProcess(input: {
+  command: string;
+  args: string[];
+  cwd: string;
+  env?: NodeJS.ProcessEnv;
+}): Promise<{ stdout: string; stderr: string; code: number | null }> {
   const proc = await new Promise<{ stdout: string; stderr: string; code: number | null }>((resolve, reject) => {
-    const child = spawn("git", args, {
-      cwd,
+    const child = spawn(input.command, input.args, {
+      cwd: input.cwd,
       stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
+      env: input.env ?? process.env,
     });
     let stdout = "";
     let stderr = "";
@@ -238,6 +250,15 @@ async function runGit(args: string[], cwd: string): Promise<string> {
     });
     child.on("error", reject);
     child.on("close", (code) => resolve({ stdout, stderr, code }));
+  });
+  return proc;
+}
+
+async function runGit(args: string[], cwd: string): Promise<string> {
+  const proc = await executeProcess({
+    command: "git",
+    args,
+    cwd,
   });
   if (proc.code !== 0) {
     throw new Error(proc.stderr.trim() || proc.stdout.trim() || `git ${args.join(" ")} failed`);
@@ -307,22 +328,11 @@ async function runWorkspaceCommand(input: {
   label: string;
 }) {
   const shell = process.env.SHELL?.trim() || "/bin/sh";
-  const proc = await new Promise<{ stdout: string; stderr: string; code: number | null }>((resolve, reject) => {
-    const child = spawn(shell, ["-c", input.command], {
-      cwd: input.cwd,
-      env: input.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout?.on("data", (chunk) => {
-      stdout += String(chunk);
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += String(chunk);
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ stdout, stderr, code }));
+  const proc = await executeProcess({
+    command: shell,
+    args: ["-c", input.command],
+    cwd: input.cwd,
+    env: input.env,
   });
   if (proc.code === 0) return;
 
@@ -331,6 +341,115 @@ async function runWorkspaceCommand(input: {
     details.length > 0
       ? `${input.label} failed: ${details}`
       : `${input.label} failed with exit code ${proc.code ?? -1}`,
+  );
+}
+
+async function recordGitOperation(
+  recorder: WorkspaceOperationRecorder | null | undefined,
+  input: {
+    phase: "worktree_prepare" | "worktree_cleanup";
+    args: string[];
+    cwd: string;
+    metadata?: Record<string, unknown> | null;
+    successMessage?: string | null;
+    failureLabel?: string | null;
+  },
+): Promise<string> {
+  if (!recorder) {
+    return runGit(input.args, input.cwd);
+  }
+
+  let stdout = "";
+  let stderr = "";
+  let code: number | null = null;
+  await recorder.recordOperation({
+    phase: input.phase,
+    command: formatCommandForDisplay("git", input.args),
+    cwd: input.cwd,
+    metadata: input.metadata ?? null,
+    run: async () => {
+      const result = await executeProcess({
+        command: "git",
+        args: input.args,
+        cwd: input.cwd,
+      });
+      stdout = result.stdout;
+      stderr = result.stderr;
+      code = result.code;
+      return {
+        status: result.code === 0 ? "succeeded" : "failed",
+        exitCode: result.code,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        system: result.code === 0 ? input.successMessage ?? null : null,
+      };
+    },
+  });
+
+  if (code !== 0) {
+    const details = [stderr.trim(), stdout.trim()].filter(Boolean).join("\n");
+    throw new Error(
+      details.length > 0
+        ? `${input.failureLabel ?? `git ${input.args.join(" ")}`} failed: ${details}`
+        : `${input.failureLabel ?? `git ${input.args.join(" ")}`} failed with exit code ${code ?? -1}`,
+    );
+  }
+  return stdout.trim();
+}
+
+async function recordWorkspaceCommandOperation(
+  recorder: WorkspaceOperationRecorder | null | undefined,
+  input: {
+    phase: "workspace_provision" | "workspace_teardown";
+    command: string;
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    label: string;
+    metadata?: Record<string, unknown> | null;
+    successMessage?: string | null;
+  },
+) {
+  if (!recorder) {
+    await runWorkspaceCommand(input);
+    return;
+  }
+
+  let stdout = "";
+  let stderr = "";
+  let code: number | null = null;
+  await recorder.recordOperation({
+    phase: input.phase,
+    command: input.command,
+    cwd: input.cwd,
+    metadata: input.metadata ?? null,
+    run: async () => {
+      const shell = process.env.SHELL?.trim() || "/bin/sh";
+      const result = await executeProcess({
+        command: shell,
+        args: ["-c", input.command],
+        cwd: input.cwd,
+        env: input.env,
+      });
+      stdout = result.stdout;
+      stderr = result.stderr;
+      code = result.code;
+      return {
+        status: result.code === 0 ? "succeeded" : "failed",
+        exitCode: result.code,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        system: result.code === 0 ? input.successMessage ?? null : null,
+      };
+    },
+  });
+
+  if (code === 0) return;
+
+  const details = [stderr.trim(), stdout.trim()].filter(Boolean).join("\n");
+  throw new Error(
+    details.length > 0
+      ? `${input.label} failed: ${details}`
+      : `${input.label} failed with exit code ${code ?? -1}`,
   );
 }
 
@@ -343,11 +462,13 @@ async function provisionExecutionWorktree(input: {
   issue: ExecutionWorkspaceIssueRef | null;
   agent: ExecutionWorkspaceAgentRef;
   created: boolean;
+  recorder?: WorkspaceOperationRecorder | null;
 }) {
   const provisionCommand = asString(input.strategy.provisionCommand, "").trim();
   if (!provisionCommand) return;
 
-  await runWorkspaceCommand({
+  await recordWorkspaceCommandOperation(input.recorder, {
+    phase: "workspace_provision",
     command: provisionCommand,
     cwd: input.worktreePath,
     env: buildWorkspaceCommandEnv({
@@ -360,6 +481,13 @@ async function provisionExecutionWorktree(input: {
       created: input.created,
     }),
     label: `Execution workspace provision command "${provisionCommand}"`,
+    metadata: {
+      repoRoot: input.repoRoot,
+      worktreePath: input.worktreePath,
+      branchName: input.branchName,
+      created: input.created,
+    },
+    successMessage: `Provisioned workspace at ${input.worktreePath}\n`,
   });
 }
 
@@ -417,6 +545,7 @@ export async function realizeExecutionWorkspace(input: {
   config: Record<string, unknown>;
   issue: ExecutionWorkspaceIssueRef | null;
   agent: ExecutionWorkspaceAgentRef;
+  recorder?: WorkspaceOperationRecorder | null;
 }): Promise<RealizedExecutionWorkspace> {
   const rawStrategy = parseObject(input.config.workspaceStrategy);
   const strategyType = asString(rawStrategy.type, "project_primary");
@@ -454,6 +583,25 @@ export async function realizeExecutionWorkspace(input: {
   if (existingWorktree) {
     const existingGitDir = await runGit(["rev-parse", "--git-dir"], worktreePath).catch(() => null);
     if (existingGitDir) {
+      if (input.recorder) {
+        await input.recorder.recordOperation({
+          phase: "worktree_prepare",
+          cwd: repoRoot,
+          metadata: {
+            repoRoot,
+            worktreePath,
+            branchName,
+            baseRef,
+            created: false,
+            reused: true,
+          },
+          run: async () => ({
+            status: "succeeded",
+            exitCode: 0,
+            system: `Reused existing git worktree at ${worktreePath}\n`,
+          }),
+        });
+      }
       await provisionExecutionWorktree({
         strategy: rawStrategy,
         base: input.base,
@@ -463,6 +611,7 @@ export async function realizeExecutionWorkspace(input: {
         issue: input.issue,
         agent: input.agent,
         created: false,
+        recorder: input.recorder ?? null,
       });
       return {
         ...input.base,
@@ -478,12 +627,39 @@ export async function realizeExecutionWorkspace(input: {
   }
 
   try {
-    await runGit(["worktree", "add", "-b", branchName, worktreePath, baseRef], repoRoot);
+    await recordGitOperation(input.recorder, {
+      phase: "worktree_prepare",
+      args: ["worktree", "add", "-b", branchName, worktreePath, baseRef],
+      cwd: repoRoot,
+      metadata: {
+        repoRoot,
+        worktreePath,
+        branchName,
+        baseRef,
+        created: true,
+      },
+      successMessage: `Created git worktree at ${worktreePath}\n`,
+      failureLabel: `git worktree add ${worktreePath}`,
+    });
   } catch (error) {
     if (!gitErrorIncludes(error, "already exists")) {
       throw error;
     }
-    await runGit(["worktree", "add", worktreePath, branchName], repoRoot);
+    await recordGitOperation(input.recorder, {
+      phase: "worktree_prepare",
+      args: ["worktree", "add", worktreePath, branchName],
+      cwd: repoRoot,
+      metadata: {
+        repoRoot,
+        worktreePath,
+        branchName,
+        baseRef,
+        created: false,
+        reusedExistingBranch: true,
+      },
+      successMessage: `Attached existing branch ${branchName} at ${worktreePath}\n`,
+      failureLabel: `git worktree add ${worktreePath}`,
+    });
   }
   await provisionExecutionWorktree({
     strategy: rawStrategy,
@@ -494,6 +670,7 @@ export async function realizeExecutionWorkspace(input: {
     issue: input.issue,
     agent: input.agent,
     created: true,
+    recorder: input.recorder ?? null,
   });
 
   return {
@@ -526,6 +703,7 @@ export async function cleanupExecutionWorkspaceArtifacts(input: {
     cleanupCommand: string | null;
   } | null;
   teardownCommand?: string | null;
+  recorder?: WorkspaceOperationRecorder | null;
 }) {
   const warnings: string[] = [];
   const workspacePath = input.workspace.providerRef ?? input.workspace.cwd;
@@ -543,11 +721,19 @@ export async function cleanupExecutionWorkspaceArtifacts(input: {
 
   for (const command of cleanupCommands) {
     try {
-      await runWorkspaceCommand({
+      await recordWorkspaceCommandOperation(input.recorder, {
+        phase: "workspace_teardown",
         command,
         cwd: workspacePath ?? input.projectWorkspace?.cwd ?? process.cwd(),
         env: cleanupEnv,
         label: `Execution workspace cleanup command "${command}"`,
+        metadata: {
+          workspaceId: input.workspace.id,
+          workspacePath,
+          branchName: input.workspace.branchName,
+          providerType: input.workspace.providerType,
+        },
+        successMessage: `Completed cleanup command "${command}"\n`,
       });
     } catch (err) {
       warnings.push(err instanceof Error ? err.message : String(err));
@@ -565,7 +751,19 @@ export async function cleanupExecutionWorkspaceArtifacts(input: {
         warnings.push(`Could not resolve git repo root for "${workspacePath}".`);
       } else {
         try {
-          await runGit(["worktree", "remove", "--force", workspacePath], repoRoot);
+          await recordGitOperation(input.recorder, {
+            phase: "worktree_cleanup",
+            args: ["worktree", "remove", "--force", workspacePath],
+            cwd: repoRoot,
+            metadata: {
+              workspaceId: input.workspace.id,
+              workspacePath,
+              branchName: input.workspace.branchName,
+              cleanupAction: "worktree_remove",
+            },
+            successMessage: `Removed git worktree ${workspacePath}\n`,
+            failureLabel: `git worktree remove ${workspacePath}`,
+          });
         } catch (err) {
           warnings.push(err instanceof Error ? err.message : String(err));
         }
@@ -576,7 +774,19 @@ export async function cleanupExecutionWorkspaceArtifacts(input: {
         warnings.push(`Could not resolve git repo root to delete branch "${input.workspace.branchName}".`);
       } else {
         try {
-          await runGit(["branch", "-d", input.workspace.branchName], repoRoot);
+          await recordGitOperation(input.recorder, {
+            phase: "worktree_cleanup",
+            args: ["branch", "-d", input.workspace.branchName],
+            cwd: repoRoot,
+            metadata: {
+              workspaceId: input.workspace.id,
+              workspacePath,
+              branchName: input.workspace.branchName,
+              cleanupAction: "branch_delete",
+            },
+            successMessage: `Deleted branch ${input.workspace.branchName}\n`,
+            failureLabel: `git branch -d ${input.workspace.branchName}`,
+          });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           warnings.push(`Skipped deleting branch "${input.workspace.branchName}": ${message}`);
@@ -590,6 +800,22 @@ export async function cleanupExecutionWorkspaceArtifacts(input: {
       warnings.push(`Refusing to remove shared project workspace "${workspacePath}".`);
     } else {
       await fs.rm(resolvedWorkspacePath, { recursive: true, force: true });
+      if (input.recorder) {
+        await input.recorder.recordOperation({
+          phase: "workspace_teardown",
+          cwd: projectWorkspaceCwd ?? process.cwd(),
+          metadata: {
+            workspaceId: input.workspace.id,
+            workspacePath: resolvedWorkspacePath,
+            cleanupAction: "remove_local_fs",
+          },
+          run: async () => ({
+            status: "succeeded",
+            exitCode: 0,
+            system: `Removed local workspace directory ${resolvedWorkspacePath}\n`,
+          }),
+        });
+      }
     }
   }
 

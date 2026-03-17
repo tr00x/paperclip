@@ -4,7 +4,7 @@ import type { Db } from "@paperclipai/db";
 import { issues, projects, projectWorkspaces } from "@paperclipai/db";
 import { updateExecutionWorkspaceSchema } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
-import { executionWorkspaceService, logActivity } from "../services/index.js";
+import { executionWorkspaceService, logActivity, workspaceOperationService } from "../services/index.js";
 import { parseProjectExecutionWorkspacePolicy } from "../services/execution-workspace-policy.js";
 import {
   cleanupExecutionWorkspaceArtifacts,
@@ -17,6 +17,7 @@ const TERMINAL_ISSUE_STATUSES = new Set(["done", "cancelled"]);
 export function executionWorkspaceRoutes(db: Db) {
   const router = Router();
   const svc = executionWorkspaceService(db);
+  const workspaceOperationsSvc = workspaceOperationService(db);
 
   router.get("/companies/:companyId/execution-workspaces", async (req, res) => {
     const companyId = req.params.companyId as string;
@@ -121,6 +122,10 @@ export function executionWorkspaceRoutes(db: Db) {
           workspace: existing,
           projectWorkspace,
           teardownCommand: projectPolicy?.workspaceStrategy?.teardownCommand ?? null,
+          recorder: workspaceOperationsSvc.createRecorder({
+            companyId: existing.companyId,
+            executionWorkspaceId: existing.id,
+          }),
         });
         cleanupWarnings = cleanupResult.warnings;
         const cleanupPatch: Record<string, unknown> = {

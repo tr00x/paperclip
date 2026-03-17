@@ -13,6 +13,8 @@ import {
   stopRuntimeServicesForExecutionWorkspace,
   type RealizedExecutionWorkspace,
 } from "../services/workspace-runtime.ts";
+import type { WorkspaceOperation } from "@paperclipai/shared";
+import type { WorkspaceOperationRecorder } from "../services/workspace-operations.ts";
 
 const execFileAsync = promisify(execFile);
 const leasedRunIds = new Set<string>();
@@ -48,6 +50,68 @@ function buildWorkspace(cwd: string): RealizedExecutionWorkspace {
     warnings: [],
     created: false,
   };
+}
+
+function createWorkspaceOperationRecorderDouble() {
+  const operations: Array<{
+    phase: string;
+    command: string | null;
+    cwd: string | null;
+    metadata: Record<string, unknown> | null;
+    result: {
+      status?: string;
+      exitCode?: number | null;
+      stdout?: string | null;
+      stderr?: string | null;
+      system?: string | null;
+      metadata?: Record<string, unknown> | null;
+    };
+  }> = [];
+  let executionWorkspaceId: string | null = null;
+
+  const recorder: WorkspaceOperationRecorder = {
+    attachExecutionWorkspaceId: async (nextExecutionWorkspaceId) => {
+      executionWorkspaceId = nextExecutionWorkspaceId;
+    },
+    recordOperation: async (input) => {
+      const result = await input.run();
+      operations.push({
+        phase: input.phase,
+        command: input.command ?? null,
+        cwd: input.cwd ?? null,
+        metadata: {
+          ...(input.metadata ?? {}),
+          ...(executionWorkspaceId ? { executionWorkspaceId } : {}),
+        },
+        result,
+      });
+      return {
+        id: `op-${operations.length}`,
+        companyId: "company-1",
+        executionWorkspaceId,
+        heartbeatRunId: "run-1",
+        phase: input.phase,
+        command: input.command ?? null,
+        cwd: input.cwd ?? null,
+        status: (result.status ?? "succeeded") as WorkspaceOperation["status"],
+        exitCode: result.exitCode ?? null,
+        logStore: "local_file",
+        logRef: `op-${operations.length}.ndjson`,
+        logBytes: 0,
+        logSha256: null,
+        logCompressed: false,
+        stdoutExcerpt: result.stdout ?? null,
+        stderrExcerpt: result.stderr ?? null,
+        metadata: input.metadata ?? null,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    },
+  };
+
+  return { recorder, operations };
 }
 
 afterEach(async () => {
@@ -216,6 +280,64 @@ describe("realizeExecutionWorkspace", () => {
     });
 
     await expect(fs.readFile(path.join(reused.cwd, ".paperclip-provision-created"), "utf8")).resolves.toBe("false\n");
+  });
+
+  it("records worktree setup and provision operations when a recorder is provided", async () => {
+    const repoRoot = await createTempRepo();
+    const { recorder, operations } = createWorkspaceOperationRecorderDouble();
+
+    await fs.mkdir(path.join(repoRoot, "scripts"), { recursive: true });
+    await fs.writeFile(
+      path.join(repoRoot, "scripts", "provision.sh"),
+      [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        "printf 'provisioned\\n'",
+      ].join("\n"),
+      "utf8",
+    );
+    await runGit(repoRoot, ["add", "scripts/provision.sh"]);
+    await runGit(repoRoot, ["commit", "-m", "Add recorder provision script"]);
+
+    await realizeExecutionWorkspace({
+      base: {
+        baseCwd: repoRoot,
+        source: "project_primary",
+        projectId: "project-1",
+        workspaceId: "workspace-1",
+        repoUrl: null,
+        repoRef: "HEAD",
+      },
+      config: {
+        workspaceStrategy: {
+          type: "git_worktree",
+          branchTemplate: "{{issue.identifier}}-{{slug}}",
+          provisionCommand: "bash ./scripts/provision.sh",
+        },
+      },
+      issue: {
+        id: "issue-1",
+        identifier: "PAP-540",
+        title: "Record workspace operations",
+      },
+      agent: {
+        id: "agent-1",
+        name: "Codex Coder",
+        companyId: "company-1",
+      },
+      recorder,
+    });
+
+    expect(operations.map((operation) => operation.phase)).toEqual([
+      "worktree_prepare",
+      "workspace_provision",
+    ]);
+    expect(operations[0]?.command).toContain("git worktree add");
+    expect(operations[0]?.metadata).toMatchObject({
+      branchName: "PAP-540-record-workspace-operations",
+      created: true,
+    });
+    expect(operations[1]?.command).toBe("bash ./scripts/provision.sh");
   });
 
   it("reuses an existing branch without resetting it when recreating a missing worktree", async () => {
@@ -387,6 +509,74 @@ describe("realizeExecutionWorkspace", () => {
       execFileAsync("git", ["branch", "--list", workspace.branchName!], { cwd: repoRoot }),
     ).resolves.toMatchObject({
       stdout: expect.stringContaining(workspace.branchName!),
+    });
+  });
+
+  it("records teardown and cleanup operations when a recorder is provided", async () => {
+    const repoRoot = await createTempRepo();
+    const { recorder, operations } = createWorkspaceOperationRecorderDouble();
+
+    const workspace = await realizeExecutionWorkspace({
+      base: {
+        baseCwd: repoRoot,
+        source: "project_primary",
+        projectId: "project-1",
+        workspaceId: "workspace-1",
+        repoUrl: null,
+        repoRef: "HEAD",
+      },
+      config: {
+        workspaceStrategy: {
+          type: "git_worktree",
+          branchTemplate: "{{issue.identifier}}-{{slug}}",
+        },
+      },
+      issue: {
+        id: "issue-1",
+        identifier: "PAP-541",
+        title: "Cleanup recorder",
+      },
+      agent: {
+        id: "agent-1",
+        name: "Codex Coder",
+        companyId: "company-1",
+      },
+    });
+
+    await cleanupExecutionWorkspaceArtifacts({
+      workspace: {
+        id: "execution-workspace-1",
+        cwd: workspace.cwd,
+        providerType: "git_worktree",
+        providerRef: workspace.worktreePath,
+        branchName: workspace.branchName,
+        repoUrl: workspace.repoUrl,
+        baseRef: workspace.repoRef,
+        projectId: workspace.projectId,
+        projectWorkspaceId: workspace.workspaceId,
+        sourceIssueId: "issue-1",
+        metadata: {
+          createdByRuntime: true,
+        },
+      },
+      projectWorkspace: {
+        cwd: repoRoot,
+        cleanupCommand: "printf 'cleanup ok\\n'",
+      },
+      recorder,
+    });
+
+    expect(operations.map((operation) => operation.phase)).toEqual([
+      "workspace_teardown",
+      "worktree_cleanup",
+      "worktree_cleanup",
+    ]);
+    expect(operations[0]?.command).toBe("printf 'cleanup ok\\n'");
+    expect(operations[1]?.metadata).toMatchObject({
+      cleanupAction: "worktree_remove",
+    });
+    expect(operations[2]?.metadata).toMatchObject({
+      cleanupAction: "branch_delete",
     });
   });
 });

@@ -38,6 +38,7 @@ import {
 } from "./workspace-runtime.js";
 import { issueService } from "./issues.js";
 import { executionWorkspaceService } from "./execution-workspaces.js";
+import { workspaceOperationService } from "./workspace-operations.js";
 import {
   buildExecutionWorkspaceAdapterConfig,
   gateProjectExecutionWorkspacePolicy,
@@ -705,6 +706,7 @@ export function heartbeatService(db: Db) {
   const secretsSvc = secretService(db);
   const issuesSvc = issueService(db);
   const executionWorkspacesSvc = executionWorkspaceService(db);
+  const workspaceOperationsSvc = workspaceOperationService(db);
   const activeRunExecutions = new Set<string>();
   const budgetHooks = {
     cancelWorkForScope: cancelBudgetScopeWork,
@@ -1732,6 +1734,13 @@ export function heartbeatService(db: Db) {
           .where(and(eq(issues.id, issueId), eq(issues.companyId, agent.companyId)))
           .then((rows) => rows[0] ?? null)
       : null;
+    const existingExecutionWorkspace =
+      issueRef?.executionWorkspaceId ? await executionWorkspacesSvc.getById(issueRef.executionWorkspaceId) : null;
+    const workspaceOperationRecorder = workspaceOperationsSvc.createRecorder({
+      companyId: agent.companyId,
+      heartbeatRunId: run.id,
+      executionWorkspaceId: existingExecutionWorkspace?.id ?? null,
+    });
     const executionWorkspace = await realizeExecutionWorkspace({
       base: {
         baseCwd: resolvedWorkspace.cwd,
@@ -1748,9 +1757,8 @@ export function heartbeatService(db: Db) {
         name: agent.name,
         companyId: agent.companyId,
       },
+      recorder: workspaceOperationRecorder,
     });
-    const existingExecutionWorkspace =
-      issueRef?.executionWorkspaceId ? await executionWorkspacesSvc.getById(issueRef.executionWorkspaceId) : null;
     const resolvedProjectId = executionWorkspace.projectId ?? issueRef?.projectId ?? executionProjectId ?? null;
     const resolvedProjectWorkspaceId = issueRef?.projectWorkspaceId ?? resolvedWorkspace.workspaceId ?? null;
     const shouldReuseExisting =
@@ -1804,11 +1812,22 @@ export function heartbeatService(db: Db) {
             },
           })
         : null;
+    await workspaceOperationRecorder.attachExecutionWorkspaceId(persistedExecutionWorkspace?.id ?? null);
     if (issueId && persistedExecutionWorkspace && issueRef?.executionWorkspaceId !== persistedExecutionWorkspace.id) {
       await issuesSvc.update(issueId, {
         executionWorkspaceId: persistedExecutionWorkspace.id,
         ...(resolvedProjectWorkspaceId ? { projectWorkspaceId: resolvedProjectWorkspaceId } : {}),
       });
+    }
+    if (persistedExecutionWorkspace) {
+      context.executionWorkspaceId = persistedExecutionWorkspace.id;
+      await db
+        .update(heartbeatRuns)
+        .set({
+          contextSnapshot: context,
+          updatedAt: new Date(),
+        })
+        .where(eq(heartbeatRuns.id, run.id));
     }
     const runtimeSessionResolution = resolveRuntimeSessionParamsForWorkspace({
       agentId: agent.id,

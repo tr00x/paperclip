@@ -25,6 +25,11 @@ export type {
   IssueExecutionWorkspaceSettings,
 } from "./workspace-runtime.js";
 export type {
+  WorkspaceOperation,
+  WorkspaceOperationPhase,
+  WorkspaceOperationStatus,
+} from "./workspace-operation.js";
+export type {
   IssueWorkProduct,
   IssueWorkProductType,
   IssueWorkProductProvider,
