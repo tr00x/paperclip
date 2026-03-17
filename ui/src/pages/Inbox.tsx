@@ -14,11 +14,11 @@ import { queryKeys } from "../lib/queryKeys";
 import { createIssueDetailLocationState } from "../lib/issueDetailBreadcrumb";
 import { EmptyState } from "../components/EmptyState";
 import { PageSkeleton } from "../components/PageSkeleton";
-import { ApprovalCard } from "../components/ApprovalCard";
 import { IssueRow } from "../components/IssueRow";
 import { PriorityIcon } from "../components/PriorityIcon";
 import { StatusIcon } from "../components/StatusIcon";
 import { StatusBadge } from "../components/StatusBadge";
+import { defaultTypeIcon, typeIcon, typeLabel } from "../components/ApprovalPayload";
 import { timeAgo } from "../lib/timeAgo";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -40,16 +40,17 @@ import {
 } from "lucide-react";
 import { Identity } from "../components/Identity";
 import { PageTabBar } from "../components/PageTabBar";
-import type { HeartbeatRun, Issue, JoinRequest } from "@paperclipai/shared";
+import type { Approval, HeartbeatRun, Issue, JoinRequest } from "@paperclipai/shared";
 import {
   ACTIONABLE_APPROVAL_STATUSES,
   getApprovalsForTab,
+  getInboxWorkItems,
   getLatestFailedRunsByAgent,
   getRecentTouchedIssues,
   InboxApprovalFilter,
-  type InboxTab,
   saveLastInboxTab,
   shouldShowInboxSection,
+  type InboxTab,
 } from "../lib/inbox";
 import { useDismissedInboxItems } from "../hooks/useInboxBadge";
 
@@ -61,9 +62,8 @@ type InboxCategoryFilter =
   | "failed_runs"
   | "alerts";
 type SectionKey =
-  | "issues_i_touched"
+  | "work_items"
   | "join_requests"
-  | "approvals"
   | "failed_runs"
   | "alerts";
 
@@ -82,6 +82,10 @@ function firstNonEmptyLine(value: string | null | undefined): string | null {
 
 function runFailureMessage(run: HeartbeatRun): string {
   return firstNonEmptyLine(run.error) ?? firstNonEmptyLine(run.stderrExcerpt) ?? "Run exited with an error.";
+}
+
+function approvalStatusLabel(status: Approval["status"]): string {
+  return status.replaceAll("_", " ");
 }
 
 function readIssueIdFromRun(run: HeartbeatRun): string | null {
@@ -235,6 +239,93 @@ function FailedRunCard({
   );
 }
 
+function ApprovalInboxRow({
+  approval,
+  requesterName,
+  onApprove,
+  onReject,
+  isPending,
+}: {
+  approval: Approval;
+  requesterName: string | null;
+  onApprove: () => void;
+  onReject: () => void;
+  isPending: boolean;
+}) {
+  const Icon = typeIcon[approval.type] ?? defaultTypeIcon;
+  const label = typeLabel[approval.type] ?? approval.type;
+  const showResolutionButtons =
+    approval.type !== "budget_override_required" &&
+    ACTIONABLE_APPROVAL_STATUSES.has(approval.status);
+
+  return (
+    <div className="border-b border-border px-2 py-2.5 last:border-b-0 sm:px-1 sm:py-2">
+      <div className="flex items-start gap-3 sm:items-center">
+        <Link
+          to={`/approvals/${approval.id}`}
+          className="flex min-w-0 flex-1 items-start gap-3 no-underline text-inherit transition-colors hover:bg-accent/50"
+        >
+          <span className="mt-0.5 shrink-0 rounded-md bg-muted p-1.5 sm:mt-0">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="line-clamp-2 text-sm font-medium sm:truncate sm:line-clamp-none">
+              {label}
+            </span>
+            <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="capitalize">{approvalStatusLabel(approval.status)}</span>
+              {requesterName ? <span>requested by {requesterName}</span> : null}
+              <span>updated {timeAgo(approval.updatedAt)}</span>
+            </span>
+          </span>
+        </Link>
+        {showResolutionButtons ? (
+          <div className="hidden shrink-0 items-center gap-2 sm:flex">
+            <Button
+              size="sm"
+              className="h-8 bg-green-700 px-3 text-white hover:bg-green-600"
+              onClick={onApprove}
+              disabled={isPending}
+            >
+              Approve
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 px-3"
+              onClick={onReject}
+              disabled={isPending}
+            >
+              Reject
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      {showResolutionButtons ? (
+        <div className="mt-3 flex gap-2 sm:hidden">
+          <Button
+            size="sm"
+            className="h-8 bg-green-700 px-3 text-white hover:bg-green-600"
+            onClick={onApprove}
+            disabled={isPending}
+          >
+            Approve
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-8 px-3"
+            onClick={onReject}
+            disabled={isPending}
+          >
+            Reject
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function Inbox() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
@@ -336,6 +427,10 @@ export function Inbox() {
     () => touchedIssues.filter((issue) => issue.isUnreadForMe),
     [touchedIssues],
   );
+  const issuesToRender = useMemo(
+    () => (tab === "unread" ? unreadTouchedIssues : touchedIssues),
+    [tab, touchedIssues, unreadTouchedIssues],
+  );
 
   const agentById = useMemo(() => {
     const map = new Map<string, string>();
@@ -363,19 +458,26 @@ export function Inbox() {
     return ids;
   }, [heartbeatRuns]);
 
-  const allApprovals = useMemo(
-    () => getApprovalsForTab(approvals ?? [], "recent", "all"),
-    [approvals],
-  );
-
-  const actionableApprovals = useMemo(
-    () => allApprovals.filter((approval) => ACTIONABLE_APPROVAL_STATUSES.has(approval.status)),
-    [allApprovals],
-  );
-
   const approvalsToRender = useMemo(
     () => getApprovalsForTab(approvals ?? [], tab, allApprovalFilter),
     [approvals, tab, allApprovalFilter],
+  );
+  const showJoinRequestsCategory =
+    allCategoryFilter === "everything" || allCategoryFilter === "join_requests";
+  const showTouchedCategory =
+    allCategoryFilter === "everything" || allCategoryFilter === "issues_i_touched";
+  const showApprovalsCategory =
+    allCategoryFilter === "everything" || allCategoryFilter === "approvals";
+  const showFailedRunsCategory =
+    allCategoryFilter === "everything" || allCategoryFilter === "failed_runs";
+  const showAlertsCategory = allCategoryFilter === "everything" || allCategoryFilter === "alerts";
+  const workItemsToRender = useMemo(
+    () =>
+      getInboxWorkItems({
+        issues: tab === "all" && !showTouchedCategory ? [] : issuesToRender,
+        approvals: tab === "all" && !showApprovalsCategory ? [] : approvalsToRender,
+      }),
+    [approvalsToRender, issuesToRender, showApprovalsCategory, showTouchedCategory, tab],
   );
 
   const agentName = (id: string | null) => {
@@ -500,33 +602,9 @@ export function Inbox() {
     !dismissed.has("alert:budget");
   const hasAlerts = showAggregateAgentError || showBudgetAlert;
   const hasJoinRequests = joinRequests.length > 0;
-  const hasTouchedIssues = touchedIssues.length > 0;
-
-  const showJoinRequestsCategory =
-    allCategoryFilter === "everything" || allCategoryFilter === "join_requests";
-  const showTouchedCategory =
-    allCategoryFilter === "everything" || allCategoryFilter === "issues_i_touched";
-  const showApprovalsCategory = allCategoryFilter === "everything" || allCategoryFilter === "approvals";
-  const showFailedRunsCategory =
-    allCategoryFilter === "everything" || allCategoryFilter === "failed_runs";
-  const showAlertsCategory = allCategoryFilter === "everything" || allCategoryFilter === "alerts";
-
-  const showTouchedSection = shouldShowInboxSection({
-    tab,
-    hasItems: tab === "unread" ? unreadTouchedIssues.length > 0 : hasTouchedIssues,
-    showOnRecent: hasTouchedIssues,
-    showOnUnread: unreadTouchedIssues.length > 0,
-    showOnAll: showTouchedCategory && hasTouchedIssues,
-  });
+  const showWorkItemsSection = workItemsToRender.length > 0;
   const showJoinRequestsSection =
     tab === "all" ? showJoinRequestsCategory && hasJoinRequests : tab === "unread" && hasJoinRequests;
-  const showApprovalsSection = shouldShowInboxSection({
-    tab,
-    hasItems: approvalsToRender.length > 0,
-    showOnRecent: approvalsToRender.length > 0,
-    showOnUnread: actionableApprovals.length > 0,
-    showOnAll: showApprovalsCategory && approvalsToRender.length > 0,
-  });
   const showFailedRunsSection = shouldShowInboxSection({
     tab,
     hasItems: hasRunFailures,
@@ -545,9 +623,8 @@ export function Inbox() {
   const visibleSections = [
     showFailedRunsSection ? "failed_runs" : null,
     showAlertsSection ? "alerts" : null,
-    showApprovalsSection ? "approvals" : null,
     showJoinRequestsSection ? "join_requests" : null,
-    showTouchedSection ? "issues_i_touched" : null,
+    showWorkItemsSection ? "work_items" : null,
   ].filter((key): key is SectionKey => key !== null);
 
   const allLoaded =
@@ -653,29 +730,72 @@ export function Inbox() {
         />
       )}
 
-      {showApprovalsSection && (
+      {showWorkItemsSection && (
         <>
-          {showSeparatorBefore("approvals") && <Separator />}
+          {showSeparatorBefore("work_items") && <Separator />}
           <div>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {tab === "unread" ? "Approvals Needing Action" : "Approvals"}
-            </h3>
-            <div className="grid gap-3">
-              {approvalsToRender.map((approval) => (
-                <ApprovalCard
-                  key={approval.id}
-                  approval={approval}
-                  requesterAgent={
-                    approval.requestedByAgentId
-                      ? (agents ?? []).find((a) => a.id === approval.requestedByAgentId) ?? null
-                      : null
-                  }
-                  onApprove={() => approveMutation.mutate(approval.id)}
-                  onReject={() => rejectMutation.mutate(approval.id)}
-                  detailLink={`/approvals/${approval.id}`}
-                  isPending={approveMutation.isPending || rejectMutation.isPending}
-                />
-              ))}
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              {workItemsToRender.map((item) => {
+                if (item.kind === "approval") {
+                  return (
+                    <ApprovalInboxRow
+                      key={`approval:${item.approval.id}`}
+                      approval={item.approval}
+                      requesterName={agentName(item.approval.requestedByAgentId)}
+                      onApprove={() => approveMutation.mutate(item.approval.id)}
+                      onReject={() => rejectMutation.mutate(item.approval.id)}
+                      isPending={approveMutation.isPending || rejectMutation.isPending}
+                    />
+                  );
+                }
+
+                const issue = item.issue;
+                const isUnread = issue.isUnreadForMe && !fadingOutIssues.has(issue.id);
+                const isFading = fadingOutIssues.has(issue.id);
+                return (
+                  <IssueRow
+                    key={`issue:${issue.id}`}
+                    issue={issue}
+                    issueLinkState={issueLinkState}
+                    desktopMetaLeading={(
+                      <>
+                        <span className="hidden sm:inline-flex">
+                          <PriorityIcon priority={issue.priority} />
+                        </span>
+                        <span className="hidden shrink-0 sm:inline-flex">
+                          <StatusIcon status={issue.status} />
+                        </span>
+                        <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                          {issue.identifier ?? issue.id.slice(0, 8)}
+                        </span>
+                        {liveIssueIds.has(issue.id) && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 sm:gap-1.5 sm:px-2">
+                            <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-blue-400 opacity-75" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                            </span>
+                            <span className="hidden text-[11px] font-medium text-blue-600 dark:text-blue-400 sm:inline">
+                              Live
+                            </span>
+                          </span>
+                        )}
+                      </>
+                    )}
+                    mobileMeta={
+                      issue.lastExternalCommentAt
+                        ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
+                        : `updated ${timeAgo(issue.updatedAt)}`
+                    }
+                    unreadState={isUnread ? "visible" : isFading ? "fading" : "hidden"}
+                    onMarkRead={() => markReadMutation.mutate(issue.id)}
+                    trailingMeta={
+                      issue.lastExternalCommentAt
+                        ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
+                        : `updated ${timeAgo(issue.updatedAt)}`
+                    }
+                  />
+                );
+              })}
             </div>
           </div>
         </>
@@ -816,62 +936,6 @@ export function Inbox() {
         </>
       )}
 
-      {showTouchedSection && (
-        <>
-          {showSeparatorBefore("issues_i_touched") && <Separator />}
-          <div>
-            <div>
-              {(tab === "unread" ? unreadTouchedIssues : touchedIssues).map((issue) => {
-                const isUnread = issue.isUnreadForMe && !fadingOutIssues.has(issue.id);
-                const isFading = fadingOutIssues.has(issue.id);
-                return (
-                  <IssueRow
-                    key={issue.id}
-                    issue={issue}
-                    issueLinkState={issueLinkState}
-                    desktopMetaLeading={(
-                      <>
-                        <span className="hidden sm:inline-flex">
-                          <PriorityIcon priority={issue.priority} />
-                        </span>
-                        <span className="hidden shrink-0 sm:inline-flex">
-                          <StatusIcon status={issue.status} />
-                        </span>
-                        <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                          {issue.identifier ?? issue.id.slice(0, 8)}
-                        </span>
-                        {liveIssueIds.has(issue.id) && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 sm:gap-1.5 sm:px-2">
-                            <span className="relative flex h-2 w-2">
-                              <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-blue-400 opacity-75" />
-                              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
-                            </span>
-                            <span className="hidden text-[11px] font-medium text-blue-600 dark:text-blue-400 sm:inline">
-                              Live
-                            </span>
-                          </span>
-                        )}
-                      </>
-                    )}
-                    mobileMeta={
-                      issue.lastExternalCommentAt
-                        ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
-                        : `updated ${timeAgo(issue.updatedAt)}`
-                    }
-                    unreadState={isUnread ? "visible" : isFading ? "fading" : "hidden"}
-                    onMarkRead={() => markReadMutation.mutate(issue.id)}
-                    trailingMeta={
-                      issue.lastExternalCommentAt
-                        ? `commented ${timeAgo(issue.lastExternalCommentAt)}`
-                        : `updated ${timeAgo(issue.updatedAt)}`
-                    }
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }

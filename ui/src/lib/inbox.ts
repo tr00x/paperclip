@@ -13,6 +13,17 @@ export const DISMISSED_KEY = "paperclip:inbox:dismissed";
 export const INBOX_LAST_TAB_KEY = "paperclip:inbox:last-tab";
 export type InboxTab = "recent" | "unread" | "all";
 export type InboxApprovalFilter = "all" | "actionable" | "resolved";
+export type InboxWorkItem =
+  | {
+      kind: "issue";
+      timestamp: number;
+      issue: Issue;
+    }
+  | {
+      kind: "approval";
+      timestamp: number;
+      approval: Approval;
+    };
 
 export interface InboxBadgeData {
   inbox: number;
@@ -123,6 +134,45 @@ export function getApprovalsForTab(
   return sortedApprovals.filter((approval) => {
     const isActionable = ACTIONABLE_APPROVAL_STATUSES.has(approval.status);
     return filter === "actionable" ? isActionable : !isActionable;
+  });
+}
+
+export function approvalActivityTimestamp(approval: Approval): number {
+  const updatedAt = normalizeTimestamp(approval.updatedAt);
+  if (updatedAt > 0) return updatedAt;
+  return normalizeTimestamp(approval.createdAt);
+}
+
+export function getInboxWorkItems({
+  issues,
+  approvals,
+}: {
+  issues: Issue[];
+  approvals: Approval[];
+}): InboxWorkItem[] {
+  return [
+    ...issues.map((issue) => ({
+      kind: "issue" as const,
+      timestamp: issueLastActivityTimestamp(issue),
+      issue,
+    })),
+    ...approvals.map((approval) => ({
+      kind: "approval" as const,
+      timestamp: approvalActivityTimestamp(approval),
+      approval,
+    })),
+  ].sort((a, b) => {
+    const timestampDiff = b.timestamp - a.timestamp;
+    if (timestampDiff !== 0) return timestampDiff;
+
+    if (a.kind === "issue" && b.kind === "issue") {
+      return sortIssuesByMostRecentActivity(a.issue, b.issue);
+    }
+    if (a.kind === "approval" && b.kind === "approval") {
+      return approvalActivityTimestamp(b.approval) - approvalActivityTimestamp(a.approval);
+    }
+
+    return a.kind === "approval" ? -1 : 1;
   });
 }
 

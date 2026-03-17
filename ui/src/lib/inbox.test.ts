@@ -3,8 +3,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Approval, DashboardSummary, HeartbeatRun, Issue, JoinRequest } from "@paperclipai/shared";
 import {
-  getApprovalsForTab,
   computeInboxBadgeData,
+  getApprovalsForTab,
+  getInboxWorkItems,
   getRecentTouchedIssues,
   getUnreadTouchedIssues,
   loadLastInboxTab,
@@ -268,6 +269,31 @@ describe("inbox helpers", () => {
     ]);
     expect(getApprovalsForTab(approvals, "all", "resolved").map((approval) => approval.id)).toEqual([
       "approval-approved",
+    ]);
+  });
+
+  it("mixes approvals into the inbox feed by most recent activity", () => {
+    const newerIssue = makeIssue("1", true);
+    newerIssue.lastExternalCommentAt = new Date("2026-03-11T04:00:00.000Z");
+
+    const olderIssue = makeIssue("2", false);
+    olderIssue.lastExternalCommentAt = new Date("2026-03-11T02:00:00.000Z");
+
+    const approval = makeApprovalWithTimestamps(
+      "approval-between",
+      "pending",
+      "2026-03-11T03:00:00.000Z",
+    );
+
+    expect(
+      getInboxWorkItems({
+        issues: [olderIssue, newerIssue],
+        approvals: [approval],
+      }).map((item) => item.kind === "issue" ? `issue:${item.issue.id}` : `approval:${item.approval.id}`),
+    ).toEqual([
+      "issue:1",
+      "approval:approval-between",
+      "issue:2",
     ]);
   });
 
