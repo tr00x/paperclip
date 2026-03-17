@@ -268,6 +268,9 @@ export function Layout() {
                   <BookOpen className="h-4 w-4 shrink-0" />
                   <span className="truncate">Documentation</span>
                 </a>
+                <span className="px-2 text-xs text-muted-foreground shrink-0">
+                  {health?.version ? `v${health.version}` : "v?.?.?"}
+                </span>
                 <Button variant="ghost" size="icon-sm" className="text-muted-foreground shrink-0" asChild>
                   <Link
                     to="/instance/settings"
@@ -318,6 +321,9 @@ export function Layout() {
                   <BookOpen className="h-4 w-4 shrink-0" />
                   <span className="truncate">Documentation</span>
                 </a>
+                <span className="px-2 text-xs text-muted-foreground shrink-0">
+                  {health?.version ? `v${health.version}` : "v?.?.?"}
+                </span>
                 <Button variant="ghost" size="icon-sm" className="text-muted-foreground shrink-0" asChild>
                   <Link
                     to="/instance/settings"
