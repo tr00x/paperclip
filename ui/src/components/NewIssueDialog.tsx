@@ -242,8 +242,6 @@ const EXECUTION_WORKSPACE_MODES = [
   { value: "shared_workspace", label: "Project default" },
   { value: "isolated_workspace", label: "New isolated workspace" },
   { value: "reuse_existing", label: "Reuse existing workspace" },
-  { value: "operator_branch", label: "Operator branch" },
-  { value: "agent_default", label: "Agent default" },
 ] as const;
 
 function defaultProjectWorkspaceIdForProject(project: { workspaces?: Array<{ id: string; isPrimary: boolean }>; executionWorkspacePolicy?: { defaultProjectWorkspaceId?: string | null } | null } | null | undefined) {
@@ -638,7 +636,7 @@ export function NewIssueDialog() {
     });
     const selectedProject = orderedProjects.find((project) => project.id === projectId);
     const executionWorkspacePolicy = selectedProject?.executionWorkspacePolicy ?? null;
-    const selectedReusableExecutionWorkspace = (reusableExecutionWorkspaces ?? []).find(
+    const selectedReusableExecutionWorkspace = deduplicatedReusableWorkspaces.find(
       (workspace) => workspace.id === selectedExecutionWorkspaceId,
     );
     const requestedExecutionWorkspaceMode =
@@ -747,7 +745,19 @@ export function NewIssueDialog() {
   const currentProject = orderedProjects.find((project) => project.id === projectId);
   const currentProjectExecutionWorkspacePolicy = currentProject?.executionWorkspacePolicy ?? null;
   const currentProjectSupportsExecutionWorkspace = Boolean(currentProjectExecutionWorkspacePolicy?.enabled);
-  const selectedReusableExecutionWorkspace = (reusableExecutionWorkspaces ?? []).find(
+  const deduplicatedReusableWorkspaces = useMemo(() => {
+    const workspaces = reusableExecutionWorkspaces ?? [];
+    const seen = new Map<string, typeof workspaces[number]>();
+    for (const ws of workspaces) {
+      const key = ws.cwd ?? ws.id;
+      const existing = seen.get(key);
+      if (!existing || new Date(ws.lastUsedAt) > new Date(existing.lastUsedAt)) {
+        seen.set(key, ws);
+      }
+    }
+    return Array.from(seen.values());
+  }, [reusableExecutionWorkspaces]);
+  const selectedReusableExecutionWorkspace = deduplicatedReusableWorkspaces.find(
     (workspace) => workspace.id === selectedExecutionWorkspaceId,
   );
   const assigneeOptionsTitle =
@@ -1126,7 +1136,7 @@ export function NewIssueDialog() {
                     onChange={(e) => setSelectedExecutionWorkspaceId(e.target.value)}
                   >
                     <option value="">Choose an existing workspace</option>
-                    {(reusableExecutionWorkspaces ?? []).map((workspace) => (
+                    {deduplicatedReusableWorkspaces.map((workspace) => (
                       <option key={workspace.id} value={workspace.id}>
                         {workspace.name} · {workspace.status} · {workspace.branchName ?? workspace.cwd ?? workspace.id.slice(0, 8)}
                       </option>
