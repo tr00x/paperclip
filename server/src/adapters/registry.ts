@@ -1,4 +1,5 @@
 import type { ServerAdapterModule } from "./types.js";
+import { getAdapterSessionManagement } from "@paperclipai/adapter-utils";
 import {
   execute as claudeExecute,
   listClaudeSkills,
@@ -84,6 +85,7 @@ const claudeLocalAdapter: ServerAdapterModule = {
   listSkills: listClaudeSkills,
   syncSkills: syncClaudeSkills,
   sessionCodec: claudeSessionCodec,
+  sessionManagement: getAdapterSessionManagement("claude_local") ?? undefined,
   models: claudeModels,
   supportsLocalAgentJwt: true,
   agentConfigurationDoc: claudeAgentConfigurationDoc,
@@ -97,6 +99,7 @@ const codexLocalAdapter: ServerAdapterModule = {
   listSkills: listCodexSkills,
   syncSkills: syncCodexSkills,
   sessionCodec: codexSessionCodec,
+  sessionManagement: getAdapterSessionManagement("codex_local") ?? undefined,
   models: codexModels,
   listModels: listCodexModels,
   supportsLocalAgentJwt: true,
@@ -111,6 +114,7 @@ const cursorLocalAdapter: ServerAdapterModule = {
   listSkills: listCursorSkills,
   syncSkills: syncCursorSkills,
   sessionCodec: cursorSessionCodec,
+  sessionManagement: getAdapterSessionManagement("cursor") ?? undefined,
   models: cursorModels,
   listModels: listCursorModels,
   supportsLocalAgentJwt: true,
@@ -124,6 +128,7 @@ const geminiLocalAdapter: ServerAdapterModule = {
   listSkills: listGeminiSkills,
   syncSkills: syncGeminiSkills,
   sessionCodec: geminiSessionCodec,
+  sessionManagement: getAdapterSessionManagement("gemini_local") ?? undefined,
   models: geminiModels,
   supportsLocalAgentJwt: true,
   agentConfigurationDoc: geminiAgentConfigurationDoc,
@@ -145,6 +150,7 @@ const openCodeLocalAdapter: ServerAdapterModule = {
   listSkills: listOpenCodeSkills,
   syncSkills: syncOpenCodeSkills,
   sessionCodec: openCodeSessionCodec,
+  sessionManagement: getAdapterSessionManagement("opencode_local") ?? undefined,
   models: [],
   listModels: listOpenCodeModels,
   supportsLocalAgentJwt: true,
@@ -158,6 +164,7 @@ const piLocalAdapter: ServerAdapterModule = {
   listSkills: listPiSkills,
   syncSkills: syncPiSkills,
   sessionCodec: piSessionCodec,
+  sessionManagement: getAdapterSessionManagement("pi_local") ?? undefined,
   models: [],
   listModels: listPiModels,
   supportsLocalAgentJwt: true,
