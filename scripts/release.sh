@@ -122,9 +122,14 @@ TARGET_STABLE_VERSION="$(stable_version_for_date "$RELEASE_DATE")"
 TARGET_PUBLISH_VERSION="$TARGET_STABLE_VERSION"
 DIST_TAG="latest"
 
+PUBLIC_PACKAGE_INFO="$(list_public_package_info)"
+mapfile -t PUBLIC_PACKAGE_NAMES < <(printf '%s\n' "$PUBLIC_PACKAGE_INFO" | cut -f2)
+
+[ -n "$PUBLIC_PACKAGE_INFO" ] || release_fail "no public packages were found in the workspace."
+
 if [ "$channel" = "canary" ]; then
   require_on_master_branch
-  TARGET_PUBLISH_VERSION="$(next_canary_version "$TARGET_STABLE_VERSION")"
+  TARGET_PUBLISH_VERSION="$(next_canary_version "$TARGET_STABLE_VERSION" "${PUBLIC_PACKAGE_NAMES[@]}")"
   DIST_TAG="canary"
   tag_name="$(canary_tag_name "$TARGET_PUBLISH_VERSION")"
 else
@@ -135,11 +140,6 @@ NOTES_FILE="$(release_notes_file "$TARGET_STABLE_VERSION")"
 
 require_clean_worktree
 require_npm_publish_auth "$dry_run"
-
-PUBLIC_PACKAGE_INFO="$(list_public_package_info)"
-PUBLIC_PACKAGE_NAMES="$(printf '%s\n' "$PUBLIC_PACKAGE_INFO" | cut -f2)"
-
-[ -n "$PUBLIC_PACKAGE_INFO" ] || release_fail "no public packages were found in the workspace."
 
 if [ "$channel" = "stable" ] && [ ! -f "$NOTES_FILE" ]; then
   release_fail "stable release notes file is required at $NOTES_FILE before publishing stable."
@@ -158,7 +158,7 @@ while IFS= read -r package_name; do
   if npm_package_version_exists "$package_name" "$TARGET_PUBLISH_VERSION"; then
     release_fail "npm version ${package_name}@${TARGET_PUBLISH_VERSION} already exists."
   fi
-done <<< "$PUBLIC_PACKAGE_NAMES"
+done <<< "$(printf '%s\n' "${PUBLIC_PACKAGE_NAMES[@]}")"
 
 release_info ""
 release_info "==> Release plan"

@@ -133,29 +133,38 @@ NODE
 
 next_canary_version() {
   local stable_version="$1"
-  local versions_json
+  shift
 
-  versions_json="$(npm view paperclipai versions --json 2>/dev/null || echo '[]')"
-
-  node - "$stable_version" "$versions_json" <<'NODE'
+  node - "$stable_version" "$@" <<'NODE'
 const stable = process.argv[2];
-const versionsArg = process.argv[3];
-
-let versions = [];
-try {
-  const parsed = JSON.parse(versionsArg);
-  versions = Array.isArray(parsed) ? parsed : [parsed];
-} catch {
-  versions = [];
-}
+const packageNames = process.argv.slice(3);
+const { execSync } = require("node:child_process");
 
 const pattern = new RegExp(`^${stable.replace(/\./g, '\\.')}-canary\\.(\\d+)$`);
 let max = -1;
 
-for (const version of versions) {
-  const match = version.match(pattern);
-  if (!match) continue;
-  max = Math.max(max, Number(match[1]));
+for (const packageName of packageNames) {
+  let versions = [];
+
+  try {
+    const raw = execSync(`npm view ${JSON.stringify(packageName)} versions --json`, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      versions = Array.isArray(parsed) ? parsed : [parsed];
+    }
+  } catch {
+    versions = [];
+  }
+
+  for (const version of versions) {
+    const match = version.match(pattern);
+    if (!match) continue;
+    max = Math.max(max, Number(match[1]));
+  }
 }
 
 process.stdout.write(`${stable}-canary.${max + 1}`);
