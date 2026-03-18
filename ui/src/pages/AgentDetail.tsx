@@ -897,8 +897,8 @@ export function AgentDetail() {
             items={[
               { value: "dashboard", label: "Dashboard" },
               { value: "instructions", label: "Instructions" },
-              { value: "configuration", label: "Configuration" },
               { value: "skills", label: "Skills" },
+              { value: "configuration", label: "Configuration" },
               { value: "runs", label: "Runs" },
               { value: "budget", label: "Budget" },
             ]}
@@ -1515,6 +1515,7 @@ function PromptsTab({
   } | null>(null);
   const [newFilePath, setNewFilePath] = useState("");
   const [showNewFileInput, setShowNewFileInput] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<string[]>([]);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [filePanelWidth, setFilePanelWidth] = useState(260);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1559,9 +1560,9 @@ function PromptsTab({
   );
   const visibleFilePaths = useMemo(
     () => bundleMatchesDraft
-      ? [...new Set([currentEntryFile, ...fileOptions])]
-      : [currentEntryFile],
-    [bundleMatchesDraft, currentEntryFile, fileOptions],
+      ? [...new Set([currentEntryFile, ...fileOptions, ...pendingFiles])]
+      : [currentEntryFile, ...pendingFiles],
+    [bundleMatchesDraft, currentEntryFile, fileOptions, pendingFiles],
   );
   const fileTree = useMemo(
     () => buildFileTree(Object.fromEntries(visibleFilePaths.map((filePath) => [filePath, ""]))),
@@ -1598,6 +1599,7 @@ function PromptsTab({
       agentsApi.saveInstructionsFile(agent.id, data, companyId),
     onMutate: () => setAwaitingRefresh(true),
     onSuccess: (_, variables) => {
+      setPendingFiles((prev) => prev.filter((f) => f !== variables.path));
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.instructionsBundle(agent.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.instructionsFile(agent.id, variables.path) });
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agent.id) });
@@ -1636,10 +1638,10 @@ function PromptsTab({
       if (selectedFile !== bundle.entryFile) setSelectedFile(bundle.entryFile);
       return;
     }
-    if (!availablePaths.includes(selectedFile) && selectedFile !== currentEntryFile) {
+    if (!availablePaths.includes(selectedFile) && selectedFile !== currentEntryFile && !pendingFiles.includes(selectedFile)) {
       setSelectedFile(availablePaths.includes(bundle.entryFile) ? bundle.entryFile : availablePaths[0]!);
     }
-  }, [bundle, bundleMatchesDraft, currentEntryFile, selectedFile]);
+  }, [bundle, bundleMatchesDraft, currentEntryFile, pendingFiles, selectedFile]);
 
   useEffect(() => {
     const nextExpanded = new Set<string>();
@@ -1998,6 +2000,7 @@ function PromptsTab({
                   onClick={() => {
                     const candidate = newFilePath.trim();
                     if (!candidate || candidate.includes("..")) return;
+                    setPendingFiles((prev) => prev.includes(candidate) ? prev : [...prev, candidate]);
                     setSelectedFile(candidate);
                     setDraft("");
                     setNewFilePath("");
