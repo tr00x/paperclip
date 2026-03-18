@@ -31,6 +31,7 @@ export interface AgentInstructionsBundle {
   companyId: string;
   mode: AgentInstructionsBundleMode | null;
   rootPath: string | null;
+  managedRootPath: string;
   entryFile: string;
   resolvedEntryPath: string | null;
   editable: boolean;

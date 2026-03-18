@@ -103,6 +103,7 @@ describe("agent instructions bundle routes", () => {
       companyId: "company-1",
       mode: "managed",
       rootPath: "/tmp/agent-1",
+      managedRootPath: "/tmp/agent-1",
       entryFile: "AGENTS.md",
       resolvedEntryPath: "/tmp/agent-1/AGENTS.md",
       editable: true,
@@ -161,6 +162,7 @@ describe("agent instructions bundle routes", () => {
     expect(res.body).toMatchObject({
       mode: "managed",
       rootPath: "/tmp/agent-1",
+      managedRootPath: "/tmp/agent-1",
       entryFile: "AGENTS.md",
     });
     expect(mockAgentInstructionsService.getBundle).toHaveBeenCalled();

@@ -42,6 +42,7 @@ type AgentInstructionsBundle = {
   companyId: string;
   mode: BundleMode | null;
   rootPath: string | null;
+  managedRootPath: string;
   entryFile: string;
   resolvedEntryPath: string | null;
   editable: boolean;
@@ -266,6 +267,7 @@ function toBundle(agent: AgentLike, state: BundleState, files: AgentInstructions
     companyId: agent.companyId,
     mode: state.mode,
     rootPath: state.rootPath,
+    managedRootPath: resolveManagedInstructionsRoot(agent),
     entryFile: state.entryFile,
     resolvedEntryPath: state.resolvedEntryPath,
     editable: Boolean(state.rootPath),
@@ -297,6 +299,21 @@ function applyBundleConfig(
     delete next[BOOTSTRAP_PROMPT_KEY];
   }
   return next;
+}
+
+async function writeBundleFiles(
+  rootPath: string,
+  files: Record<string, string>,
+  options?: { overwriteExisting?: boolean },
+) {
+  for (const [relativePath, content] of Object.entries(files)) {
+    const normalizedPath = normalizeRelativeFilePath(relativePath);
+    const absolutePath = resolvePathWithinRoot(rootPath, normalizedPath);
+    const existingStat = await statIfExists(absolutePath);
+    if (existingStat?.isFile() && !options?.overwriteExisting) continue;
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+    await fs.writeFile(absolutePath, content, "utf8");
+  }
 }
 
 export function syncInstructionsBundleConfigFromFilePath(
@@ -439,6 +456,17 @@ export function agentInstructionsService() {
     }
 
     await fs.mkdir(nextRootPath, { recursive: true });
+
+    const existingFiles = await listFilesRecursive(nextRootPath);
+    const exported = await exportFiles(agent);
+    if (existingFiles.length === 0) {
+      await writeBundleFiles(nextRootPath, exported.files);
+    }
+    const refreshedFiles = existingFiles.length === 0 ? await listFilesRecursive(nextRootPath) : existingFiles;
+    if (!refreshedFiles.includes(nextEntryFile)) {
+      const nextEntryContent = exported.files[nextEntryFile] ?? exported.files[exported.entryFile] ?? "";
+      await writeBundleFiles(nextRootPath, { [nextEntryFile]: nextEntryContent });
+    }
 
     const nextConfig = applyBundleConfig(state.config, {
       mode: nextMode,

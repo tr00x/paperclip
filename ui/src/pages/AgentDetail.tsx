@@ -1513,6 +1513,11 @@ function PromptsTab({
   const containerRef = useRef<HTMLDivElement>(null);
   const [awaitingRefresh, setAwaitingRefresh] = useState(false);
   const lastFileVersionRef = useRef<string | null>(null);
+  const externalBundleRef = useRef<{
+    rootPath: string;
+    entryFile: string;
+    selectedFile: string;
+  } | null>(null);
 
   const isLocal =
     agent.adapterType === "claude_local" ||
@@ -1528,23 +1533,35 @@ function PromptsTab({
     enabled: Boolean(companyId && isLocal),
   });
 
-  const currentMode = bundleDraft?.mode ?? bundle?.mode ?? "managed";
+  const persistedMode = bundle?.mode ?? "managed";
+  const persistedRootPath = persistedMode === "managed"
+    ? (bundle?.managedRootPath ?? bundle?.rootPath ?? "")
+    : (bundle?.rootPath ?? "");
+  const currentMode = bundleDraft?.mode ?? persistedMode;
   const currentEntryFile = bundleDraft?.entryFile ?? bundle?.entryFile ?? "AGENTS.md";
-  const currentRootPath = bundleDraft?.rootPath ?? bundle?.rootPath ?? "";
+  const currentRootPath = bundleDraft?.rootPath ?? persistedRootPath;
   const fileOptions = useMemo(
     () => bundle?.files.map((file) => file.path) ?? [],
     [bundle],
   );
+  const bundleMatchesDraft = Boolean(
+    bundle &&
+    currentMode === persistedMode &&
+    currentEntryFile === bundle.entryFile &&
+    currentRootPath === persistedRootPath,
+  );
   const visibleFilePaths = useMemo(
-    () => [...new Set([currentEntryFile, ...fileOptions])],
-    [currentEntryFile, fileOptions],
+    () => bundleMatchesDraft
+      ? [...new Set([currentEntryFile, ...fileOptions])]
+      : [currentEntryFile],
+    [bundleMatchesDraft, currentEntryFile, fileOptions],
   );
   const fileTree = useMemo(
     () => buildFileTree(Object.fromEntries(visibleFilePaths.map((filePath) => [filePath, ""]))),
     [visibleFilePaths],
   );
   const selectedOrEntryFile = selectedFile || currentEntryFile;
-  const selectedFileExists = fileOptions.includes(selectedOrEntryFile);
+  const selectedFileExists = bundleMatchesDraft && fileOptions.includes(selectedOrEntryFile);
   const selectedFileSummary = bundle?.files.find((file) => file.path === selectedOrEntryFile) ?? null;
 
   const { data: selectedFileDetail, isLoading: fileLoading } = useQuery({
@@ -1603,6 +1620,10 @@ function PromptsTab({
 
   useEffect(() => {
     if (!bundle) return;
+    if (!bundleMatchesDraft) {
+      if (selectedFile !== currentEntryFile) setSelectedFile(currentEntryFile);
+      return;
+    }
     const availablePaths = bundle.files.map((file) => file.path);
     if (availablePaths.length === 0) {
       if (selectedFile !== bundle.entryFile) setSelectedFile(bundle.entryFile);
@@ -1611,7 +1632,7 @@ function PromptsTab({
     if (!availablePaths.includes(selectedFile)) {
       setSelectedFile(availablePaths.includes(bundle.entryFile) ? bundle.entryFile : availablePaths[0]!);
     }
-  }, [bundle, selectedFile]);
+  }, [bundle, bundleMatchesDraft, currentEntryFile, selectedFile]);
 
   useEffect(() => {
     const nextExpanded = new Set<string>();
@@ -1627,7 +1648,9 @@ function PromptsTab({
   }, [visibleFilePaths]);
 
   useEffect(() => {
-    const versionKey = selectedFileDetail ? `${selectedFileDetail.path}:${selectedFileDetail.content}` : `draft:${selectedOrEntryFile}`;
+    const versionKey = selectedFileExists && selectedFileDetail
+      ? `${selectedFileDetail.path}:${selectedFileDetail.content}`
+      : `draft:${currentMode}:${currentRootPath}:${selectedOrEntryFile}`;
     if (awaitingRefresh) {
       setAwaitingRefresh(false);
       setBundleDraft(null);
@@ -1639,27 +1662,36 @@ function PromptsTab({
       setDraft(null);
       lastFileVersionRef.current = versionKey;
     }
-  }, [awaitingRefresh, selectedFileDetail, selectedOrEntryFile]);
+  }, [awaitingRefresh, currentMode, currentRootPath, selectedFileDetail, selectedFileExists, selectedOrEntryFile]);
 
   useEffect(() => {
     if (!bundle) return;
     setBundleDraft((current) => {
       if (current) return current;
       return {
-        mode: bundle.mode ?? "managed",
-        rootPath: bundle.rootPath ?? "",
+        mode: persistedMode,
+        rootPath: persistedRootPath,
         entryFile: bundle.entryFile,
       };
     });
-  }, [bundle]);
+  }, [bundle, persistedMode, persistedRootPath]);
+
+  useEffect(() => {
+    if (!bundle || currentMode !== "external") return;
+    externalBundleRef.current = {
+      rootPath: currentRootPath,
+      entryFile: currentEntryFile,
+      selectedFile: selectedOrEntryFile,
+    };
+  }, [bundle, currentEntryFile, currentMode, currentRootPath, selectedOrEntryFile]);
 
   const currentContent = selectedFileExists ? (selectedFileDetail?.content ?? "") : "";
   const displayValue = draft ?? currentContent;
   const bundleDirty = Boolean(
     bundleDraft &&
       (
-        bundleDraft.mode !== (bundle?.mode ?? "managed") ||
-        bundleDraft.rootPath !== (bundle?.rootPath ?? "") ||
+        bundleDraft.mode !== persistedMode ||
+        bundleDraft.rootPath !== persistedRootPath ||
         bundleDraft.entryFile !== (bundle?.entryFile ?? "AGENTS.md")
       ),
   );
@@ -1710,13 +1742,13 @@ function PromptsTab({
       setDraft(null);
       if (bundle) {
         setBundleDraft({
-          mode: bundle.mode ?? "managed",
-          rootPath: bundle.rootPath ?? "",
+          mode: persistedMode,
+          rootPath: persistedRootPath,
           entryFile: bundle.entryFile,
         });
       }
     } : null);
-  }, [bundle, isDirty, onCancelActionChange]);
+  }, [bundle, isDirty, onCancelActionChange, persistedMode, persistedRootPath]);
 
   const handleSeparatorDrag = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
@@ -1754,7 +1786,7 @@ function PromptsTab({
   }
 
   return (
-    <div className="max-w-6xl space-y-4">
+    <div className="max-w-6xl space-y-6">
       {(bundle?.warnings ?? []).length > 0 && (
         <div className="space-y-2">
           {(bundle?.warnings ?? []).map((warning) => (
@@ -1907,7 +1939,7 @@ function PromptsTab({
           <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
           Advanced
         </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3 space-y-3">
+        <CollapsibleContent className="pt-4 pb-4 space-y-4">
           <TooltipProvider>
             <label className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
@@ -1926,11 +1958,22 @@ function PromptsTab({
                   type="button"
                   size="sm"
                   variant={currentMode === "managed" ? "default" : "outline"}
-                  onClick={() => setBundleDraft((current) => ({
-                    mode: "managed",
-                    rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
-                    entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
-                  }))}
+                  onClick={() => {
+                    if (currentMode === "external") {
+                      externalBundleRef.current = {
+                        rootPath: currentRootPath,
+                        entryFile: currentEntryFile,
+                        selectedFile: selectedOrEntryFile,
+                      };
+                    }
+                    const nextEntryFile = currentEntryFile || "AGENTS.md";
+                    setBundleDraft({
+                      mode: "managed",
+                      rootPath: bundle?.managedRootPath ?? currentRootPath,
+                      entryFile: nextEntryFile,
+                    });
+                    setSelectedFile(nextEntryFile);
+                  }}
                 >
                   Managed
                 </Button>
@@ -1938,17 +1981,22 @@ function PromptsTab({
                   type="button"
                   size="sm"
                   variant={currentMode === "external" ? "default" : "outline"}
-                  onClick={() => setBundleDraft((current) => ({
-                    mode: "external",
-                    rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
-                    entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
-                  }))}
+                  onClick={() => {
+                    const externalBundle = externalBundleRef.current;
+                    const nextEntryFile = externalBundle?.entryFile ?? currentEntryFile ?? "AGENTS.md";
+                    setBundleDraft({
+                      mode: "external",
+                      rootPath: externalBundle?.rootPath ?? (bundle?.mode === "external" ? (bundle.rootPath ?? "") : ""),
+                      entryFile: nextEntryFile,
+                    });
+                    setSelectedFile(externalBundle?.selectedFile ?? nextEntryFile);
+                  }}
                 >
                   External
                 </Button>
               </div>
             </label>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-1">
                 <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                   Root path
@@ -1963,7 +2011,7 @@ function PromptsTab({
                 </span>
                 {currentMode === "managed" ? (
                   <div className="flex items-center gap-1.5 font-mono text-sm text-muted-foreground">
-                    <span className="truncate">{currentRootPath || "(managed)"}</span>
+                    <span className="min-w-0 break-all">{currentRootPath || "(managed)"}</span>
                     {currentRootPath && (
                       <CopyText text={currentRootPath} className="shrink-0">
                         <Copy className="h-3.5 w-3.5" />
@@ -1974,11 +2022,19 @@ function PromptsTab({
                   <div className="flex items-center gap-1.5">
                     <Input
                       value={currentRootPath}
-                      onChange={(event) => setBundleDraft((current) => ({
-                        mode: current?.mode ?? bundle?.mode ?? "managed",
-                        rootPath: event.target.value,
-                        entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
-                      }))}
+                      onChange={(event) => {
+                        const nextRootPath = event.target.value;
+                        externalBundleRef.current = {
+                          rootPath: nextRootPath,
+                          entryFile: currentEntryFile,
+                          selectedFile: selectedOrEntryFile,
+                        };
+                        setBundleDraft({
+                          mode: "external",
+                          rootPath: nextRootPath,
+                          entryFile: currentEntryFile,
+                        });
+                      }}
                       className="font-mono text-sm"
                       placeholder="/absolute/path/to/agent/prompts"
                     />
@@ -2006,14 +2062,22 @@ function PromptsTab({
                   value={currentEntryFile}
                   onChange={(event) => {
                     const nextEntryFile = event.target.value || "AGENTS.md";
-                    if (selectedOrEntryFile === currentEntryFile) {
-                      setSelectedFile(nextEntryFile);
+                    const nextSelectedFile = selectedOrEntryFile === currentEntryFile
+                      ? nextEntryFile
+                      : selectedOrEntryFile;
+                    if (currentMode === "external") {
+                      externalBundleRef.current = {
+                        rootPath: currentRootPath,
+                        entryFile: nextEntryFile,
+                        selectedFile: nextSelectedFile,
+                      };
                     }
-                    setBundleDraft((current) => ({
-                      mode: current?.mode ?? bundle?.mode ?? "managed",
-                      rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
+                    if (selectedOrEntryFile === currentEntryFile) setSelectedFile(nextEntryFile);
+                    setBundleDraft({
+                      mode: currentMode,
+                      rootPath: currentRootPath,
                       entryFile: nextEntryFile,
-                    }));
+                    });
                   }}
                   className="font-mono text-sm"
                 />
