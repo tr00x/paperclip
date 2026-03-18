@@ -20,20 +20,25 @@ function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-function resolveCodexSkillsHome(config: Record<string, unknown>) {
+function resolveCodexSkillsHome(config: Record<string, unknown>, companyId?: string) {
   const env =
     typeof config.env === "object" && config.env !== null && !Array.isArray(config.env)
       ? (config.env as Record<string, unknown>)
       : {};
   const configuredCodexHome = asString(env.CODEX_HOME);
-  const home = configuredCodexHome ? path.resolve(configuredCodexHome) : resolveCodexHomeDir(process.env);
+  const home = configuredCodexHome
+    ? path.resolve(configuredCodexHome)
+    : resolveCodexHomeDir(process.env, companyId);
   return path.join(home, "skills");
 }
 
-async function buildCodexSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
+async function buildCodexSkillSnapshot(
+  config: Record<string, unknown>,
+  companyId?: string,
+): Promise<AdapterSkillSnapshot> {
   const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
   const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
-  const skillsHome = resolveCodexSkillsHome(config);
+  const skillsHome = resolveCodexSkillsHome(config, companyId);
   const installed = await readInstalledSkillTargets(skillsHome);
   return buildPersistentSkillSnapshot({
     adapterType: "codex_local",
@@ -49,7 +54,7 @@ async function buildCodexSkillSnapshot(config: Record<string, unknown>): Promise
 }
 
 export async function listCodexSkills(ctx: AdapterSkillContext): Promise<AdapterSkillSnapshot> {
-  return buildCodexSkillSnapshot(ctx.config);
+  return buildCodexSkillSnapshot(ctx.config, ctx.companyId);
 }
 
 export async function syncCodexSkills(
@@ -61,7 +66,7 @@ export async function syncCodexSkills(
     ...desiredSkills,
     ...availableEntries.filter((entry) => entry.required).map((entry) => entry.key),
   ]);
-  const skillsHome = resolveCodexSkillsHome(ctx.config);
+  const skillsHome = resolveCodexSkillsHome(ctx.config, ctx.companyId);
   await fs.mkdir(skillsHome, { recursive: true });
   const installed = await readInstalledSkillTargets(skillsHome);
   const availableByRuntimeName = new Map(availableEntries.map((entry) => [entry.runtimeName, entry]));
@@ -80,7 +85,7 @@ export async function syncCodexSkills(
     await fs.unlink(path.join(skillsHome, name)).catch(() => {});
   }
 
-  return buildCodexSkillSnapshot(ctx.config);
+  return buildCodexSkillSnapshot(ctx.config, ctx.companyId);
 }
 
 export function resolveCodexDesiredSkillNames(

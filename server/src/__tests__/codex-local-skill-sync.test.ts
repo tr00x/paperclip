@@ -56,6 +56,54 @@ describe("codex local skill sync", () => {
     expect((await fs.lstat(path.join(codexHome, "skills", "paperclip"))).isSymbolicLink()).toBe(true);
   });
 
+  it("isolates default Codex skills by company when CODEX_HOME comes from process env", async () => {
+    const sharedCodexHome = await makeTempDir("paperclip-codex-skill-scope-");
+    cleanupDirs.add(sharedCodexHome);
+    const previousCodexHome = process.env.CODEX_HOME;
+    process.env.CODEX_HOME = sharedCodexHome;
+
+    try {
+      const companyAContext = {
+        agentId: "agent-a",
+        companyId: "company-a",
+        adapterType: "codex_local",
+        config: {
+          env: {},
+          paperclipSkillSync: {
+            desiredSkills: [paperclipKey],
+          },
+        },
+      } as const;
+
+      const companyBContext = {
+        agentId: "agent-b",
+        companyId: "company-b",
+        adapterType: "codex_local",
+        config: {
+          env: {},
+          paperclipSkillSync: {
+            desiredSkills: [paperclipKey],
+          },
+        },
+      } as const;
+
+      await syncCodexSkills(companyAContext, [paperclipKey]);
+      await syncCodexSkills(companyBContext, [paperclipKey]);
+
+      expect((await fs.lstat(path.join(sharedCodexHome, "companies", "company-a", "skills", "paperclip"))).isSymbolicLink()).toBe(true);
+      expect((await fs.lstat(path.join(sharedCodexHome, "companies", "company-b", "skills", "paperclip"))).isSymbolicLink()).toBe(true);
+      await expect(fs.lstat(path.join(sharedCodexHome, "skills", "paperclip"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+    } finally {
+      if (previousCodexHome === undefined) {
+        delete process.env.CODEX_HOME;
+      } else {
+        process.env.CODEX_HOME = previousCodexHome;
+      }
+    }
+  });
+
   it("keeps required bundled Paperclip skills installed even when the desired set is emptied", async () => {
     const codexHome = await makeTempDir("paperclip-codex-skill-prune-");
     cleanupDirs.add(codexHome);

@@ -276,24 +276,21 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const desiredSkillNames = resolveCodexDesiredSkillNames(config, codexSkillEntries);
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
   const preparedWorktreeCodexHome =
-    configuredCodexHome ? null : await prepareWorktreeCodexHome(process.env, onLog);
-  const effectiveCodexHome = configuredCodexHome ?? preparedWorktreeCodexHome;
+    configuredCodexHome ? null : await prepareWorktreeCodexHome(process.env, onLog, agent.companyId);
+  const defaultCodexHome = resolveCodexHomeDir(process.env, agent.companyId);
+  const effectiveCodexHome = configuredCodexHome ?? preparedWorktreeCodexHome ?? defaultCodexHome;
   await ensureCodexSkillsInjected(
     onLog,
-    effectiveCodexHome
-        ? {
-          skillsHome: path.join(effectiveCodexHome, "skills"),
-          skillsEntries: codexSkillEntries,
-          desiredSkillNames,
-        }
-      : { skillsEntries: codexSkillEntries, desiredSkillNames },
+    {
+      skillsHome: path.join(effectiveCodexHome, "skills"),
+      skillsEntries: codexSkillEntries,
+      desiredSkillNames,
+    },
   );
   const hasExplicitApiKey =
     typeof envConfig.PAPERCLIP_API_KEY === "string" && envConfig.PAPERCLIP_API_KEY.trim().length > 0;
   const env: Record<string, string> = { ...buildPaperclipEnv(agent) };
-  if (effectiveCodexHome) {
-    env.CODEX_HOME = effectiveCodexHome;
-  }
+  env.CODEX_HOME = effectiveCodexHome;
   env.PAPERCLIP_RUN_ID = runId;
   const wakeTaskId =
     (typeof context.taskId === "string" && context.taskId.trim().length > 0 && context.taskId.trim()) ||

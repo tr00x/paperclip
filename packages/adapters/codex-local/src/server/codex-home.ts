@@ -15,25 +15,35 @@ export async function pathExists(candidate: string): Promise<boolean> {
   return fs.access(candidate).then(() => true).catch(() => false);
 }
 
-export function resolveCodexHomeDir(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveCodexHomeDir(
+  env: NodeJS.ProcessEnv = process.env,
+  companyId?: string,
+): string {
   const fromEnv = nonEmpty(env.CODEX_HOME);
-  if (fromEnv) return path.resolve(fromEnv);
-  return path.join(os.homedir(), ".codex");
+  const baseHome = fromEnv ? path.resolve(fromEnv) : path.join(os.homedir(), ".codex");
+  return companyId ? path.join(baseHome, "companies", companyId) : baseHome;
 }
 
 function isWorktreeMode(env: NodeJS.ProcessEnv): boolean {
   return TRUTHY_ENV_RE.test(env.PAPERCLIP_IN_WORKTREE ?? "");
 }
 
-function resolveWorktreeCodexHomeDir(env: NodeJS.ProcessEnv): string | null {
+function resolveWorktreeCodexHomeDir(
+  env: NodeJS.ProcessEnv,
+  companyId?: string,
+): string | null {
   if (!isWorktreeMode(env)) return null;
   const paperclipHome = nonEmpty(env.PAPERCLIP_HOME);
   if (!paperclipHome) return null;
   const instanceId = nonEmpty(env.PAPERCLIP_INSTANCE_ID);
   if (instanceId) {
-    return path.resolve(paperclipHome, "instances", instanceId, "codex-home");
+    return companyId
+      ? path.resolve(paperclipHome, "instances", instanceId, "companies", companyId, "codex-home")
+      : path.resolve(paperclipHome, "instances", instanceId, "codex-home");
   }
-  return path.resolve(paperclipHome, "codex-home");
+  return companyId
+    ? path.resolve(paperclipHome, "companies", companyId, "codex-home")
+    : path.resolve(paperclipHome, "codex-home");
 }
 
 async function ensureParentDir(target: string): Promise<void> {
@@ -72,8 +82,9 @@ async function ensureCopiedFile(target: string, source: string): Promise<void> {
 export async function prepareWorktreeCodexHome(
   env: NodeJS.ProcessEnv,
   onLog: AdapterExecutionContext["onLog"],
+  companyId?: string,
 ): Promise<string | null> {
-  const targetHome = resolveWorktreeCodexHomeDir(env);
+  const targetHome = resolveWorktreeCodexHomeDir(env, companyId);
   if (!targetHome) return null;
 
   const sourceHome = resolveCodexHomeDir(env);

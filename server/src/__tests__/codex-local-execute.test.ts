@@ -48,7 +48,14 @@ describe("codex execute", () => {
     const capturePath = path.join(root, "capture.json");
     const sharedCodexHome = path.join(root, "shared-codex-home");
     const paperclipHome = path.join(root, "paperclip-home");
-    const isolatedCodexHome = path.join(paperclipHome, "instances", "worktree-1", "codex-home");
+    const isolatedCodexHome = path.join(
+      paperclipHome,
+      "instances",
+      "worktree-1",
+      "companies",
+      "company-1",
+      "codex-home",
+    );
     await fs.mkdir(workspace, { recursive: true });
     await fs.mkdir(sharedCodexHome, { recursive: true });
     await fs.writeFile(path.join(sharedCodexHome, "auth.json"), '{"token":"shared"}\n', "utf8");
