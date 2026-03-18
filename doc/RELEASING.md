@@ -6,26 +6,29 @@ The release model is now commit-driven:
 
 1. Every push to `master` publishes a canary automatically.
 2. Stable releases are manually promoted from a chosen tested commit or canary tag.
-3. Stable release notes live in `releases/vYYYY.M.D.md`.
+3. Stable release notes live in `releases/vYYYY.MDD.P.md`.
 4. Only stable releases get GitHub Releases.
 
 ## Versioning Model
 
 Paperclip uses calendar versions that still fit semver syntax:
 
-- stable: `YYYY.M.D`
-- canary: `YYYY.M.D-canary.N`
+- stable: `YYYY.MDD.P`
+- canary: `YYYY.MDD.P-canary.N`
 
 Examples:
 
-- stable on March 17, 2026: `2026.3.17`
-- fourth canary on March 17, 2026: `2026.3.17-canary.3`
+- first stable on March 18, 2026: `2026.318.0`
+- second stable on March 18, 2026: `2026.318.1`
+- fourth canary for the `2026.318.1` line: `2026.318.1-canary.3`
 
 Important constraints:
 
-- do not use leading zeroes such as `2026.03.17`
-- do not use four numeric segments such as `2026.03.17.1`
-- the semver-safe canary form is `2026.3.17-canary.1`
+- the middle numeric slot is `MDD`, where `M` is the UTC month and `DD` is the zero-padded UTC day
+- use `2026.303.0` for March 3, not `2026.33.0`
+- do not use leading zeroes such as `2026.0318.0`
+- do not use four numeric segments such as `2026.3.18.1`
+- the semver-safe canary form is `2026.318.0-canary.1`
 
 ## Release Surfaces
 
@@ -45,7 +48,7 @@ Canaries only cover the first two surfaces plus an internal traceability tag.
 - canaries publish from `master`
 - stables publish from an explicitly chosen source ref
 - tags point at the original source commit, not a generated release commit
-- stable notes are always `releases/vYYYY.M.D.md`
+- stable notes are always `releases/vYYYY.MDD.P.md`
 - canaries never create GitHub Releases
 - canaries never require changelog generation
 
@@ -60,7 +63,7 @@ It:
 - verifies the pushed commit
 - computes the canary version for the current UTC date
 - publishes under npm dist-tag `canary`
-- creates a git tag `canary/vYYYY.M.D-canary.N`
+- creates a git tag `canary/vYYYY.MDD.P-canary.N`
 
 Users install canaries with:
 
@@ -84,15 +87,17 @@ Inputs:
 Before running stable:
 
 1. pick the canary commit or tag you trust
-2. create or update `releases/vYYYY.M.D.md` on that source ref
-3. run the stable workflow from that source ref
+2. resolve the target stable version with `./scripts/release.sh stable --date YYYY-MM-DD --print-version`
+3. create or update `releases/vYYYY.MDD.P.md` on that source ref
+4. run the stable workflow from that source ref
 
 The workflow:
 
 - re-verifies the exact source ref
-- publishes `YYYY.M.D` under npm dist-tag `latest`
-- creates git tag `vYYYY.M.D`
-- creates or updates the GitHub Release from `releases/vYYYY.M.D.md`
+- computes the next stable patch slot for the chosen UTC date
+- publishes `YYYY.MDD.P` under npm dist-tag `latest`
+- creates git tag `vYYYY.MDD.P`
+- creates or updates the GitHub Release from `releases/vYYYY.MDD.P.md`
 
 ## Local Commands
 
@@ -114,22 +119,22 @@ This is mainly for emergency/manual use. The normal path is the GitHub workflow.
 
 ```bash
 ./scripts/release.sh stable
-git push public-gh refs/tags/vYYYY.M.D
-./scripts/create-github-release.sh YYYY.M.D
+git push public-gh refs/tags/vYYYY.MDD.P
+./scripts/create-github-release.sh YYYY.MDD.P
 ```
 
 ## Stable Changelog Workflow
 
 Stable changelog files live at:
 
-- `releases/vYYYY.M.D.md`
+- `releases/vYYYY.MDD.P.md`
 
 Canaries do not get changelog files.
 
 Recommended local generation flow:
 
 ```bash
-VERSION=2026.3.17
+VERSION="$(./scripts/release.sh stable --date 2026-03-18 --print-version)"
 claude --print --output-format stream-json --verbose --dangerously-skip-permissions --model claude-opus-4-6 "Use the release-changelog skill to draft or update releases/v${VERSION}.md for Paperclip. Read doc/RELEASING.md and .agents/skills/release-changelog/SKILL.md, then generate the stable changelog for v${VERSION} from commits since the last stable tag. Do not create a canary changelog."
 ```
 
@@ -175,11 +180,11 @@ Rollback does not unpublish versions.
 It only moves the `latest` dist-tag back to a previous stable:
 
 ```bash
-./scripts/rollback-latest.sh 2026.3.16 --dry-run
-./scripts/rollback-latest.sh 2026.3.16
+./scripts/rollback-latest.sh 2026.318.0 --dry-run
+./scripts/rollback-latest.sh 2026.318.0
 ```
 
-Then fix forward with a new stable release date.
+Then fix forward with a new stable patch slot or release date.
 
 ## Failure Playbooks
 
@@ -201,8 +206,8 @@ This is a partial release. npm is already live.
 Do this immediately:
 
 1. push the missing tag
-2. rerun `./scripts/create-github-release.sh YYYY.M.D`
-3. verify the GitHub Release notes point at `releases/vYYYY.M.D.md`
+2. rerun `./scripts/create-github-release.sh YYYY.MDD.P`
+3. verify the GitHub Release notes point at `releases/vYYYY.MDD.P.md`
 
 Do not republish the same version.
 
@@ -211,7 +216,7 @@ Do not republish the same version.
 Roll back the dist-tag:
 
 ```bash
-./scripts/rollback-latest.sh YYYY.M.D
+./scripts/rollback-latest.sh YYYY.MDD.P
 ```
 
 Then fix forward with a new stable release.

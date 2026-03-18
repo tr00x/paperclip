@@ -12,7 +12,7 @@ on:
         type: string
         default: master
       stable_date:
-        description: Stable release date in UTC (YYYY-MM-DD). Defaults to today.
+        description: Stable release date in UTC (YYYY-MM-DD). First stable that day is .0, then .1, and so on.
         required: false
         type: string
       dry_run:

@@ -14,8 +14,8 @@ Usage:
   ./scripts/create-github-release.sh <version> [--dry-run]
 
 Examples:
-  ./scripts/create-github-release.sh 2026.3.17
-  ./scripts/create-github-release.sh 2026.3.17 --dry-run
+  ./scripts/create-github-release.sh 2026.318.0
+  ./scripts/create-github-release.sh 2026.318.0 --dry-run
 
 Notes:
   - Run this after pushing the stable tag.
@@ -48,7 +48,7 @@ if [ -z "$version" ]; then
 fi
 
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Error: version must be a stable calendar version like 2026.3.17." >&2
+  echo "Error: version must be a stable calendar version like 2026.318.0." >&2
   exit 1
 fi
 
