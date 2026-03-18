@@ -1514,6 +1514,7 @@ function PromptsTab({
     entryFile: string;
   } | null>(null);
   const [newFilePath, setNewFilePath] = useState("");
+  const [showNewFileInput, setShowNewFileInput] = useState(false);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [filePanelWidth, setFilePanelWidth] = useState(260);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1960,30 +1961,66 @@ function PromptsTab({
         <div className="border border-border rounded-lg p-3 space-y-3 shrink-0" style={{ width: filePanelWidth }}>
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-medium">Files</h4>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const candidate = newFilePath.trim();
-                if (!candidate) return;
-                setSelectedFile(candidate);
-                setDraft("");
-                setNewFilePath("");
-              }}
-              disabled={!newFilePath.trim()}
-            >
-              Add
-            </Button>
+            {!showNewFileInput && (
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-7 w-7"
+                onClick={() => setShowNewFileInput(true)}
+              >
+                +
+              </Button>
+            )}
           </div>
-          <div className="flex gap-2">
-            <Input
-              value={newFilePath}
-              onChange={(event) => setNewFilePath(event.target.value)}
-              placeholder="docs/TOOLS.md"
-              className="font-mono text-sm"
-            />
-          </div>
+          {showNewFileInput && (
+            <div className="space-y-2">
+              <Input
+                value={newFilePath}
+                onChange={(event) => setNewFilePath(event.target.value)}
+                placeholder="TOOLS.md"
+                className="font-mono text-sm"
+                autoFocus
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setShowNewFileInput(false);
+                    setNewFilePath("");
+                  }
+                }}
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="default"
+                  className="flex-1"
+                  disabled={!newFilePath.trim() || newFilePath.includes("..")}
+                  onClick={() => {
+                    const candidate = newFilePath.trim();
+                    if (!candidate || candidate.includes("..")) return;
+                    setSelectedFile(candidate);
+                    setDraft("");
+                    setNewFilePath("");
+                    setShowNewFileInput(false);
+                  }}
+                >
+                  Create
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowNewFileInput(false);
+                    setNewFilePath("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
           <PackageFileTree
             nodes={fileTree}
             selectedFile={selectedOrEntryFile}

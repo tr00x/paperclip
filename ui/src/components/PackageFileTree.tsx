@@ -286,6 +286,7 @@ export function PackageFileTree({
             style={{
               paddingInlineStart: `${TREE_BASE_INDENT + depth * TREE_STEP_INDENT - 8}px`,
             }}
+            onClick={() => onSelectFile(node.path)}
           >
             {showCheckboxes && (
               <label className="flex items-center pl-2">
