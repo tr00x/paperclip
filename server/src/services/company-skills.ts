@@ -1233,6 +1233,7 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
   editableReason: string | null;
   sourceLabel: string | null;
   sourceBadge: CompanySkillSourceBadge;
+  sourcePath: string | null;
 } {
   const metadata = getSkillMeta(skill);
   const localSkillDir = normalizeSkillDirectory(skill);
@@ -1242,6 +1243,7 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
       editableReason: "Bundled Paperclip skills are read-only.",
       sourceLabel: "Paperclip bundled",
       sourceBadge: "paperclip",
+      sourcePath: null,
     };
   }
 
@@ -1253,6 +1255,7 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
       editableReason: "Remote GitHub skills are read-only. Fork or import locally to edit them.",
       sourceLabel: owner && repo ? `${owner}/${repo}` : skill.sourceLocator,
       sourceBadge: "github",
+      sourcePath: null,
     };
   }
 
@@ -1262,6 +1265,7 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
       editableReason: "URL-based skills are read-only. Save them locally to edit them.",
       sourceLabel: skill.sourceLocator,
       sourceBadge: "url",
+      sourcePath: null,
     };
   }
 
@@ -1276,6 +1280,7 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
         editableReason: null,
         sourceLabel: "Paperclip workspace",
         sourceBadge: "paperclip",
+        sourcePath: managedRoot,
       };
     }
 
@@ -1287,6 +1292,7 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
           || skill.sourceLocator
         : skill.sourceLocator,
       sourceBadge: "local",
+      sourcePath: null,
     };
   }
 
@@ -1295,6 +1301,7 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
     editableReason: "This skill source is read-only.",
     sourceLabel: skill.sourceLocator,
     sourceBadge: "catalog",
+    sourcePath: null,
   };
 }
 
@@ -1330,6 +1337,7 @@ function toCompanySkillListItem(skill: CompanySkill, attachedAgentCount: number)
     editableReason: source.editableReason,
     sourceLabel: source.sourceLabel,
     sourceBadge: source.sourceBadge,
+    sourcePath: source.sourcePath,
   };
 }
 

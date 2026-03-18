@@ -523,6 +523,8 @@ function SkillPane({
   onSave: () => void;
   savePending: boolean;
 }) {
+  const { pushToast } = useToast();
+
   if (!detail) {
     if (loading) {
       return <PageSkeleton variant="detail" />;
@@ -574,7 +576,19 @@ function SkillPane({
               <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Source</span>
               <span className="flex items-center gap-2">
                 <SourceIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="truncate">{source.label}</span>
+                {detail.sourcePath ? (
+                  <button
+                    className="truncate hover:text-foreground text-muted-foreground transition-colors cursor-pointer"
+                    onClick={() => {
+                      navigator.clipboard.writeText(detail.sourcePath!);
+                      pushToast({ title: "Copied path to workspace" });
+                    }}
+                  >
+                    {source.label}
+                  </button>
+                ) : (
+                  <span className="truncate">{source.label}</span>
+                )}
               </span>
             </div>
             {detail.sourceType === "github" && (

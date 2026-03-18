@@ -50,6 +50,7 @@ export interface CompanySkillListItem {
   editableReason: string | null;
   sourceLabel: string | null;
   sourceBadge: CompanySkillSourceBadge;
+  sourcePath: string | null;
 }
 
 export interface CompanySkillUsageAgent {
@@ -68,6 +69,7 @@ export interface CompanySkillDetail extends CompanySkill {
   editableReason: string | null;
   sourceLabel: string | null;
   sourceBadge: CompanySkillSourceBadge;
+  sourcePath: string | null;
 }
 
 export interface CompanySkillUpdateStatus {
