@@ -11,6 +11,13 @@ async function makeTempDir(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
 }
 
+async function createSkillDir(root: string, name: string) {
+  const skillDir = path.join(root, name);
+  await fs.mkdir(skillDir, { recursive: true });
+  await fs.writeFile(path.join(skillDir, "SKILL.md"), `---\nname: ${name}\n---\n`, "utf8");
+  return skillDir;
+}
+
 describe("codex local skill sync", () => {
   const paperclipKey = "paperclipai/paperclip/paperclip";
   const cleanupDirs = new Set<string>();
@@ -110,5 +117,36 @@ describe("codex local skill sync", () => {
     expect(snapshot.desiredSkills).not.toContain("paperclip");
     expect(snapshot.entries.find((entry) => entry.key === paperclipKey)?.state).toBe("missing");
     expect(snapshot.entries.find((entry) => entry.key === "paperclip")).toBeUndefined();
+  });
+
+  it("reports unmanaged user-installed Codex skills with provenance metadata", async () => {
+    const codexHome = await makeTempDir("paperclip-codex-user-skills-");
+    cleanupDirs.add(codexHome);
+
+    const externalSkillDir = await createSkillDir(path.join(codexHome, "skills"), "crack-python");
+    expect(externalSkillDir).toContain(path.join(codexHome, "skills"));
+
+    const snapshot = await listCodexSkills({
+      agentId: "agent-4",
+      companyId: "company-1",
+      adapterType: "codex_local",
+      config: {
+        env: {
+          CODEX_HOME: codexHome,
+        },
+      },
+    });
+
+    expect(snapshot.entries).toContainEqual(expect.objectContaining({
+      key: "crack-python",
+      runtimeName: "crack-python",
+      state: "external",
+      managed: false,
+      origin: "user_installed",
+      originLabel: "User-installed",
+      locationLabel: "$CODEX_HOME/skills",
+      readOnly: true,
+      detail: "Installed outside Paperclip management.",
+    }));
   });
 });

@@ -1,3 +1,5 @@
+import type { AgentSkillEntry } from "@paperclipai/shared";
+
 export interface AgentSkillDraftState {
   draft: string[];
   lastSaved: string[];
@@ -26,4 +28,13 @@ export function applyAgentSkillSnapshot(
     hasHydratedSnapshot: true,
     shouldSkipAutosave: shouldReplaceDraft,
   };
+}
+
+export function isReadOnlyUnmanagedSkillEntry(
+  entry: AgentSkillEntry,
+  companySkillKeys: Set<string>,
+): boolean {
+  if (companySkillKeys.has(entry.key)) return false;
+  if (entry.origin === "user_installed" || entry.origin === "external_unknown") return true;
+  return entry.managed === false && entry.state === "external";
 }

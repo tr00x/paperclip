@@ -141,6 +141,7 @@ export type {
   CompanySkillFileUpdateRequest,
   AgentSkillSyncMode,
   AgentSkillState,
+  AgentSkillOrigin,
   AgentSkillEntry,
   AgentSkillSnapshot,
   AgentSkillSyncRequest,

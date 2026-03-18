@@ -14,6 +14,7 @@ export type {
   AdapterEnvironmentTestContext,
   AdapterSkillSyncMode,
   AdapterSkillState,
+  AdapterSkillOrigin,
   AdapterSkillEntry,
   AdapterSkillSnapshot,
   AdapterSkillContext,

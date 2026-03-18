@@ -157,6 +157,12 @@ export type AdapterSkillState =
   | "stale"
   | "external";
 
+export type AdapterSkillOrigin =
+  | "company_managed"
+  | "paperclip_required"
+  | "user_installed"
+  | "external_unknown";
+
 export interface AdapterSkillEntry {
   key: string;
   runtimeName: string | null;
@@ -165,6 +171,10 @@ export interface AdapterSkillEntry {
   required?: boolean;
   requiredReason?: string | null;
   state: AdapterSkillState;
+  origin?: AdapterSkillOrigin;
+  originLabel?: string | null;
+  locationLabel?: string | null;
+  readOnly?: boolean;
   sourcePath?: string | null;
   targetPath?: string | null;
   detail?: string | null;

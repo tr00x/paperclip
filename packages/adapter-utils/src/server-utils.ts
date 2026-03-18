@@ -1,6 +1,10 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { constants as fsConstants, promises as fs } from "node:fs";
+import { constants as fsConstants, promises as fs, type Dirent } from "node:fs";
 import path from "node:path";
+import type {
+  AdapterSkillEntry,
+  AdapterSkillSnapshot,
+} from "./types.js";
 
 export interface RunProcessResult {
   exitCode: number | null;
@@ -45,12 +49,74 @@ export interface PaperclipSkillEntry {
   requiredReason?: string | null;
 }
 
+export interface InstalledSkillTarget {
+  targetPath: string | null;
+  kind: "symlink" | "directory" | "file";
+}
+
+interface PersistentSkillSnapshotOptions {
+  adapterType: string;
+  availableEntries: PaperclipSkillEntry[];
+  desiredSkills: string[];
+  installed: Map<string, InstalledSkillTarget>;
+  skillsHome: string;
+  locationLabel?: string | null;
+  installedDetail?: string | null;
+  missingDetail: string;
+  externalConflictDetail: string;
+  externalDetail: string;
+  warnings?: string[];
+}
+
 function normalizePathSlashes(value: string): string {
   return value.replaceAll("\\", "/");
 }
 
 function isMaintainerOnlySkillTarget(candidate: string): boolean {
   return normalizePathSlashes(candidate).includes("/.agents/skills/");
+}
+
+function skillLocationLabel(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function buildManagedSkillOrigin(entry: { required?: boolean }): Pick<
+  AdapterSkillEntry,
+  "origin" | "originLabel" | "readOnly"
+> {
+  if (entry.required) {
+    return {
+      origin: "paperclip_required",
+      originLabel: "Required by Paperclip",
+      readOnly: false,
+    };
+  }
+  return {
+    origin: "company_managed",
+    originLabel: "Managed by Paperclip",
+    readOnly: false,
+  };
+}
+
+function resolveInstalledEntryTarget(
+  skillsHome: string,
+  entryName: string,
+  dirent: Dirent,
+  linkedPath: string | null,
+): InstalledSkillTarget {
+  const fullPath = path.join(skillsHome, entryName);
+  if (dirent.isSymbolicLink()) {
+    return {
+      targetPath: linkedPath ? path.resolve(path.dirname(fullPath), linkedPath) : null,
+      kind: "symlink",
+    };
+  }
+  if (dirent.isDirectory()) {
+    return { targetPath: fullPath, kind: "directory" };
+  }
+  return { targetPath: fullPath, kind: "file" };
 }
 
 export function parseObject(value: unknown): Record<string, unknown> {
@@ -316,6 +382,119 @@ export async function listPaperclipSkillEntries(
   } catch {
     return [];
   }
+}
+
+export async function readInstalledSkillTargets(skillsHome: string): Promise<Map<string, InstalledSkillTarget>> {
+  const entries = await fs.readdir(skillsHome, { withFileTypes: true }).catch(() => []);
+  const out = new Map<string, InstalledSkillTarget>();
+  for (const entry of entries) {
+    const fullPath = path.join(skillsHome, entry.name);
+    const linkedPath = entry.isSymbolicLink() ? await fs.readlink(fullPath).catch(() => null) : null;
+    out.set(entry.name, resolveInstalledEntryTarget(skillsHome, entry.name, entry, linkedPath));
+  }
+  return out;
+}
+
+export function buildPersistentSkillSnapshot(
+  options: PersistentSkillSnapshotOptions,
+): AdapterSkillSnapshot {
+  const {
+    adapterType,
+    availableEntries,
+    desiredSkills,
+    installed,
+    skillsHome,
+    locationLabel,
+    installedDetail,
+    missingDetail,
+    externalConflictDetail,
+    externalDetail,
+  } = options;
+  const availableByKey = new Map(availableEntries.map((entry) => [entry.key, entry]));
+  const desiredSet = new Set(desiredSkills);
+  const entries: AdapterSkillEntry[] = [];
+  const warnings = [...(options.warnings ?? [])];
+
+  for (const available of availableEntries) {
+    const installedEntry = installed.get(available.runtimeName) ?? null;
+    const desired = desiredSet.has(available.key);
+    let state: AdapterSkillEntry["state"] = "available";
+    let managed = false;
+    let detail: string | null = null;
+
+    if (installedEntry?.targetPath === available.source) {
+      managed = true;
+      state = desired ? "installed" : "stale";
+      detail = installedDetail ?? null;
+    } else if (installedEntry) {
+      state = "external";
+      detail = desired ? externalConflictDetail : externalDetail;
+    } else if (desired) {
+      state = "missing";
+      detail = missingDetail;
+    }
+
+    entries.push({
+      key: available.key,
+      runtimeName: available.runtimeName,
+      desired,
+      managed,
+      state,
+      sourcePath: available.source,
+      targetPath: path.join(skillsHome, available.runtimeName),
+      detail,
+      required: Boolean(available.required),
+      requiredReason: available.requiredReason ?? null,
+      ...buildManagedSkillOrigin(available),
+    });
+  }
+
+  for (const desiredSkill of desiredSkills) {
+    if (availableByKey.has(desiredSkill)) continue;
+    warnings.push(`Desired skill "${desiredSkill}" is not available from the Paperclip skills directory.`);
+    entries.push({
+      key: desiredSkill,
+      runtimeName: null,
+      desired: true,
+      managed: true,
+      state: "missing",
+      sourcePath: null,
+      targetPath: null,
+      detail: "Paperclip cannot find this skill in the local runtime skills directory.",
+      origin: "external_unknown",
+      originLabel: "External or unavailable",
+      readOnly: false,
+    });
+  }
+
+  for (const [name, installedEntry] of installed.entries()) {
+    if (availableEntries.some((entry) => entry.runtimeName === name)) continue;
+    entries.push({
+      key: name,
+      runtimeName: name,
+      desired: false,
+      managed: false,
+      state: "external",
+      origin: "user_installed",
+      originLabel: "User-installed",
+      locationLabel: skillLocationLabel(locationLabel),
+      readOnly: true,
+      sourcePath: null,
+      targetPath: installedEntry.targetPath ?? path.join(skillsHome, name),
+      detail: externalDetail,
+    });
+  }
+
+  entries.sort((left, right) => left.key.localeCompare(right.key));
+
+  return {
+    adapterType,
+    supported: true,
+    mode: "persistent",
+    desiredSkills,
+    entries,
+    warnings,
+  };
 }
 
 function normalizeConfiguredPaperclipRuntimeSkills(value: unknown): PaperclipSkillEntry[] {

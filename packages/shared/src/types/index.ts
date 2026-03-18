@@ -24,6 +24,7 @@ export type {
 export type {
   AgentSkillSyncMode,
   AgentSkillState,
+  AgentSkillOrigin,
   AgentSkillEntry,
   AgentSkillSnapshot,
   AgentSkillSyncRequest,

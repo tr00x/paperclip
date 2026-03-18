@@ -3,12 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   AdapterSkillContext,
-  AdapterSkillEntry,
   AdapterSkillSnapshot,
 } from "@paperclipai/adapter-utils";
 import {
+  buildPersistentSkillSnapshot,
   ensurePaperclipSkillSymlink,
   readPaperclipRuntimeSkillEntries,
+  readInstalledSkillTargets,
   resolvePaperclipDesiredSkillNames,
 } from "@paperclipai/adapter-utils/server-utils";
 import { resolveCodexHomeDir } from "./codex-home.js";
@@ -29,111 +30,22 @@ function resolveCodexSkillsHome(config: Record<string, unknown>) {
   return path.join(home, "skills");
 }
 
-async function readInstalledSkillTargets(skillsHome: string) {
-  const entries = await fs.readdir(skillsHome, { withFileTypes: true }).catch(() => []);
-  const out = new Map<string, { targetPath: string | null; kind: "symlink" | "directory" | "file" }>();
-  for (const entry of entries) {
-    const fullPath = path.join(skillsHome, entry.name);
-    if (entry.isSymbolicLink()) {
-      const linkedPath = await fs.readlink(fullPath).catch(() => null);
-      out.set(entry.name, {
-        targetPath: linkedPath ? path.resolve(path.dirname(fullPath), linkedPath) : null,
-        kind: "symlink",
-      });
-      continue;
-    }
-    if (entry.isDirectory()) {
-      out.set(entry.name, { targetPath: fullPath, kind: "directory" });
-      continue;
-    }
-    out.set(entry.name, { targetPath: fullPath, kind: "file" });
-  }
-  return out;
-}
-
 async function buildCodexSkillSnapshot(config: Record<string, unknown>): Promise<AdapterSkillSnapshot> {
   const availableEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
-  const availableByKey = new Map(availableEntries.map((entry) => [entry.key, entry]));
   const desiredSkills = resolvePaperclipDesiredSkillNames(config, availableEntries);
-  const desiredSet = new Set(desiredSkills);
   const skillsHome = resolveCodexSkillsHome(config);
   const installed = await readInstalledSkillTargets(skillsHome);
-  const entries: AdapterSkillEntry[] = [];
-  const warnings: string[] = [];
-
-  for (const available of availableEntries) {
-    const installedEntry = installed.get(available.runtimeName) ?? null;
-    const desired = desiredSet.has(available.key);
-    let state: AdapterSkillEntry["state"] = "available";
-    let managed = false;
-    let detail: string | null = null;
-
-    if (installedEntry?.targetPath === available.source) {
-      managed = true;
-      state = desired ? "installed" : "stale";
-    } else if (installedEntry) {
-      state = "external";
-      detail = desired
-        ? "Skill name is occupied by an external installation."
-        : "Installed outside Paperclip management.";
-    } else if (desired) {
-      state = "missing";
-      detail = "Configured but not currently linked into the Codex skills home.";
-    }
-
-    entries.push({
-      key: available.key,
-      runtimeName: available.runtimeName,
-      desired,
-      managed,
-      state,
-      sourcePath: available.source,
-      targetPath: path.join(skillsHome, available.runtimeName),
-      detail,
-      required: Boolean(available.required),
-      requiredReason: available.requiredReason ?? null,
-    });
-  }
-
-  for (const desiredSkill of desiredSkills) {
-    if (availableByKey.has(desiredSkill)) continue;
-    warnings.push(`Desired skill "${desiredSkill}" is not available from the Paperclip skills directory.`);
-    entries.push({
-      key: desiredSkill,
-      runtimeName: null,
-      desired: true,
-      managed: true,
-      state: "missing",
-      sourcePath: null,
-      targetPath: null,
-      detail: "Paperclip cannot find this skill in the local runtime skills directory.",
-    });
-  }
-
-  for (const [name, installedEntry] of installed.entries()) {
-    if (availableEntries.some((entry) => entry.runtimeName === name)) continue;
-    entries.push({
-      key: name,
-      runtimeName: name,
-      desired: false,
-      managed: false,
-      state: "external",
-      sourcePath: null,
-      targetPath: installedEntry.targetPath ?? path.join(skillsHome, name),
-      detail: "Installed outside Paperclip management.",
-    });
-  }
-
-  entries.sort((left, right) => left.key.localeCompare(right.key));
-
-  return {
+  return buildPersistentSkillSnapshot({
     adapterType: "codex_local",
-    supported: true,
-    mode: "persistent",
+    availableEntries,
     desiredSkills,
-    entries,
-    warnings,
-  };
+    installed,
+    skillsHome,
+    locationLabel: "$CODEX_HOME/skills",
+    missingDetail: "Configured but not currently linked into the Codex skills home.",
+    externalConflictDetail: "Skill name is occupied by an external installation.",
+    externalDetail: "Installed outside Paperclip management.",
+  });
 }
 
 export async function listCodexSkills(ctx: AdapterSkillContext): Promise<AdapterSkillSnapshot> {

@@ -8,6 +8,12 @@ export type AgentSkillState =
   | "stale"
   | "external";
 
+export type AgentSkillOrigin =
+  | "company_managed"
+  | "paperclip_required"
+  | "user_installed"
+  | "external_unknown";
+
 export interface AgentSkillEntry {
   key: string;
   runtimeName: string | null;
@@ -16,6 +22,10 @@ export interface AgentSkillEntry {
   required?: boolean;
   requiredReason?: string | null;
   state: AgentSkillState;
+  origin?: AgentSkillOrigin;
+  originLabel?: string | null;
+  locationLabel?: string | null;
+  readOnly?: boolean;
   sourcePath?: string | null;
   targetPath?: string | null;
   detail?: string | null;
