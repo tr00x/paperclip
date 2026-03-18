@@ -253,8 +253,10 @@ export {
 export {
   createCompanySchema,
   updateCompanySchema,
+  updateCompanyBrandingSchema,
   type CreateCompany,
   type UpdateCompany,
+  type UpdateCompanyBranding,
   createAgentSchema,
   createAgentHireSchema,
   updateAgentSchema,

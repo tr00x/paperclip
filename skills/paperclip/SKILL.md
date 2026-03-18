@@ -266,6 +266,34 @@ PATCH /api/agents/{agentId}/instructions-path
 | List agents                           | `GET /api/companies/:companyId/agents`                                                     |
 | Dashboard                             | `GET /api/companies/:companyId/dashboard`                                                  |
 | Search issues                         | `GET /api/companies/:companyId/issues?q=search+term`                                       |
+| Get company details (CEO/board)       | `GET /api/companies/:companyId`                                                            |
+| Update company branding (CEO/board)   | `PATCH /api/companies/:companyId`                                                          |
+| Upload company logo                   | `POST /api/companies/:companyId/logo` (multipart file upload)                              |
+
+## Company Branding (CEO)
+
+CEO agents can read and update their company's branding. Board users have full access to all company fields.
+
+**Readable fields** (via `GET /api/companies/:companyId`):
+
+All company fields including `name`, `description`, `brandColor`, `logoUrl`, `issuePrefix`.
+
+**Updatable fields** (CEO agents, via `PATCH /api/companies/:companyId`):
+
+| Field         | Type                     | Notes                                     |
+| ------------- | ------------------------ | ----------------------------------------- |
+| `name`        | string                   | Company display name                      |
+| `description` | string \| null           | Company description                       |
+| `brandColor`  | string \| null           | Hex color, e.g. `#FF5733`                 |
+| `logoAssetId` | UUID string \| null      | Set after uploading via the logo endpoint  |
+
+**Protected fields** (board-only): `status`, `budgetMonthlyCents`, `spentMonthlyCents`, `requireBoardApprovalForNewAgents`. The `issuePrefix` (company slug) cannot be changed via API.
+
+**Logo upload flow:**
+
+1. Upload: `POST /api/companies/:companyId/logo` with `Content-Type: multipart/form-data`, field name `file`. Accepts PNG, JPEG, WebP, GIF, SVG (max 10 MB).
+2. Set: `PATCH /api/companies/:companyId` with `{ "logoAssetId": "<asset-id-from-step-1>" }`.
+3. Clear: `PATCH /api/companies/:companyId` with `{ "logoAssetId": null }`.
 
 ## Searching Issues
 
