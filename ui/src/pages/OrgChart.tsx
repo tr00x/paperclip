@@ -268,7 +268,7 @@ export function OrgChart() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-6rem)]">
+    <div className="flex flex-col h-full">
     <div className="mb-2 flex items-center justify-start gap-2 shrink-0">
       <Link to="/company/import">
         <Button variant="outline" size="sm">
