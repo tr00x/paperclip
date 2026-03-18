@@ -115,17 +115,103 @@ function hashSkillValue(value: string) {
   return createHash("sha256").update(value).digest("hex").slice(0, 8);
 }
 
+function normalizeExportPathSegment(value: string | null | undefined, preserveCase = false) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!normalized) return null;
+  return preserveCase ? normalized : normalized.toLowerCase();
+}
+
 function readSkillSourceKind(skill: CompanySkill) {
   const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
   return asString(metadata?.sourceKind);
 }
 
-function deriveSkillExportDirCandidates(skill: CompanySkill, slug: string) {
+function deriveLocalExportNamespace(skill: CompanySkill, slug: string) {
+  const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
+  const candidates = [
+    asString(metadata?.projectName),
+    asString(metadata?.workspaceName),
+  ];
+
+  if (skill.sourceLocator) {
+    const basename = path.basename(skill.sourceLocator);
+    candidates.push(basename.toLowerCase() === "skill.md" ? path.basename(path.dirname(skill.sourceLocator)) : basename);
+  }
+
+  for (const value of candidates) {
+    const normalized = normalizeSkillSlug(value);
+    if (normalized && normalized !== slug) return normalized;
+  }
+
+  return null;
+}
+
+function derivePrimarySkillExportDir(
+  skill: CompanySkill,
+  slug: string,
+  companyIssuePrefix: string | null | undefined,
+) {
+  const normalizedKey = normalizeSkillKey(skill.key);
+  const keySegments = normalizedKey?.split("/") ?? [];
+  const primaryNamespace = keySegments[0] ?? null;
+
+  if (primaryNamespace === "company") {
+    const companySegment = normalizeExportPathSegment(companyIssuePrefix, true)
+      ?? normalizeExportPathSegment(keySegments[1], true)
+      ?? "company";
+    return `skills/company/${companySegment}/${slug}`;
+  }
+
+  if (primaryNamespace === "local") {
+    const localNamespace = deriveLocalExportNamespace(skill, slug);
+    return localNamespace
+      ? `skills/local/${localNamespace}/${slug}`
+      : `skills/local/${slug}`;
+  }
+
+  if (primaryNamespace === "url") {
+    let derivedHost: string | null = keySegments[1] ?? null;
+    if (!derivedHost) {
+      try {
+        derivedHost = normalizeSkillSlug(skill.sourceLocator ? new URL(skill.sourceLocator).host : null);
+      } catch {
+        derivedHost = null;
+      }
+    }
+    const host = derivedHost ?? "url";
+    return `skills/url/${host}/${slug}`;
+  }
+
+  if (keySegments.length > 1) {
+    return `skills/${keySegments.join("/")}`;
+  }
+
+  return `skills/${slug}`;
+}
+
+function appendSkillExportDirSuffix(packageDir: string, suffix: string) {
+  const lastSeparator = packageDir.lastIndexOf("/");
+  if (lastSeparator < 0) return `${packageDir}--${suffix}`;
+  return `${packageDir.slice(0, lastSeparator + 1)}${packageDir.slice(lastSeparator + 1)}--${suffix}`;
+}
+
+function deriveSkillExportDirCandidates(
+  skill: CompanySkill,
+  slug: string,
+  companyIssuePrefix: string | null | undefined,
+) {
+  const primaryDir = derivePrimarySkillExportDir(skill, slug, companyIssuePrefix);
   const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
   const sourceKind = readSkillSourceKind(skill);
   const suffixes = new Set<string>();
-  const pushSuffix = (value: string | null | undefined) => {
-    const normalized = normalizeSkillSlug(value);
+  const pushSuffix = (value: string | null | undefined, preserveCase = false) => {
+    const normalized = normalizeExportPathSegment(value, preserveCase);
     if (normalized && normalized !== slug) {
       suffixes.add(normalized);
     }
@@ -149,10 +235,7 @@ function deriveSkillExportDirCandidates(skill: CompanySkill, slug: string) {
   } else if (skill.sourceType === "local_path") {
     pushSuffix(asString(metadata?.projectName));
     pushSuffix(asString(metadata?.workspaceName));
-    if (skill.sourceLocator) {
-      const basename = path.basename(skill.sourceLocator);
-      pushSuffix(basename.toLowerCase() === "skill.md" ? path.basename(path.dirname(skill.sourceLocator)) : basename);
-    }
+    pushSuffix(deriveLocalExportNamespace(skill, slug));
     if (sourceKind === "managed_local") pushSuffix("company");
     if (sourceKind === "project_scan") pushSuffix("project");
     pushSuffix("local");
@@ -161,30 +244,25 @@ function deriveSkillExportDirCandidates(skill: CompanySkill, slug: string) {
     pushSuffix("skill");
   }
 
-  return Array.from(suffixes, (suffix) => `skills/${slug}--${suffix}`);
+  return [primaryDir, ...Array.from(suffixes, (suffix) => appendSkillExportDirSuffix(primaryDir, suffix))];
 }
 
-function buildSkillExportDirMap(skills: CompanySkill[]) {
-  const slugCounts = new Map<string, number>();
-  for (const skill of skills) {
-    const slug = normalizeSkillSlug(skill.slug) ?? "skill";
-    slugCounts.set(slug, (slugCounts.get(slug) ?? 0) + 1);
-  }
-
+function buildSkillExportDirMap(skills: CompanySkill[], companyIssuePrefix: string | null | undefined) {
   const usedDirs = new Set<string>();
   const keyToDir = new Map<string, string>();
   const orderedSkills = [...skills].sort((left, right) => left.key.localeCompare(right.key));
   for (const skill of orderedSkills) {
     const slug = normalizeSkillSlug(skill.slug) ?? "skill";
-    const candidates = (slugCounts.get(slug) ?? 0) > 1
-      ? deriveSkillExportDirCandidates(skill, slug)
-      : [`skills/${slug}`];
+    const candidates = deriveSkillExportDirCandidates(skill, slug, companyIssuePrefix);
 
     let packageDir = candidates.find((candidate) => !usedDirs.has(candidate)) ?? null;
     if (!packageDir) {
-      packageDir = `skills/${slug}--${hashSkillValue(skill.key)}`;
+      packageDir = appendSkillExportDirSuffix(candidates[0] ?? `skills/${slug}`, hashSkillValue(skill.key));
       while (usedDirs.has(packageDir)) {
-        packageDir = `skills/${slug}--${hashSkillValue(`${skill.key}:${packageDir}`)}`;
+        packageDir = appendSkillExportDirSuffix(
+          candidates[0] ?? `skills/${slug}`,
+          hashSkillValue(`${skill.key}:${packageDir}`),
+        );
       }
     }
 
@@ -1805,7 +1883,7 @@ export function companyPortabilityService(db: Db) {
     const paperclipProjectsOut: Record<string, Record<string, unknown>> = {};
     const paperclipTasksOut: Record<string, Record<string, unknown>> = {};
 
-    const skillExportDirs = buildSkillExportDirMap(companySkillRows);
+    const skillExportDirs = buildSkillExportDirMap(companySkillRows, company.issuePrefix);
     for (const skill of companySkillRows) {
       const packageDir = skillExportDirs.get(skill.key) ?? `skills/${normalizeSkillSlug(skill.slug) ?? "skill"}`;
       if (shouldReferenceSkillOnExport(skill, Boolean(input.expandReferencedSkills))) {
