@@ -222,7 +222,8 @@ After at least one good canary exists:
 3. open `Actions` -> `Release`
 4. run it with:
    - `source_ref`: the tested commit SHA or canary tag source commit
-   - `stable_date`: leave blank or set the intended UTC date
+   - `stable_date`: leave blank or set the intended UTC date like `2026-03-18`
+     do not enter a version like `2026.318.0`; the workflow computes that from the date
    - `dry_run`: `true`
 5. confirm the dry-run succeeds
 6. rerun with `dry_run: false`
@@ -230,6 +231,11 @@ After at least one good canary exists:
 8. confirm npm `latest` points to the new stable version
 9. confirm git tag `vYYYY.MDD.P` exists
 10. confirm the GitHub Release was created
+
+Implementation note:
+
+- the GitHub Actions stable workflow calls `create-github-release.sh` with `PUBLISH_REMOTE=origin`
+- local maintainer usage can still pass `PUBLISH_REMOTE=public-gh` explicitly when needed
 
 ## 13. Suggested Maintainer Policy
 

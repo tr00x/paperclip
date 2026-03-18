@@ -77,21 +77,30 @@ npx paperclipai@canary onboard --data-dir "$(mktemp -d /tmp/paperclip-canary.XXX
 
 Use [`.github/workflows/release.yml`](../.github/workflows/release.yml) from the Actions tab with the manual `workflow_dispatch` inputs.
 
+[Run the action here](https://github.com/paperclipai/paperclip/actions/workflows/release.yml)
+
 Inputs:
 
 - `source_ref`
   - commit SHA, branch, or tag
 - `stable_date`
   - optional UTC date override in `YYYY-MM-DD`
+  - enter a date like `2026-03-18`, not a version like `2026.318.0`
 - `dry_run`
   - preview only when true
 
 Before running stable:
 
 1. pick the canary commit or tag you trust
-2. resolve the target stable version with `./scripts/release.sh stable --date YYYY-MM-DD --print-version`
+2. resolve the target stable version with `./scripts/release.sh stable --date "$(date +%F)" --print-version`
 3. create or update `releases/vYYYY.MDD.P.md` on that source ref
 4. run the stable workflow from that source ref
+
+Example:
+
+- `source_ref`: `master`
+- `stable_date`: `2026-03-18`
+- resulting stable version: `2026.318.0`
 
 The workflow:
 
@@ -122,7 +131,7 @@ This is mainly for emergency/manual use. The normal path is the GitHub workflow.
 ```bash
 ./scripts/release.sh stable
 git push public-gh refs/tags/vYYYY.MDD.P
-./scripts/create-github-release.sh YYYY.MDD.P
+PUBLISH_REMOTE=public-gh ./scripts/create-github-release.sh YYYY.MDD.P
 ```
 
 ## Stable Changelog Workflow
@@ -217,7 +226,7 @@ This is a partial release. npm is already live.
 Do this immediately:
 
 1. push the missing tag
-2. rerun `./scripts/create-github-release.sh YYYY.MDD.P`
+2. rerun `PUBLISH_REMOTE=public-gh ./scripts/create-github-release.sh YYYY.MDD.P`
 3. verify the GitHub Release notes point at `releases/vYYYY.MDD.P.md`
 
 Do not republish the same version.

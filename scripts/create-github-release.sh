@@ -19,7 +19,8 @@ Examples:
 
 Notes:
   - Run this after pushing the stable tag.
-  - Defaults to git remote public-gh.
+  - Resolves the git remote automatically.
+  - In GitHub Actions, origin is used explicitly.
   - If the release already exists, this script updates its title and notes.
 EOF
 }
@@ -54,7 +55,9 @@ fi
 
 tag="v$version"
 notes_file="$REPO_ROOT/releases/${tag}.md"
-PUBLISH_REMOTE="${PUBLISH_REMOTE:-public-gh}"
+if [ "${GITHUB_ACTIONS:-}" = "true" ] && [ -z "${PUBLISH_REMOTE:-}" ] && git_remote_exists origin; then
+  PUBLISH_REMOTE=origin
+fi
 PUBLISH_REMOTE="$(resolve_release_remote)"
 if ! command -v gh >/dev/null 2>&1; then
   echo "Error: gh CLI is required to create GitHub releases." >&2
