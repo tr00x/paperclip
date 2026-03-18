@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
 import path from "node:path";
@@ -110,8 +111,88 @@ function deriveManifestSkillKey(
   return slug;
 }
 
-function skillPackageDir(key: string) {
-  return `skills/${key}`;
+function hashSkillValue(value: string) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 8);
+}
+
+function readSkillSourceKind(skill: CompanySkill) {
+  const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
+  return asString(metadata?.sourceKind);
+}
+
+function deriveSkillExportDirCandidates(skill: CompanySkill, slug: string) {
+  const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
+  const sourceKind = readSkillSourceKind(skill);
+  const suffixes = new Set<string>();
+  const pushSuffix = (value: string | null | undefined) => {
+    const normalized = normalizeSkillSlug(value);
+    if (normalized && normalized !== slug) {
+      suffixes.add(normalized);
+    }
+  };
+
+  if (sourceKind === "paperclip_bundled") {
+    pushSuffix("paperclip");
+  }
+
+  if (skill.sourceType === "github") {
+    pushSuffix(asString(metadata?.repo));
+    pushSuffix(asString(metadata?.owner));
+    pushSuffix("github");
+  } else if (skill.sourceType === "url") {
+    try {
+      pushSuffix(skill.sourceLocator ? new URL(skill.sourceLocator).host : null);
+    } catch {
+      // Ignore URL parse failures and fall through to generic suffixes.
+    }
+    pushSuffix("url");
+  } else if (skill.sourceType === "local_path") {
+    pushSuffix(asString(metadata?.projectName));
+    pushSuffix(asString(metadata?.workspaceName));
+    if (skill.sourceLocator) {
+      const basename = path.basename(skill.sourceLocator);
+      pushSuffix(basename.toLowerCase() === "skill.md" ? path.basename(path.dirname(skill.sourceLocator)) : basename);
+    }
+    if (sourceKind === "managed_local") pushSuffix("company");
+    if (sourceKind === "project_scan") pushSuffix("project");
+    pushSuffix("local");
+  } else {
+    pushSuffix(sourceKind);
+    pushSuffix("skill");
+  }
+
+  return Array.from(suffixes, (suffix) => `skills/${slug}--${suffix}`);
+}
+
+function buildSkillExportDirMap(skills: CompanySkill[]) {
+  const slugCounts = new Map<string, number>();
+  for (const skill of skills) {
+    const slug = normalizeSkillSlug(skill.slug) ?? "skill";
+    slugCounts.set(slug, (slugCounts.get(slug) ?? 0) + 1);
+  }
+
+  const usedDirs = new Set<string>();
+  const keyToDir = new Map<string, string>();
+  const orderedSkills = [...skills].sort((left, right) => left.key.localeCompare(right.key));
+  for (const skill of orderedSkills) {
+    const slug = normalizeSkillSlug(skill.slug) ?? "skill";
+    const candidates = (slugCounts.get(slug) ?? 0) > 1
+      ? deriveSkillExportDirCandidates(skill, slug)
+      : [`skills/${slug}`];
+
+    let packageDir = candidates.find((candidate) => !usedDirs.has(candidate)) ?? null;
+    if (!packageDir) {
+      packageDir = `skills/${slug}--${hashSkillValue(skill.key)}`;
+      while (usedDirs.has(packageDir)) {
+        packageDir = `skills/${slug}--${hashSkillValue(`${skill.key}:${packageDir}`)}`;
+      }
+    }
+
+    usedDirs.add(packageDir);
+    keyToDir.set(skill.key, packageDir);
+  }
+
+  return keyToDir;
 }
 
 function isSensitiveEnvKey(key: string) {
@@ -1724,8 +1805,9 @@ export function companyPortabilityService(db: Db) {
     const paperclipProjectsOut: Record<string, Record<string, unknown>> = {};
     const paperclipTasksOut: Record<string, Record<string, unknown>> = {};
 
+    const skillExportDirs = buildSkillExportDirMap(companySkillRows);
     for (const skill of companySkillRows) {
-      const packageDir = skillPackageDir(skill.key);
+      const packageDir = skillExportDirs.get(skill.key) ?? `skills/${normalizeSkillSlug(skill.slug) ?? "skill"}`;
       if (shouldReferenceSkillOnExport(skill, Boolean(input.expandReferencedSkills))) {
         files[`${packageDir}/SKILL.md`] = await buildReferencedSkillMarkdown(skill);
         continue;

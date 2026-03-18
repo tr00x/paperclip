@@ -275,11 +275,11 @@ describe("company portability", () => {
     expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain("skills:");
     expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain(`- "${paperclipKey}"`);
     expect(exported.files["agents/cmo/AGENTS.md"]).not.toContain("skills:");
-    expect(exported.files[`skills/${paperclipKey}/SKILL.md`]).toContain("metadata:");
-    expect(exported.files[`skills/${paperclipKey}/SKILL.md`]).toContain('kind: "github-dir"');
-    expect(exported.files[`skills/${paperclipKey}/references/api.md`]).toBeUndefined();
-    expect(exported.files[`skills/${companyPlaybookKey}/SKILL.md`]).toContain("# Company Playbook");
-    expect(exported.files[`skills/${companyPlaybookKey}/references/checklist.md`]).toContain("# Checklist");
+    expect(exported.files["skills/paperclip/SKILL.md"]).toContain("metadata:");
+    expect(exported.files["skills/paperclip/SKILL.md"]).toContain('kind: "github-dir"');
+    expect(exported.files["skills/paperclip/references/api.md"]).toBeUndefined();
+    expect(exported.files["skills/company-playbook/SKILL.md"]).toContain("# Company Playbook");
+    expect(exported.files["skills/company-playbook/references/checklist.md"]).toContain("# Checklist");
 
     const extension = exported.files[".paperclip.yaml"];
     expect(extension).toContain('schema: "paperclip/v1"');
@@ -313,9 +313,94 @@ describe("company portability", () => {
       expandReferencedSkills: true,
     });
 
-    expect(exported.files[`skills/${paperclipKey}/SKILL.md`]).toContain("# Paperclip");
-    expect(exported.files[`skills/${paperclipKey}/SKILL.md`]).toContain("metadata:");
-    expect(exported.files[`skills/${paperclipKey}/references/api.md`]).toContain("# API");
+    expect(exported.files["skills/paperclip/SKILL.md"]).toContain("# Paperclip");
+    expect(exported.files["skills/paperclip/SKILL.md"]).toContain("metadata:");
+    expect(exported.files["skills/paperclip/references/api.md"]).toContain("# API");
+  });
+
+  it("exports duplicate skill slugs with readable pretty path suffixes", async () => {
+    const portability = companyPortabilityService({} as any);
+
+    companySkillSvc.readFile.mockImplementation(async (_companyId: string, skillId: string, relativePath: string) => {
+      if (skillId === "skill-local") {
+        return {
+          skillId,
+          path: relativePath,
+          kind: "skill",
+          content: "---\nname: release-changelog\n---\n\n# Local Release Changelog\n",
+          language: "markdown",
+          markdown: true,
+          editable: true,
+        };
+      }
+
+      return {
+        skillId,
+        path: relativePath,
+        kind: "skill",
+        content: "---\nname: release-changelog\n---\n\n# Bundled Release Changelog\n",
+        language: "markdown",
+        markdown: true,
+        editable: false,
+      };
+    });
+
+    companySkillSvc.listFull.mockResolvedValue([
+      {
+        id: "skill-local",
+        companyId: "company-1",
+        key: "local/36dfd631da/release-changelog",
+        slug: "release-changelog",
+        name: "release-changelog",
+        description: "Local release changelog skill",
+        markdown: "---\nname: release-changelog\n---\n\n# Local Release Changelog\n",
+        sourceType: "local_path",
+        sourceLocator: "/tmp/release-changelog",
+        sourceRef: null,
+        trustLevel: "markdown_only",
+        compatibility: "compatible",
+        fileInventory: [{ path: "SKILL.md", kind: "skill" }],
+        metadata: {
+          sourceKind: "local_path",
+        },
+      },
+      {
+        id: "skill-paperclip",
+        companyId: "company-1",
+        key: "paperclipai/paperclip/release-changelog",
+        slug: "release-changelog",
+        name: "release-changelog",
+        description: "Bundled release changelog skill",
+        markdown: "---\nname: release-changelog\n---\n\n# Bundled Release Changelog\n",
+        sourceType: "github",
+        sourceLocator: "https://github.com/paperclipai/paperclip/tree/master/skills/release-changelog",
+        sourceRef: "0123456789abcdef0123456789abcdef01234567",
+        trustLevel: "markdown_only",
+        compatibility: "compatible",
+        fileInventory: [{ path: "SKILL.md", kind: "skill" }],
+        metadata: {
+          sourceKind: "paperclip_bundled",
+          owner: "paperclipai",
+          repo: "paperclip",
+          ref: "0123456789abcdef0123456789abcdef01234567",
+          trackingRef: "master",
+          repoSkillDir: "skills/release-changelog",
+        },
+      },
+    ]);
+
+    const exported = await portability.exportBundle("company-1", {
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+    });
+
+    expect(exported.files["skills/release-changelog--local/SKILL.md"]).toContain("# Local Release Changelog");
+    expect(exported.files["skills/release-changelog--paperclip/SKILL.md"]).toContain("metadata:");
+    expect(exported.files["skills/release-changelog--paperclip/SKILL.md"]).toContain("paperclipai/paperclip/release-changelog");
   });
 
   it("reads env inputs back from .paperclip.yaml during preview import", async () => {
