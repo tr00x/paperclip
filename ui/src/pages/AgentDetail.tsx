@@ -1636,7 +1636,7 @@ function PromptsTab({
       if (selectedFile !== bundle.entryFile) setSelectedFile(bundle.entryFile);
       return;
     }
-    if (!availablePaths.includes(selectedFile)) {
+    if (!availablePaths.includes(selectedFile) && selectedFile !== currentEntryFile) {
       setSelectedFile(availablePaths.includes(bundle.entryFile) ? bundle.entryFile : availablePaths[0]!);
     }
   }, [bundle, bundleMatchesDraft, currentEntryFile, selectedFile]);
