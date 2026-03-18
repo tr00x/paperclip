@@ -62,7 +62,10 @@ import {
   ChevronRight,
   ChevronDown,
   ArrowLeft,
+  HelpCircle,
 } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { AgentIcon, AgentIconPicker } from "../components/AgentIconPicker";
 import { RunTranscriptView, type TranscriptMode } from "../components/transcript/RunTranscriptView";
@@ -198,10 +201,10 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "dashboard" | "prompts" | "configuration" | "skills" | "runs" | "budget";
+type AgentDetailView = "dashboard" | "instructions" | "configuration" | "skills" | "runs" | "budget";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
-  if (value === "prompts") return value;
+  if (value === "instructions" || value === "prompts") return "instructions";
   if (value === "configure" || value === "configuration") return "configuration";
   if (value === "skills") return "skills";
   if (value === "budget") return "budget";
@@ -601,8 +604,8 @@ export function AgentDetail() {
       return;
     }
     const canonicalTab =
-      activeView === "prompts"
-        ? "prompts"
+      activeView === "instructions"
+        ? "instructions"
         : activeView === "configuration"
           ? "configuration"
           : activeView === "skills"
@@ -724,8 +727,8 @@ export function AgentDetail() {
       if (urlRunId) {
         crumbs.push({ label: "Runs", href: `/agents/${canonicalAgentRef}/runs` });
         crumbs.push({ label: `Run ${urlRunId.slice(0, 8)}` });
-      } else if (activeView === "prompts") {
-        crumbs.push({ label: "Prompts" });
+      } else if (activeView === "instructions") {
+        crumbs.push({ label: "Instructions" });
       } else if (activeView === "configuration") {
         crumbs.push({ label: "Configuration" });
       } else if (activeView === "skills") {
@@ -761,7 +764,7 @@ export function AgentDetail() {
     return <Navigate to={`/agents/${canonicalAgentRef}/dashboard`} replace />;
   }
   const isPendingApproval = agent.status === "pending_approval";
-  const showConfigActionBar = (activeView === "configuration" || activeView === "prompts") && (configDirty || configSaving);
+  const showConfigActionBar = (activeView === "configuration" || activeView === "instructions") && (configDirty || configSaving);
 
   return (
     <div className={cn("space-y-6", isMobile && showConfigActionBar && "pb-24")}>
@@ -888,7 +891,7 @@ export function AgentDetail() {
           <PageTabBar
             items={[
               { value: "dashboard", label: "Dashboard" },
-              { value: "prompts", label: "Prompts" },
+              { value: "instructions", label: "Instructions" },
               { value: "skills", label: "Skills" },
               { value: "configuration", label: "Configuration" },
               { value: "budget", label: "Budget" },
@@ -974,7 +977,7 @@ export function AgentDetail() {
         />
       )}
 
-      {activeView === "prompts" && (
+      {activeView === "instructions" && (
         <PromptsTab
           agent={agent}
           companyId={resolvedCompanyId ?? undefined}
@@ -1734,7 +1737,7 @@ function PromptsTab({
           <div>
             <h3 className="text-sm font-medium">Instructions Bundle</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              `AGENTS.md` is the entry file. Sibling files like `HEARTBEAT.md`, `SOUL.md`, `TOOLS.md`, and arbitrary custom files live in the same bundle.
+              Configure your agent's behavior with instructions
             </p>
           </div>
           <div className="text-xs text-muted-foreground">
@@ -1742,81 +1745,12 @@ function PromptsTab({
           </div>
         </div>
 
-        {(bundle?.legacyPromptTemplateActive || bundle?.legacyBootstrapPromptTemplateActive) && (
-          <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-            Legacy inline prompt state is still present. `promptTemplate` now appears as a deprecated virtual file entry so it is visible without masquerading as the live `AGENTS.md`.
-          </div>
-        )}
-
         {(bundle?.warnings ?? []).map((warning) => (
           <div key={warning} className="rounded-md border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-xs text-sky-100">
             {warning}
           </div>
         ))}
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Mode</span>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={currentMode === "managed" ? "default" : "outline"}
-                onClick={() => setBundleDraft((current) => ({
-                  mode: "managed",
-                  rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
-                  entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
-                }))}
-              >
-                Managed
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={currentMode === "external" ? "default" : "outline"}
-                onClick={() => setBundleDraft((current) => ({
-                  mode: "external",
-                  rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
-                  entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
-                }))}
-              >
-                External
-              </Button>
-            </div>
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Entry file</span>
-            <Input
-              value={currentEntryFile}
-              onChange={(event) => {
-                const nextEntryFile = event.target.value || "AGENTS.md";
-                if (selectedOrEntryFile === currentEntryFile) {
-                  setSelectedFile(nextEntryFile);
-                }
-                setBundleDraft((current) => ({
-                  mode: current?.mode ?? bundle?.mode ?? "managed",
-                  rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
-                  entryFile: nextEntryFile,
-                }));
-              }}
-              className="font-mono text-sm"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Root path</span>
-            <Input
-              value={currentRootPath}
-              onChange={(event) => setBundleDraft((current) => ({
-                mode: current?.mode ?? bundle?.mode ?? "managed",
-                rootPath: event.target.value,
-                entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
-              }))}
-              disabled={currentMode === "managed"}
-              className="font-mono text-sm"
-              placeholder={currentMode === "managed" ? "Managed by Paperclip" : "/absolute/path/to/agent/prompts"}
-            />
-          </label>
-        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -1847,22 +1781,6 @@ function PromptsTab({
               className="font-mono text-sm"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {["HEARTBEAT.md", "SOUL.md", "TOOLS.md"].map((filePath) => (
-              <Button
-                key={filePath}
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setSelectedFile(filePath);
-                  if (!fileOptions.includes(filePath)) setDraft("");
-                }}
-              >
-                {filePath}
-              </Button>
-            ))}
-          </div>
           <PackageFileTree
             nodes={fileTree}
             selectedFile={selectedOrEntryFile}
@@ -1883,20 +1801,148 @@ function PromptsTab({
             renderFileExtra={(node) => {
               const file = bundle?.files.find((entry) => entry.path === node.path);
               if (!file) return null;
+              if (file.deprecated) {
+                return (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="ml-3 shrink-0 rounded border border-amber-500/40 bg-amber-500/10 text-amber-200 px-1.5 py-0.5 text-[10px] uppercase tracking-wide cursor-help">
+                        virtual file
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={4}>
+                      Legacy inline prompt — this deprecated virtual file preserves the old promptTemplate content
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
               return (
-                <span
-                  className={cn(
-                    "ml-3 shrink-0 rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide",
-                    file.deprecated
-                      ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
-                      : "border-border text-muted-foreground",
-                  )}
-                >
-                  {file.deprecated ? "deprecated" : file.isEntryFile ? "entry" : `${file.size}b`}
+                <span className="ml-3 shrink-0 rounded border border-border text-muted-foreground px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                  {file.isEntryFile ? "entry" : `${file.size}b`}
                 </span>
               );
             }}
           />
+
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors group w-full">
+              <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
+              Advanced
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3 space-y-3">
+              <TooltipProvider>
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    Mode
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={4}>
+                        Managed: Paperclip stores and serves the instructions bundle. External: you provide a path on disk where the instructions live.
+                      </TooltipContent>
+                    </Tooltip>
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={currentMode === "managed" ? "default" : "outline"}
+                      onClick={() => setBundleDraft((current) => ({
+                        mode: "managed",
+                        rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
+                        entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
+                      }))}
+                    >
+                      Managed
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={currentMode === "external" ? "default" : "outline"}
+                      onClick={() => setBundleDraft((current) => ({
+                        mode: "external",
+                        rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
+                        entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
+                      }))}
+                    >
+                      External
+                    </Button>
+                  </div>
+                </label>
+                <div className="grid gap-3 grid-cols-2">
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      Root path
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" sideOffset={4}>
+                          The absolute directory on disk where the instructions bundle lives. In managed mode this is set by Paperclip automatically.
+                        </TooltipContent>
+                      </Tooltip>
+                    </span>
+                    {currentMode === "managed" ? (
+                      <div className="flex items-center gap-1.5 font-mono text-sm text-muted-foreground">
+                        <span className="truncate">{currentRootPath || "(managed)"}</span>
+                        {currentRootPath && (
+                          <CopyText text={currentRootPath} className="shrink-0">
+                            <Copy className="h-3.5 w-3.5" />
+                          </CopyText>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          value={currentRootPath}
+                          onChange={(event) => setBundleDraft((current) => ({
+                            mode: current?.mode ?? bundle?.mode ?? "managed",
+                            rootPath: event.target.value,
+                            entryFile: current?.entryFile ?? bundle?.entryFile ?? "AGENTS.md",
+                          }))}
+                          className="font-mono text-sm"
+                          placeholder="/absolute/path/to/agent/prompts"
+                        />
+                        {currentRootPath && (
+                          <CopyText text={currentRootPath} className="shrink-0">
+                            <Copy className="h-3.5 w-3.5" />
+                          </CopyText>
+                        )}
+                      </div>
+                    )}
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                      Entry file
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" sideOffset={4}>
+                          The main file the agent reads first when loading instructions. Defaults to AGENTS.md.
+                        </TooltipContent>
+                      </Tooltip>
+                    </span>
+                    <Input
+                      value={currentEntryFile}
+                      onChange={(event) => {
+                        const nextEntryFile = event.target.value || "AGENTS.md";
+                        if (selectedOrEntryFile === currentEntryFile) {
+                          setSelectedFile(nextEntryFile);
+                        }
+                        setBundleDraft((current) => ({
+                          mode: current?.mode ?? bundle?.mode ?? "managed",
+                          rootPath: current?.rootPath ?? bundle?.rootPath ?? "",
+                          entryFile: nextEntryFile,
+                        }));
+                      }}
+                      className="font-mono text-sm"
+                    />
+                  </label>
+                </div>
+              </TooltipProvider>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         <div className="border border-border rounded-lg p-4 space-y-3">
@@ -1937,6 +1983,7 @@ function PromptsTab({
             <PromptEditorSkeleton />
           ) : isMarkdown(selectedOrEntryFile) ? (
             <MarkdownEditor
+              key={selectedOrEntryFile}
               value={displayValue}
               onChange={(value) => setDraft(value ?? "")}
               placeholder="# Agent instructions"
