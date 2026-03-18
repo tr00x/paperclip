@@ -80,11 +80,17 @@ async function isLikelyPaperclipRepoRoot(candidate: string): Promise<boolean> {
   return hasWorkspace && hasPackageJson && hasServerDir && hasAdapterUtilsDir;
 }
 
-async function isLikelyPaperclipRuntimeSkillSource(candidate: string, skillName: string): Promise<boolean> {
+async function isLikelyPaperclipRuntimeSkillPath(
+  candidate: string,
+  skillName: string,
+  options: { requireSkillMarkdown?: boolean } = {},
+): Promise<boolean> {
   if (path.basename(candidate) !== skillName) return false;
   const skillsRoot = path.dirname(candidate);
   if (path.basename(skillsRoot) !== "skills") return false;
-  if (!(await pathExists(path.join(candidate, "SKILL.md")))) return false;
+  if (options.requireSkillMarkdown !== false && !(await pathExists(path.join(candidate, "SKILL.md")))) {
+    return false;
+  }
 
   let cursor = path.dirname(skillsRoot);
   for (let depth = 0; depth < 6; depth += 1) {
@@ -95,6 +101,39 @@ async function isLikelyPaperclipRuntimeSkillSource(candidate: string, skillName:
   }
 
   return false;
+}
+
+async function pruneBrokenUnavailablePaperclipSkillSymlinks(
+  skillsHome: string,
+  allowedSkillNames: Iterable<string>,
+  onLog: AdapterExecutionContext["onLog"],
+) {
+  const allowed = new Set(Array.from(allowedSkillNames));
+  const entries = await fs.readdir(skillsHome, { withFileTypes: true }).catch(() => []);
+
+  for (const entry of entries) {
+    if (allowed.has(entry.name) || !entry.isSymbolicLink()) continue;
+
+    const target = path.join(skillsHome, entry.name);
+    const linkedPath = await fs.readlink(target).catch(() => null);
+    if (!linkedPath) continue;
+
+    const resolvedLinkedPath = path.resolve(path.dirname(target), linkedPath);
+    if (await pathExists(resolvedLinkedPath)) continue;
+    if (
+      !(await isLikelyPaperclipRuntimeSkillPath(resolvedLinkedPath, entry.name, {
+        requireSkillMarkdown: false,
+      }))
+    ) {
+      continue;
+    }
+
+    await fs.unlink(target).catch(() => {});
+    await onLog(
+      "stdout",
+      `[paperclip] Removed stale Codex skill "${entry.name}" from ${skillsHome}\n`,
+    );
+  }
 }
 
 type EnsureCodexSkillsInjectedOptions = {
@@ -141,7 +180,7 @@ export async function ensureCodexSkillsInjected(
         if (
           resolvedLinkedPath &&
           resolvedLinkedPath !== entry.source &&
-          (await isLikelyPaperclipRuntimeSkillSource(resolvedLinkedPath, entry.runtimeName))
+          (await isLikelyPaperclipRuntimeSkillPath(resolvedLinkedPath, entry.runtimeName))
         ) {
           await fs.unlink(target);
           if (linkSkill) {
@@ -171,6 +210,12 @@ export async function ensureCodexSkillsInjected(
       );
     }
   }
+
+  await pruneBrokenUnavailablePaperclipSkillSymlinks(
+    skillsHome,
+    skillsEntries.map((entry) => entry.runtimeName),
+    onLog,
+  );
 }
 
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {

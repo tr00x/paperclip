@@ -102,4 +102,44 @@ describe("codex local adapter skill injection", () => {
       await fs.realpath(path.join(customRoot, "custom", "paperclip")),
     );
   });
+
+  it("prunes broken symlinks for unavailable Paperclip repo skills before Codex starts", async () => {
+    const currentRepo = await makeTempDir("paperclip-codex-current-");
+    const oldRepo = await makeTempDir("paperclip-codex-old-");
+    const skillsHome = await makeTempDir("paperclip-codex-home-");
+    cleanupDirs.add(currentRepo);
+    cleanupDirs.add(oldRepo);
+    cleanupDirs.add(skillsHome);
+
+    await createPaperclipRepoSkill(currentRepo, "paperclip");
+    await createPaperclipRepoSkill(oldRepo, "agent-browser");
+    const staleTarget = path.join(oldRepo, "skills", "agent-browser");
+    await fs.symlink(staleTarget, path.join(skillsHome, "agent-browser"));
+    await fs.rm(staleTarget, { recursive: true, force: true });
+
+    const logs: Array<{ stream: "stdout" | "stderr"; chunk: string }> = [];
+    await ensureCodexSkillsInjected(
+      async (stream, chunk) => {
+        logs.push({ stream, chunk });
+      },
+      {
+        skillsHome,
+        skillsEntries: [{
+          key: paperclipKey,
+          runtimeName: "paperclip",
+          source: path.join(currentRepo, "skills", "paperclip"),
+        }],
+      },
+    );
+
+    await expect(fs.lstat(path.join(skillsHome, "agent-browser"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(logs).toContainEqual(
+      expect.objectContaining({
+        stream: "stdout",
+        chunk: expect.stringContaining('Removed stale Codex skill "agent-browser"'),
+      }),
+    );
+  });
 });
