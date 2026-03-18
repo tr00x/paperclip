@@ -731,8 +731,8 @@ export function AgentDetail() {
         crumbs.push({ label: "Instructions" });
       } else if (activeView === "configuration") {
         crumbs.push({ label: "Configuration" });
-      } else if (activeView === "skills") {
-        crumbs.push({ label: "Skills" });
+      // } else if (activeView === "skills") { // TODO: bring back later
+      //   crumbs.push({ label: "Skills" });
       } else if (activeView === "runs") {
         crumbs.push({ label: "Runs" });
       } else if (activeView === "budget") {
@@ -892,8 +892,9 @@ export function AgentDetail() {
             items={[
               { value: "dashboard", label: "Dashboard" },
               { value: "instructions", label: "Instructions" },
-              { value: "skills", label: "Skills" },
               { value: "configuration", label: "Configuration" },
+              { value: "skills", label: "Skills" },
+              { value: "runs", label: "Runs" },
               { value: "budget", label: "Budget" },
             ]}
             value={activeView}
