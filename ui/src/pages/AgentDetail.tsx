@@ -72,6 +72,7 @@ import { RunTranscriptView, type TranscriptMode } from "../components/transcript
 import {
   isUuidLike,
   type Agent,
+  type AgentSkillEntry,
   type AgentSkillSnapshot,
   type BudgetPolicySummary,
   type HeartbeatRun,
@@ -82,7 +83,11 @@ import {
 } from "@paperclipai/shared";
 import { redactHomePathUserSegments, redactHomePathUserSegmentsInValue } from "@paperclipai/adapter-utils";
 import { agentRouteRef } from "../lib/utils";
-import { applyAgentSkillSnapshot, arraysEqual } from "../lib/agent-skills-state";
+import {
+  applyAgentSkillSnapshot,
+  arraysEqual,
+  isReadOnlyUnmanagedSkillEntry,
+} from "../lib/agent-skills-state";
 
 const runStatusIcons: Record<string, { icon: typeof CheckCircle2; color: string }> = {
   succeeded: { icon: CheckCircle2, color: "text-green-600 dark:text-green-400" },
@@ -1798,7 +1803,7 @@ function PromptsTab({
         </div>
       )}
 
-      <Collapsible>
+      <Collapsible defaultOpen={currentMode === "external"}>
         <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors group">
           <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
           Advanced
@@ -2159,8 +2164,11 @@ function AgentSkillsTab({
     name: string;
     description: string | null;
     detail: string | null;
+    locationLabel: string | null;
+    originLabel: string | null;
     linkTo: string | null;
-    adapterEntry: AgentSkillSnapshot["entries"][number] | null;
+    readOnly: boolean;
+    adapterEntry: AgentSkillEntry | null;
   };
 
   const queryClient = useQueryClient();
@@ -2242,6 +2250,10 @@ function AgentSkillsTab({
     () => new Map((companySkills ?? []).map((skill) => [skill.key, skill])),
     [companySkills],
   );
+  const companySkillKeys = useMemo(
+    () => new Set((companySkills ?? []).map((skill) => skill.key)),
+    [companySkills],
+  );
   const adapterEntryByKey = useMemo(
     () => new Map((skillSnapshot?.entries ?? []).map((entry) => [entry.key, entry])),
     [skillSnapshot],
@@ -2256,7 +2268,10 @@ function AgentSkillsTab({
           name: skill.name,
           description: skill.description,
           detail: adapterEntryByKey.get(skill.key)?.detail ?? null,
+          locationLabel: adapterEntryByKey.get(skill.key)?.locationLabel ?? null,
+          originLabel: adapterEntryByKey.get(skill.key)?.originLabel ?? null,
           linkTo: `/skills/${skill.id}`,
+          readOnly: false,
           adapterEntry: adapterEntryByKey.get(skill.key) ?? null,
         })),
     [adapterEntryByKey, companySkills],
@@ -2273,11 +2288,32 @@ function AgentSkillsTab({
             name: companySkill?.name ?? entry.key,
             description: companySkill?.description ?? null,
             detail: entry.detail ?? null,
+            locationLabel: entry.locationLabel ?? null,
+            originLabel: entry.originLabel ?? null,
             linkTo: companySkill ? `/skills/${companySkill.id}` : null,
+            readOnly: false,
             adapterEntry: entry,
           };
         }),
     [companySkillByKey, skillSnapshot],
+  );
+  const unmanagedSkillRows = useMemo<SkillRow[]>(
+    () =>
+      (skillSnapshot?.entries ?? [])
+        .filter((entry) => isReadOnlyUnmanagedSkillEntry(entry, companySkillKeys))
+        .map((entry) => ({
+          id: `external:${entry.key}`,
+          key: entry.key,
+          name: entry.runtimeName ?? entry.key,
+          description: null,
+          detail: entry.detail ?? null,
+          locationLabel: entry.locationLabel ?? null,
+          originLabel: entry.originLabel ?? null,
+          linkTo: null,
+          readOnly: true,
+          adapterEntry: entry,
+        })),
+    [companySkillKeys, skillSnapshot],
   );
   const desiredOnlyMissingSkills = useMemo(
     () => skillDraft.filter((key) => !companySkillByKey.has(key)),
@@ -2348,6 +2384,51 @@ function AgentSkillsTab({
             const renderSkillRow = (skill: SkillRow) => {
               const adapterEntry = skill.adapterEntry ?? adapterEntryByKey.get(skill.key);
               const required = Boolean(adapterEntry?.required);
+              const rowClassName = cn(
+                "flex items-start gap-3 border-b border-border px-3 py-3 text-sm last:border-b-0",
+                skill.readOnly ? "bg-muted/20" : "hover:bg-accent/20",
+              );
+              const body = (
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="truncate font-medium">{skill.name}</span>
+                    </div>
+                    {skill.linkTo ? (
+                      <Link
+                        to={skill.linkTo}
+                        className="shrink-0 text-xs text-muted-foreground no-underline hover:text-foreground"
+                      >
+                        View
+                      </Link>
+                    ) : null}
+                  </div>
+                  {skill.description && (
+                    <MarkdownBody className="mt-1 text-xs text-muted-foreground prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                      {skill.description}
+                    </MarkdownBody>
+                  )}
+                  {skill.readOnly && skill.originLabel && (
+                    <p className="mt-1 text-xs text-muted-foreground">{skill.originLabel}</p>
+                  )}
+                  {skill.readOnly && skill.locationLabel && (
+                    <p className="mt-1 text-xs text-muted-foreground">Location: {skill.locationLabel}</p>
+                  )}
+                  {skill.detail && (
+                    <p className="mt-1 text-xs text-muted-foreground">{skill.detail}</p>
+                  )}
+                </div>
+              );
+
+              if (skill.readOnly) {
+                return (
+                  <div key={skill.id} className={rowClassName}>
+                    <span className="mt-1 h-2 w-2 rounded-full bg-muted-foreground/40" />
+                    {body}
+                  </div>
+                );
+              }
+
               const checked = required || skillDraft.includes(skill.key);
               const disabled = required || skillSnapshot?.mode === "unsupported";
               const checkbox = (
@@ -2364,11 +2445,9 @@ function AgentSkillsTab({
                   className="mt-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               );
+
               return (
-                <label
-                  key={skill.id}
-                  className="flex items-start gap-3 border-b border-border px-3 py-3 text-sm last:border-b-0 hover:bg-accent/20"
-                >
+                <label key={skill.id} className={rowClassName}>
                   {required && adapterEntry?.requiredReason ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -2388,34 +2467,12 @@ function AgentSkillsTab({
                   ) : (
                     checkbox
                   )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="truncate font-medium">{skill.name}</span>
-                      </div>
-                      {skill.linkTo ? (
-                        <Link
-                          to={skill.linkTo}
-                          className="shrink-0 text-xs text-muted-foreground no-underline hover:text-foreground"
-                        >
-                          View
-                        </Link>
-                      ) : null}
-                    </div>
-                    {skill.description && (
-                      <MarkdownBody className="mt-1 text-xs text-muted-foreground prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                        {skill.description}
-                      </MarkdownBody>
-                    )}
-                    {skill.detail && (
-                      <p className="mt-1 text-xs text-muted-foreground">{skill.detail}</p>
-                    )}
-                  </div>
+                  {body}
                 </label>
               );
             };
 
-            if (optionalSkillRows.length === 0 && requiredSkillRows.length === 0) {
+            if (optionalSkillRows.length === 0 && requiredSkillRows.length === 0 && unmanagedSkillRows.length === 0) {
               return (
                 <section className="border-y border-border">
                   <div className="px-3 py-6 text-sm text-muted-foreground">
@@ -2441,6 +2498,17 @@ function AgentSkillsTab({
                       </span>
                     </div>
                     {requiredSkillRows.map(renderSkillRow)}
+                  </section>
+                )}
+
+                {unmanagedSkillRows.length > 0 && (
+                  <section className="border-y border-border">
+                    <div className="border-b border-border bg-muted/40 px-3 py-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        User-installed skills, not managed by Paperclip
+                      </span>
+                    </div>
+                    {unmanagedSkillRows.map(renderSkillRow)}
                   </section>
                 )}
               </>
