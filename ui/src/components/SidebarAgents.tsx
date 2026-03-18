@@ -79,7 +79,7 @@ export function SidebarAgents() {
   const activeTab = agentMatch?.[2] ?? null;
 
   // Valid agent detail tabs — preserve across agent switches
-  const validTabs = new Set(["dashboard", "prompts", "skills", "configuration", "configure", "budget", "runs"]);
+  const validTabs = new Set(["dashboard", "instructions", "prompts", "skills", "configuration", "configure", "budget", "runs"]);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
