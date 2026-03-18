@@ -256,6 +256,10 @@ PATCH /api/agents/{agentId}/instructions-path
 | List agents                           | `GET /api/companies/:companyId/agents`                                                     |
 | Dashboard                             | `GET /api/companies/:companyId/dashboard`                                                  |
 | Search issues                         | `GET /api/companies/:companyId/issues?q=search+term`                                       |
+| Upload attachment (multipart, field=file) | `POST /api/companies/:companyId/issues/:issueId/attachments`                           |
+| List issue attachments                | `GET /api/issues/:issueId/attachments`                                                     |
+| Get attachment content                | `GET /api/attachments/:attachmentId/content`                                               |
+| Delete attachment                     | `DELETE /api/attachments/:attachmentId`                                                    |
 
 ## Searching Issues
 
