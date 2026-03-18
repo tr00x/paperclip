@@ -78,8 +78,6 @@ export function SidebarAgents() {
   const activeAgentId = agentMatch?.[1] ?? null;
   const activeTab = agentMatch?.[2] ?? null;
 
-  // Valid agent detail tabs — preserve across agent switches
-  const validTabs = new Set(["dashboard", "instructions", "prompts", "skills", "configuration", "configure", "budget", "runs"]);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -116,7 +114,7 @@ export function SidebarAgents() {
             return (
               <NavLink
                 key={agent.id}
-                to={activeTab && validTabs.has(activeTab) ? `${agentUrl(agent)}/${activeTab}` : agentUrl(agent)}
+                to={activeTab ? `${agentUrl(agent)}/${activeTab}` : agentUrl(agent)}
                 onClick={() => {
                   if (isMobile) setSidebarOpen(false);
                 }}
