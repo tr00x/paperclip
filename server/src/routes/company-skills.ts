@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import type { Db } from "@paperclipai/db";
 import {
   companySkillCreateSchema,
@@ -7,12 +7,49 @@ import {
   companySkillProjectScanRequestSchema,
 } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
-import { companySkillService, logActivity } from "../services/index.js";
+import { accessService, agentService, companySkillService, logActivity } from "../services/index.js";
+import { forbidden } from "../errors.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 
 export function companySkillRoutes(db: Db) {
   const router = Router();
+  const agents = agentService(db);
+  const access = accessService(db);
   const svc = companySkillService(db);
+
+  function canCreateAgents(agent: { permissions: Record<string, unknown> | null | undefined }) {
+    if (!agent.permissions || typeof agent.permissions !== "object") return false;
+    return Boolean((agent.permissions as Record<string, unknown>).canCreateAgents);
+  }
+
+  async function assertCanMutateCompanySkills(req: Request, companyId: string) {
+    assertCompanyAccess(req, companyId);
+
+    if (req.actor.type === "board") {
+      if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return;
+      const allowed = await access.canUser(companyId, req.actor.userId, "agents:create");
+      if (!allowed) {
+        throw forbidden("Missing permission: agents:create");
+      }
+      return;
+    }
+
+    if (!req.actor.agentId) {
+      throw forbidden("Agent authentication required");
+    }
+
+    const actorAgent = await agents.getById(req.actor.agentId);
+    if (!actorAgent || actorAgent.companyId !== companyId) {
+      throw forbidden("Agent key cannot access another company");
+    }
+
+    const allowedByGrant = await access.hasPermission(companyId, "agent", actorAgent.id, "agents:create");
+    if (allowedByGrant || canCreateAgents(actorAgent)) {
+      return;
+    }
+
+    throw forbidden("Missing permission: can create agents");
+  }
 
   router.get("/companies/:companyId/skills", async (req, res) => {
     const companyId = req.params.companyId as string;
@@ -63,7 +100,7 @@ export function companySkillRoutes(db: Db) {
     validate(companySkillCreateSchema),
     async (req, res) => {
       const companyId = req.params.companyId as string;
-      assertCompanyAccess(req, companyId);
+      await assertCanMutateCompanySkills(req, companyId);
       const result = await svc.createLocalSkill(companyId, req.body);
 
       const actor = getActorInfo(req);
@@ -92,7 +129,7 @@ export function companySkillRoutes(db: Db) {
     async (req, res) => {
       const companyId = req.params.companyId as string;
       const skillId = req.params.skillId as string;
-      assertCompanyAccess(req, companyId);
+      await assertCanMutateCompanySkills(req, companyId);
       const result = await svc.updateFile(
         companyId,
         skillId,
@@ -125,7 +162,7 @@ export function companySkillRoutes(db: Db) {
     validate(companySkillImportSchema),
     async (req, res) => {
       const companyId = req.params.companyId as string;
-      assertCompanyAccess(req, companyId);
+      await assertCanMutateCompanySkills(req, companyId);
       const source = String(req.body.source ?? "");
       const result = await svc.importFromSource(companyId, source);
 
@@ -156,7 +193,7 @@ export function companySkillRoutes(db: Db) {
     validate(companySkillProjectScanRequestSchema),
     async (req, res) => {
       const companyId = req.params.companyId as string;
-      assertCompanyAccess(req, companyId);
+      await assertCanMutateCompanySkills(req, companyId);
       const result = await svc.scanProjectWorkspaces(companyId, req.body);
 
       const actor = getActorInfo(req);
@@ -187,7 +224,7 @@ export function companySkillRoutes(db: Db) {
   router.post("/companies/:companyId/skills/:skillId/install-update", async (req, res) => {
     const companyId = req.params.companyId as string;
     const skillId = req.params.skillId as string;
-    assertCompanyAccess(req, companyId);
+    await assertCanMutateCompanySkills(req, companyId);
     const result = await svc.installUpdate(companyId, skillId);
     if (!result) {
       res.status(404).json({ error: "Skill not found" });

@@ -124,6 +124,17 @@ Access control:
 
 4. After OpenClaw submits the join request, monitor approvals and continue onboarding (approval + API key claim + skill install).
 
+## Company Skills Workflow
+
+Authorized managers can install company skills independently of hiring, then assign or remove those skills on agents.
+
+- Install and inspect company skills with the company skills API.
+- Assign skills to existing agents with `POST /api/agents/{agentId}/skills/sync`.
+- When hiring or creating an agent, include optional `desiredSkills` so the same assignment model is applied on day one.
+
+Keep the detailed workflow out of this hot-path file. For concrete commands and examples, read:
+`skills/paperclip/references/company-skills.md`
+
 ## Critical Rules
 
 - **Always checkout** before working. Never PATCH to `in_progress` manually.
@@ -254,6 +265,10 @@ PATCH /api/agents/{agentId}/instructions-path
 | Set instructions path                 | `PATCH /api/agents/:agentId/instructions-path`                                             |
 | Release task                          | `POST /api/issues/:issueId/release`                                                        |
 | List agents                           | `GET /api/companies/:companyId/agents`                                                     |
+| List company skills                   | `GET /api/companies/:companyId/skills`                                                     |
+| Import company skills                 | `POST /api/companies/:companyId/skills/import`                                             |
+| Scan project workspaces for skills    | `POST /api/companies/:companyId/skills/scan-projects`                                      |
+| Sync agent desired skills             | `POST /api/agents/:agentId/skills/sync`                                                    |
 | Dashboard                             | `GET /api/companies/:companyId/dashboard`                                                  |
 | Search issues                         | `GET /api/companies/:companyId/issues?q=search+term`                                       |
 | Upload attachment (multipart, field=file) | `POST /api/companies/:companyId/issues/:issueId/attachments`                           |

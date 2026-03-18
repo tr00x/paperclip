@@ -1065,17 +1065,79 @@ function getSkillMeta(skill: CompanySkill): SkillSourceMeta {
 function resolveSkillReference(
   skills: CompanySkill[],
   reference: string,
-): CompanySkill | null {
-  const normalizedReference = normalizeSkillKey(reference) ?? normalizeSkillSlug(reference);
-  if (!normalizedReference) return null;
+): { skill: CompanySkill | null; ambiguous: boolean } {
+  const trimmed = reference.trim();
+  if (!trimmed) {
+    return { skill: null, ambiguous: false };
+  }
 
-  const byKey = skills.find((skill) => skill.key === normalizedReference);
-  if (byKey) return byKey;
+  const byId = skills.find((skill) => skill.id === trimmed);
+  if (byId) {
+    return { skill: byId, ambiguous: false };
+  }
 
-  const bySlug = skills.filter((skill) => skill.slug === normalizedReference);
-  if (bySlug.length === 1) return bySlug[0] ?? null;
+  const normalizedKey = normalizeSkillKey(trimmed);
+  if (normalizedKey) {
+    const byKey = skills.find((skill) => skill.key === normalizedKey);
+    if (byKey) {
+      return { skill: byKey, ambiguous: false };
+    }
+  }
 
-  return null;
+  const normalizedSlug = normalizeSkillSlug(trimmed);
+  if (!normalizedSlug) {
+    return { skill: null, ambiguous: false };
+  }
+
+  const bySlug = skills.filter((skill) => skill.slug === normalizedSlug);
+  if (bySlug.length === 1) {
+    return { skill: bySlug[0] ?? null, ambiguous: false };
+  }
+  if (bySlug.length > 1) {
+    return { skill: null, ambiguous: true };
+  }
+
+  return { skill: null, ambiguous: false };
+}
+
+function resolveRequestedSkillKeysOrThrow(
+  skills: CompanySkill[],
+  requestedReferences: string[],
+) {
+  const missing = new Set<string>();
+  const ambiguous = new Set<string>();
+  const resolved = new Set<string>();
+
+  for (const reference of requestedReferences) {
+    const trimmed = reference.trim();
+    if (!trimmed) continue;
+
+    const match = resolveSkillReference(skills, trimmed);
+    if (match.skill) {
+      resolved.add(match.skill.key);
+      continue;
+    }
+
+    if (match.ambiguous) {
+      ambiguous.add(trimmed);
+      continue;
+    }
+
+    missing.add(trimmed);
+  }
+
+  if (ambiguous.size > 0 || missing.size > 0) {
+    const problems: string[] = [];
+    if (ambiguous.size > 0) {
+      problems.push(`ambiguous references: ${Array.from(ambiguous).sort().join(", ")}`);
+    }
+    if (missing.size > 0) {
+      problems.push(`unknown references: ${Array.from(missing).sort().join(", ")}`);
+    }
+    throw unprocessable(`Invalid company skill selection (${problems.join("; ")}).`);
+  }
+
+  return Array.from(resolved);
 }
 
 function resolveDesiredSkillKeys(
@@ -1085,7 +1147,7 @@ function resolveDesiredSkillKeys(
   const preference = readPaperclipSkillSyncPreference(config);
   return Array.from(new Set(
     preference.desiredSkills
-      .map((reference) => resolveSkillReference(skills, reference)?.key ?? normalizeSkillKey(reference))
+      .map((reference) => resolveSkillReference(skills, reference).skill?.key ?? normalizeSkillKey(reference))
       .filter((value): value is string => Boolean(value)),
   ));
 }
@@ -1952,6 +2014,10 @@ export function companySkillService(db: Db) {
     listFull,
     getById,
     getByKey,
+    resolveRequestedSkillKeys: async (companyId: string, requestedReferences: string[]) => {
+      const skills = await listFull(companyId);
+      return resolveRequestedSkillKeysOrThrow(skills, requestedReferences);
+    },
     detail,
     updateStatus,
     readFile,

@@ -394,6 +394,39 @@ export function agentRoutes(db: Db) {
     };
   }
 
+  async function resolveDesiredSkillAssignment(
+    companyId: string,
+    adapterType: string,
+    adapterConfig: Record<string, unknown>,
+    requestedDesiredSkills: string[] | undefined,
+  ) {
+    if (!requestedDesiredSkills) {
+      return {
+        adapterConfig,
+        desiredSkills: null as string[] | null,
+        runtimeSkillEntries: null as Awaited<ReturnType<typeof companySkills.listRuntimeSkillEntries>> | null,
+      };
+    }
+
+    const resolvedRequestedSkills = await companySkills.resolveRequestedSkillKeys(
+      companyId,
+      requestedDesiredSkills,
+    );
+    const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(companyId, {
+      materializeMissing: shouldMaterializeRuntimeSkillsForAdapter(adapterType),
+    });
+    const requiredSkills = runtimeSkillEntries
+      .filter((entry) => entry.required)
+      .map((entry) => entry.key);
+    const desiredSkills = Array.from(new Set([...requiredSkills, ...resolvedRequestedSkills]));
+
+    return {
+      adapterConfig: writePaperclipSkillSyncPreference(adapterConfig, desiredSkills),
+      desiredSkills,
+      runtimeSkillEntries,
+    };
+  }
+
   function redactForRestrictedAgentView(agent: Awaited<ReturnType<typeof svc.getById>>) {
     if (!agent) return null;
     return {
@@ -578,15 +611,19 @@ export function agentRoutes(db: Db) {
             .filter(Boolean),
         ),
       );
-      const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId, {
-        materializeMissing: shouldMaterializeRuntimeSkillsForAdapter(agent.adapterType),
-      });
-      const requiredSkills = runtimeSkillEntries.filter((entry) => entry.required).map((entry) => entry.key);
-      const desiredSkills = Array.from(new Set([...requiredSkills, ...requestedSkills]));
-      const nextAdapterConfig = writePaperclipSkillSyncPreference(
-        agent.adapterConfig as Record<string, unknown>,
+      const {
+        adapterConfig: nextAdapterConfig,
         desiredSkills,
+        runtimeSkillEntries,
+      } = await resolveDesiredSkillAssignment(
+        agent.companyId,
+        agent.adapterType,
+        agent.adapterConfig as Record<string, unknown>,
+        requestedSkills,
       );
+      if (!desiredSkills || !runtimeSkillEntries) {
+        throw unprocessable("Skill sync requires desiredSkills.");
+      }
       const actor = getActorInfo(req);
       const updated = await svc.update(agent.id, {
         adapterConfig: nextAdapterConfig,
@@ -955,14 +992,25 @@ export function agentRoutes(db: Db) {
     const companyId = req.params.companyId as string;
     await assertCanCreateAgentsForCompany(req, companyId);
     const sourceIssueIds = parseSourceIssueIds(req.body);
-    const { sourceIssueId: _sourceIssueId, sourceIssueIds: _sourceIssueIds, ...hireInput } = req.body;
+    const {
+      desiredSkills: requestedDesiredSkills,
+      sourceIssueId: _sourceIssueId,
+      sourceIssueIds: _sourceIssueIds,
+      ...hireInput
+    } = req.body;
     const requestedAdapterConfig = applyCreateDefaultsByAdapterType(
       hireInput.adapterType,
       ((hireInput.adapterConfig ?? {}) as Record<string, unknown>),
     );
+    const desiredSkillAssignment = await resolveDesiredSkillAssignment(
+      companyId,
+      hireInput.adapterType,
+      requestedAdapterConfig,
+      Array.isArray(requestedDesiredSkills) ? requestedDesiredSkills : undefined,
+    );
     const normalizedAdapterConfig = await secretsSvc.normalizeAdapterConfigForPersistence(
       companyId,
-      requestedAdapterConfig,
+      desiredSkillAssignment.adapterConfig,
       { strictMode: strictSecretsMode },
     );
     await assertAdapterConfigConstraints(
@@ -1030,6 +1078,7 @@ export function agentRoutes(db: Db) {
             typeof normalizedHireInput.budgetMonthlyCents === "number"
               ? normalizedHireInput.budgetMonthlyCents
               : agent.budgetMonthlyCents,
+          desiredSkills: desiredSkillAssignment.desiredSkills,
           metadata: requestedMetadata,
           agentId: agent.id,
           requestedByAgentId: actor.actorType === "agent" ? actor.actorId : null,
@@ -1037,6 +1086,7 @@ export function agentRoutes(db: Db) {
             adapterType: requestedAdapterType,
             adapterConfig: requestedAdapterConfig,
             runtimeConfig: requestedRuntimeConfig,
+            desiredSkills: desiredSkillAssignment.desiredSkills,
           },
         },
         decisionNote: null,
@@ -1068,6 +1118,7 @@ export function agentRoutes(db: Db) {
         requiresApproval,
         approvalId: approval?.id ?? null,
         issueIds: sourceIssueIds,
+        desiredSkills: desiredSkillAssignment.desiredSkills,
       },
     });
 
@@ -1096,23 +1147,33 @@ export function agentRoutes(db: Db) {
       assertBoard(req);
     }
 
+    const {
+      desiredSkills: requestedDesiredSkills,
+      ...createInput
+    } = req.body;
     const requestedAdapterConfig = applyCreateDefaultsByAdapterType(
-      req.body.adapterType,
-      ((req.body.adapterConfig ?? {}) as Record<string, unknown>),
+      createInput.adapterType,
+      ((createInput.adapterConfig ?? {}) as Record<string, unknown>),
+    );
+    const desiredSkillAssignment = await resolveDesiredSkillAssignment(
+      companyId,
+      createInput.adapterType,
+      requestedAdapterConfig,
+      Array.isArray(requestedDesiredSkills) ? requestedDesiredSkills : undefined,
     );
     const normalizedAdapterConfig = await secretsSvc.normalizeAdapterConfigForPersistence(
       companyId,
-      requestedAdapterConfig,
+      desiredSkillAssignment.adapterConfig,
       { strictMode: strictSecretsMode },
     );
     await assertAdapterConfigConstraints(
       companyId,
-      req.body.adapterType,
+      createInput.adapterType,
       normalizedAdapterConfig,
     );
 
     const agent = await svc.create(companyId, {
-      ...req.body,
+      ...createInput,
       adapterConfig: normalizedAdapterConfig,
       status: "idle",
       spentMonthlyCents: 0,
@@ -1129,7 +1190,11 @@ export function agentRoutes(db: Db) {
       action: "agent.created",
       entityType: "agent",
       entityId: agent.id,
-      details: { name: agent.name, role: agent.role },
+      details: {
+        name: agent.name,
+        role: agent.role,
+        desiredSkills: desiredSkillAssignment.desiredSkills,
+      },
     });
 
     if (agent.budgetMonthlyCents > 0) {

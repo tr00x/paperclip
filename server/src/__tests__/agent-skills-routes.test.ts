@@ -7,6 +7,7 @@ import { errorHandler } from "../middleware/index.js";
 const mockAgentService = vi.hoisted(() => ({
   getById: vi.fn(),
   update: vi.fn(),
+  create: vi.fn(),
   resolveByReference: vi.fn(),
 }));
 
@@ -18,7 +19,9 @@ const mockAccessService = vi.hoisted(() => ({
 const mockApprovalService = vi.hoisted(() => ({}));
 const mockBudgetService = vi.hoisted(() => ({}));
 const mockHeartbeatService = vi.hoisted(() => ({}));
-const mockIssueApprovalService = vi.hoisted(() => ({}));
+const mockIssueApprovalService = vi.hoisted(() => ({
+  linkManyForApproval: vi.fn(),
+}));
 const mockWorkspaceOperationService = vi.hoisted(() => ({}));
 const mockAgentInstructionsService = vi.hoisted(() => ({
   getBundle: vi.fn(),
@@ -33,6 +36,7 @@ const mockAgentInstructionsService = vi.hoisted(() => ({
 
 const mockCompanySkillService = vi.hoisted(() => ({
   listRuntimeSkillEntries: vi.fn(),
+  resolveRequestedSkillKeys: vi.fn(),
 }));
 
 const mockSecretService = vi.hoisted(() => ({
@@ -68,7 +72,22 @@ vi.mock("../adapters/index.js", () => ({
   listAdapterModels: vi.fn(),
 }));
 
-function createApp() {
+function createDb(requireBoardApprovalForNewAgents = false) {
+  return {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(async () => [
+          {
+            id: "company-1",
+            requireBoardApprovalForNewAgents,
+          },
+        ]),
+      })),
+    })),
+  };
+}
+
+function createApp(db: Record<string, unknown> = createDb()) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
@@ -81,7 +100,7 @@ function createApp() {
     };
     next();
   });
-  app.use("/api", agentRoutes({} as any));
+  app.use("/api", agentRoutes(db as any));
   app.use(errorHandler);
   return app;
 }
@@ -121,6 +140,14 @@ describe("agent skill routes", () => {
         requiredReason: "required",
       },
     ]);
+    mockCompanySkillService.resolveRequestedSkillKeys.mockImplementation(
+      async (_companyId: string, requested: string[]) =>
+        requested.map((value) =>
+          value === "paperclip"
+            ? "paperclipai/paperclip/paperclip"
+            : value,
+        ),
+    );
     mockAdapter.listSkills.mockResolvedValue({
       adapterType: "claude_local",
       supported: true,
@@ -141,7 +168,24 @@ describe("agent skill routes", () => {
       ...makeAgent("claude_local"),
       adapterConfig: patch.adapterConfig ?? {},
     }));
+    mockAgentService.create.mockImplementation(async (_companyId: string, input: Record<string, unknown>) => ({
+      ...makeAgent(String(input.adapterType ?? "claude_local")),
+      ...input,
+      adapterConfig: input.adapterConfig ?? {},
+      runtimeConfig: input.runtimeConfig ?? {},
+      budgetMonthlyCents: Number(input.budgetMonthlyCents ?? 0),
+      permissions: null,
+    }));
+    mockApprovalService.create = vi.fn(async (_companyId: string, input: Record<string, unknown>) => ({
+      id: "approval-1",
+      companyId: "company-1",
+      type: "hire_agent",
+      status: "pending",
+      payload: input.payload ?? {},
+    }));
     mockLogActivity.mockResolvedValue(undefined);
+    mockAccessService.canUser.mockResolvedValue(true);
+    mockAccessService.hasPermission.mockResolvedValue(true);
   });
 
   it("skips runtime materialization when listing Claude skills", async () => {
@@ -196,5 +240,80 @@ describe("agent skill routes", () => {
       materializeMissing: false,
     });
     expect(mockAdapter.syncSkills).toHaveBeenCalled();
+  });
+
+  it("canonicalizes desired skill references before syncing", async () => {
+    mockAgentService.getById.mockResolvedValue(makeAgent("claude_local"));
+
+    const res = await request(createApp())
+      .post("/api/agents/11111111-1111-4111-8111-111111111111/skills/sync?companyId=company-1")
+      .send({ desiredSkills: ["paperclip"] });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(mockCompanySkillService.resolveRequestedSkillKeys).toHaveBeenCalledWith("company-1", ["paperclip"]);
+    expect(mockAgentService.update).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          paperclipSkillSync: expect.objectContaining({
+            desiredSkills: ["paperclipai/paperclip/paperclip"],
+          }),
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it("persists canonical desired skills when creating an agent directly", async () => {
+    const res = await request(createApp())
+      .post("/api/companies/company-1/agents")
+      .send({
+        name: "QA Agent",
+        role: "engineer",
+        adapterType: "claude_local",
+        desiredSkills: ["paperclip"],
+        adapterConfig: {},
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(mockCompanySkillService.resolveRequestedSkillKeys).toHaveBeenCalledWith("company-1", ["paperclip"]);
+    expect(mockAgentService.create).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          paperclipSkillSync: expect.objectContaining({
+            desiredSkills: ["paperclipai/paperclip/paperclip"],
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("includes canonical desired skills in hire approvals", async () => {
+    const db = createDb(true);
+
+    const res = await request(createApp(db))
+      .post("/api/companies/company-1/agent-hires")
+      .send({
+        name: "QA Agent",
+        role: "engineer",
+        adapterType: "claude_local",
+        desiredSkills: ["paperclip"],
+        adapterConfig: {},
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(mockCompanySkillService.resolveRequestedSkillKeys).toHaveBeenCalledWith("company-1", ["paperclip"]);
+    expect(mockApprovalService.create).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          desiredSkills: ["paperclipai/paperclip/paperclip"],
+          requestedConfigurationSnapshot: expect.objectContaining({
+            desiredSkills: ["paperclipai/paperclip/paperclip"],
+          }),
+        }),
+      }),
+    );
   });
 });
