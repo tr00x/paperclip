@@ -376,10 +376,20 @@ export function IssueDetail() {
   }, [agents, currentUserId]);
 
   const currentAssigneeValue = useMemo(() => {
+    // Default to the last commenter who is not "me" so the user doesn't
+    // accidentally reassign to themselves when commenting on their own issue.
+    if (comments && comments.length > 0 && currentUserId) {
+      for (let i = comments.length - 1; i >= 0; i--) {
+        const c = comments[i];
+        if (c.authorAgentId) return `agent:${c.authorAgentId}`;
+        if (c.authorUserId && c.authorUserId !== currentUserId)
+          return `user:${c.authorUserId}`;
+      }
+    }
     if (issue?.assigneeAgentId) return `agent:${issue.assigneeAgentId}`;
     if (issue?.assigneeUserId) return `user:${issue.assigneeUserId}`;
     return "";
-  }, [issue?.assigneeAgentId, issue?.assigneeUserId]);
+  }, [issue?.assigneeAgentId, issue?.assigneeUserId, comments, currentUserId]);
 
   const commentsWithRunMeta = useMemo(() => {
     const runMetaByCommentId = new Map<string, { runId: string; runAgentId: string | null }>();
