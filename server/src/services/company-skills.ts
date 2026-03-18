@@ -1167,6 +1167,29 @@ function normalizeSourceLocatorDirectory(sourceLocator: string | null) {
   return path.basename(resolved).toLowerCase() === "skill.md" ? path.dirname(resolved) : resolved;
 }
 
+export async function findMissingLocalSkillIds(
+  skills: Array<Pick<CompanySkill, "id" | "sourceType" | "sourceLocator">>,
+) {
+  const missingIds: string[] = [];
+
+  for (const skill of skills) {
+    if (skill.sourceType !== "local_path") continue;
+    const skillDir = normalizeSourceLocatorDirectory(skill.sourceLocator);
+    if (!skillDir) {
+      missingIds.push(skill.id);
+      continue;
+    }
+
+    const skillDirStat = await statPath(skillDir);
+    const skillFileStat = await statPath(path.join(skillDir, "SKILL.md"));
+    if (!skillDirStat?.isDirectory() || !skillFileStat?.isFile()) {
+      missingIds.push(skill.id);
+    }
+  }
+
+  return missingIds;
+}
+
 function resolveManagedSkillsRoot(companyId: string) {
   return path.resolve(resolvePaperclipInstanceRoot(), "skills", companyId);
 }
@@ -1341,6 +1364,29 @@ export function companySkillService(db: Db) {
     return [];
   }
 
+  async function pruneMissingLocalPathSkills(companyId: string) {
+    const rows = await db
+      .select()
+      .from(companySkills)
+      .where(eq(companySkills.companyId, companyId));
+    const skills = rows.map((row) => toCompanySkill(row));
+    const missingIds = new Set(await findMissingLocalSkillIds(skills));
+    if (missingIds.size === 0) return;
+
+    for (const skill of skills) {
+      if (!missingIds.has(skill.id)) continue;
+      await db
+        .delete(companySkills)
+        .where(eq(companySkills.id, skill.id));
+      await fs.rm(resolveRuntimeSkillMaterializedPath(companyId, skill), { recursive: true, force: true });
+    }
+  }
+
+  async function ensureSkillInventoryCurrent(companyId: string) {
+    await ensureBundledSkills(companyId);
+    await pruneMissingLocalPathSkills(companyId);
+  }
+
   async function list(companyId: string): Promise<CompanySkillListItem[]> {
     const rows = await listFull(companyId);
     const agentRows = await agents.list(companyId);
@@ -1354,7 +1400,7 @@ export function companySkillService(db: Db) {
   }
 
   async function listFull(companyId: string): Promise<CompanySkill[]> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const rows = await db
       .select()
       .from(companySkills)
@@ -1432,7 +1478,7 @@ export function companySkillService(db: Db) {
   }
 
   async function detail(companyId: string, id: string): Promise<CompanySkillDetail | null> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const skill = await getById(id);
     if (!skill || skill.companyId !== companyId) return null;
     const usedByAgents = await usage(companyId, skill.key);
@@ -1440,7 +1486,7 @@ export function companySkillService(db: Db) {
   }
 
   async function updateStatus(companyId: string, skillId: string): Promise<CompanySkillUpdateStatus | null> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const skill = await getById(skillId);
     if (!skill || skill.companyId !== companyId) return null;
 
@@ -1482,7 +1528,7 @@ export function companySkillService(db: Db) {
   }
 
   async function readFile(companyId: string, skillId: string, relativePath: string): Promise<CompanySkillFileDetail | null> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const skill = await getById(skillId);
     if (!skill || skill.companyId !== companyId) return null;
 
@@ -1579,7 +1625,7 @@ export function companySkillService(db: Db) {
   }
 
   async function updateFile(companyId: string, skillId: string, relativePath: string, content: string): Promise<CompanySkillFileDetail> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const skill = await getById(skillId);
     if (!skill || skill.companyId !== companyId) throw notFound("Skill not found");
 
@@ -1619,7 +1665,7 @@ export function companySkillService(db: Db) {
   }
 
   async function installUpdate(companyId: string, skillId: string): Promise<CompanySkill | null> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const skill = await getById(skillId);
     if (!skill || skill.companyId !== companyId) return null;
 
@@ -1645,7 +1691,7 @@ export function companySkillService(db: Db) {
     companyId: string,
     input: CompanySkillProjectScanRequest = {},
   ): Promise<CompanySkillProjectScanResult> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const projectRows = input.projectIds?.length
       ? await projects.listByIds(companyId, input.projectIds)
       : await projects.list(companyId);
@@ -1870,16 +1916,10 @@ export function companySkillService(db: Db) {
     companyId: string,
     options: RuntimeSkillEntryOptions = {},
   ): Promise<PaperclipSkillEntry[]> {
-    await ensureBundledSkills(companyId);
-    const rows = await db
-      .select()
-      .from(companySkills)
-      .where(eq(companySkills.companyId, companyId))
-      .orderBy(asc(companySkills.name), asc(companySkills.key));
+    const skills = await listFull(companyId);
 
     const out: PaperclipSkillEntry[] = [];
-    for (const row of rows) {
-      const skill = toCompanySkill(row);
+    for (const skill of skills) {
       const sourceKind = asString(getSkillMeta(skill).sourceKind);
       let source = normalizeSkillDirectory(skill);
       if (!source) {
@@ -1906,7 +1946,7 @@ export function companySkillService(db: Db) {
   }
 
   async function importPackageFiles(companyId: string, files: Record<string, string>): Promise<CompanySkill[]> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const normalizedFiles = normalizePackageFileMap(files);
     const importedSkills = readInlineSkillImports(companyId, normalizedFiles);
     if (importedSkills.length === 0) return [];
@@ -1981,7 +2021,7 @@ export function companySkillService(db: Db) {
   }
 
   async function importFromSource(companyId: string, source: string): Promise<CompanySkillImportResult> {
-    await ensureBundledSkills(companyId);
+    await ensureSkillInventoryCurrent(companyId);
     const parsed = parseSkillImportSourceInput(source);
     const local = !/^https?:\/\//i.test(parsed.resolvedSource);
     const { skills, warnings } = local

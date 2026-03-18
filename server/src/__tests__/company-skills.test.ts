@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   discoverProjectWorkspaceSkillDirectories,
+  findMissingLocalSkillIds,
   parseSkillImportSourceInput,
   readLocalSkillImportFromDirectory,
 } from "../services/company-skills.js";
@@ -106,5 +107,46 @@ describe("project workspace skill discovery", () => {
     ]));
     expect(imported.fileInventory.map((entry) => entry.kind)).toContain("script");
     expect(imported.metadata?.sourceKind).toBe("project_scan");
+  });
+});
+
+describe("missing local skill reconciliation", () => {
+  it("flags local-path skills whose directory was removed", async () => {
+    const workspace = await makeTempDir("paperclip-missing-skill-dir-");
+    const skillDir = path.join(workspace, "skills", "ghost");
+    await writeSkillDir(skillDir, "Ghost");
+    await fs.rm(skillDir, { recursive: true, force: true });
+
+    const missingIds = await findMissingLocalSkillIds([
+      {
+        id: "skill-1",
+        sourceType: "local_path",
+        sourceLocator: skillDir,
+      },
+      {
+        id: "skill-2",
+        sourceType: "github",
+        sourceLocator: "https://github.com/vercel-labs/agent-browser",
+      },
+    ]);
+
+    expect(missingIds).toEqual(["skill-1"]);
+  });
+
+  it("flags local-path skills whose SKILL.md file was removed", async () => {
+    const workspace = await makeTempDir("paperclip-missing-skill-file-");
+    const skillDir = path.join(workspace, "skills", "ghost");
+    await writeSkillDir(skillDir, "Ghost");
+    await fs.rm(path.join(skillDir, "SKILL.md"), { force: true });
+
+    const missingIds = await findMissingLocalSkillIds([
+      {
+        id: "skill-1",
+        sourceType: "local_path",
+        sourceLocator: skillDir,
+      },
+    ]);
+
+    expect(missingIds).toEqual(["skill-1"]);
   });
 });
