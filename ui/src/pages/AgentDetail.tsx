@@ -1798,6 +1798,159 @@ function PromptsTab({
         </div>
       )}
 
+      <Collapsible>
+        <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors group">
+          <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
+          Advanced
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-4 pb-6 space-y-5">
+          <TooltipProvider>
+            <label className="space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                Mode
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={4}>
+                    Managed: Paperclip stores and serves the instructions bundle. External: you provide a path on disk where the instructions live.
+                  </TooltipContent>
+                </Tooltip>
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={currentMode === "managed" ? "default" : "outline"}
+                  onClick={() => {
+                    if (currentMode === "external") {
+                      externalBundleRef.current = {
+                        rootPath: currentRootPath,
+                        entryFile: currentEntryFile,
+                        selectedFile: selectedOrEntryFile,
+                      };
+                    }
+                    const nextEntryFile = currentEntryFile || "AGENTS.md";
+                    setBundleDraft({
+                      mode: "managed",
+                      rootPath: bundle?.managedRootPath ?? currentRootPath,
+                      entryFile: nextEntryFile,
+                    });
+                    setSelectedFile(nextEntryFile);
+                  }}
+                >
+                  Managed
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={currentMode === "external" ? "default" : "outline"}
+                  onClick={() => {
+                    const externalBundle = externalBundleRef.current;
+                    const nextEntryFile = externalBundle?.entryFile ?? currentEntryFile ?? "AGENTS.md";
+                    setBundleDraft({
+                      mode: "external",
+                      rootPath: externalBundle?.rootPath ?? (bundle?.mode === "external" ? (bundle.rootPath ?? "") : ""),
+                      entryFile: nextEntryFile,
+                    });
+                    setSelectedFile(externalBundle?.selectedFile ?? nextEntryFile);
+                  }}
+                >
+                  External
+                </Button>
+              </div>
+            </label>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  Root path
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={4}>
+                      The absolute directory on disk where the instructions bundle lives. In managed mode this is set by Paperclip automatically.
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                {currentMode === "managed" ? (
+                  <div className="flex items-center gap-1.5 font-mono text-sm text-muted-foreground">
+                    <span className="min-w-0 break-all">{currentRootPath || "(managed)"}</span>
+                    {currentRootPath && (
+                      <CopyText text={currentRootPath} className="shrink-0">
+                        <Copy className="h-3.5 w-3.5" />
+                      </CopyText>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={currentRootPath}
+                      onChange={(event) => {
+                        const nextRootPath = event.target.value;
+                        externalBundleRef.current = {
+                          rootPath: nextRootPath,
+                          entryFile: currentEntryFile,
+                          selectedFile: selectedOrEntryFile,
+                        };
+                        setBundleDraft({
+                          mode: "external",
+                          rootPath: nextRootPath,
+                          entryFile: currentEntryFile,
+                        });
+                      }}
+                      className="font-mono text-sm"
+                      placeholder="/absolute/path/to/agent/prompts"
+                    />
+                    {currentRootPath && (
+                      <CopyText text={currentRootPath} className="shrink-0">
+                        <Copy className="h-3.5 w-3.5" />
+                      </CopyText>
+                    )}
+                  </div>
+                )}
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  Entry file
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={4}>
+                      The main file the agent reads first when loading instructions. Defaults to AGENTS.md.
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                <Input
+                  value={currentEntryFile}
+                  onChange={(event) => {
+                    const nextEntryFile = event.target.value || "AGENTS.md";
+                    const nextSelectedFile = selectedOrEntryFile === currentEntryFile
+                      ? nextEntryFile
+                      : selectedOrEntryFile;
+                    if (currentMode === "external") {
+                      externalBundleRef.current = {
+                        rootPath: currentRootPath,
+                        entryFile: nextEntryFile,
+                        selectedFile: nextSelectedFile,
+                      };
+                    }
+                    if (selectedOrEntryFile === currentEntryFile) setSelectedFile(nextEntryFile);
+                    setBundleDraft({
+                      mode: currentMode,
+                      rootPath: currentRootPath,
+                      entryFile: nextEntryFile,
+                    });
+                  }}
+                  className="font-mono text-sm"
+                />
+              </label>
+            </div>
+          </TooltipProvider>
+        </CollapsibleContent>
+      </Collapsible>
+
       <div ref={containerRef} className="flex gap-0">
         <div className="border border-border rounded-lg p-3 space-y-3 shrink-0" style={{ width: filePanelWidth }}>
           <div className="flex items-center justify-between">
@@ -1935,158 +2088,6 @@ function PromptsTab({
         </div>
       </div>
 
-      <Collapsible>
-        <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors group">
-          <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
-          Advanced
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-4 pb-4 space-y-4">
-          <TooltipProvider>
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                Mode
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={4}>
-                    Managed: Paperclip stores and serves the instructions bundle. External: you provide a path on disk where the instructions live.
-                  </TooltipContent>
-                </Tooltip>
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={currentMode === "managed" ? "default" : "outline"}
-                  onClick={() => {
-                    if (currentMode === "external") {
-                      externalBundleRef.current = {
-                        rootPath: currentRootPath,
-                        entryFile: currentEntryFile,
-                        selectedFile: selectedOrEntryFile,
-                      };
-                    }
-                    const nextEntryFile = currentEntryFile || "AGENTS.md";
-                    setBundleDraft({
-                      mode: "managed",
-                      rootPath: bundle?.managedRootPath ?? currentRootPath,
-                      entryFile: nextEntryFile,
-                    });
-                    setSelectedFile(nextEntryFile);
-                  }}
-                >
-                  Managed
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={currentMode === "external" ? "default" : "outline"}
-                  onClick={() => {
-                    const externalBundle = externalBundleRef.current;
-                    const nextEntryFile = externalBundle?.entryFile ?? currentEntryFile ?? "AGENTS.md";
-                    setBundleDraft({
-                      mode: "external",
-                      rootPath: externalBundle?.rootPath ?? (bundle?.mode === "external" ? (bundle.rootPath ?? "") : ""),
-                      entryFile: nextEntryFile,
-                    });
-                    setSelectedFile(externalBundle?.selectedFile ?? nextEntryFile);
-                  }}
-                >
-                  External
-                </Button>
-              </div>
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  Root path
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="right" sideOffset={4}>
-                      The absolute directory on disk where the instructions bundle lives. In managed mode this is set by Paperclip automatically.
-                    </TooltipContent>
-                  </Tooltip>
-                </span>
-                {currentMode === "managed" ? (
-                  <div className="flex items-center gap-1.5 font-mono text-sm text-muted-foreground">
-                    <span className="min-w-0 break-all">{currentRootPath || "(managed)"}</span>
-                    {currentRootPath && (
-                      <CopyText text={currentRootPath} className="shrink-0">
-                        <Copy className="h-3.5 w-3.5" />
-                      </CopyText>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      value={currentRootPath}
-                      onChange={(event) => {
-                        const nextRootPath = event.target.value;
-                        externalBundleRef.current = {
-                          rootPath: nextRootPath,
-                          entryFile: currentEntryFile,
-                          selectedFile: selectedOrEntryFile,
-                        };
-                        setBundleDraft({
-                          mode: "external",
-                          rootPath: nextRootPath,
-                          entryFile: currentEntryFile,
-                        });
-                      }}
-                      className="font-mono text-sm"
-                      placeholder="/absolute/path/to/agent/prompts"
-                    />
-                    {currentRootPath && (
-                      <CopyText text={currentRootPath} className="shrink-0">
-                        <Copy className="h-3.5 w-3.5" />
-                      </CopyText>
-                    )}
-                  </div>
-                )}
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  Entry file
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="right" sideOffset={4}>
-                      The main file the agent reads first when loading instructions. Defaults to AGENTS.md.
-                    </TooltipContent>
-                  </Tooltip>
-                </span>
-                <Input
-                  value={currentEntryFile}
-                  onChange={(event) => {
-                    const nextEntryFile = event.target.value || "AGENTS.md";
-                    const nextSelectedFile = selectedOrEntryFile === currentEntryFile
-                      ? nextEntryFile
-                      : selectedOrEntryFile;
-                    if (currentMode === "external") {
-                      externalBundleRef.current = {
-                        rootPath: currentRootPath,
-                        entryFile: nextEntryFile,
-                        selectedFile: nextSelectedFile,
-                      };
-                    }
-                    if (selectedOrEntryFile === currentEntryFile) setSelectedFile(nextEntryFile);
-                    setBundleDraft({
-                      mode: currentMode,
-                      rootPath: currentRootPath,
-                      entryFile: nextEntryFile,
-                    });
-                  }}
-                  className="font-mono text-sm"
-                />
-              </label>
-            </div>
-          </TooltipProvider>
-        </CollapsibleContent>
-      </Collapsible>
     </div>
   );
 }
