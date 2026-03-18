@@ -1803,65 +1803,65 @@ function PromptsTab({
           <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
           Advanced
         </CollapsibleTrigger>
-        <CollapsibleContent className="pt-4 pb-6 space-y-5">
+        <CollapsibleContent className="pt-4 pb-6">
           <TooltipProvider>
-            <label className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                Mode
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={4}>
-                    Managed: Paperclip stores and serves the instructions bundle. External: you provide a path on disk where the instructions live.
-                  </TooltipContent>
-                </Tooltip>
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={currentMode === "managed" ? "default" : "outline"}
-                  onClick={() => {
-                    if (currentMode === "external") {
-                      externalBundleRef.current = {
-                        rootPath: currentRootPath,
-                        entryFile: currentEntryFile,
-                        selectedFile: selectedOrEntryFile,
-                      };
-                    }
-                    const nextEntryFile = currentEntryFile || "AGENTS.md";
-                    setBundleDraft({
-                      mode: "managed",
-                      rootPath: bundle?.managedRootPath ?? currentRootPath,
-                      entryFile: nextEntryFile,
-                    });
-                    setSelectedFile(nextEntryFile);
-                  }}
-                >
-                  Managed
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={currentMode === "external" ? "default" : "outline"}
-                  onClick={() => {
-                    const externalBundle = externalBundleRef.current;
-                    const nextEntryFile = externalBundle?.entryFile ?? currentEntryFile ?? "AGENTS.md";
-                    setBundleDraft({
-                      mode: "external",
-                      rootPath: externalBundle?.rootPath ?? (bundle?.mode === "external" ? (bundle.rootPath ?? "") : ""),
-                      entryFile: nextEntryFile,
-                    });
-                    setSelectedFile(externalBundle?.selectedFile ?? nextEntryFile);
-                  }}
-                >
-                  External
-                </Button>
-              </div>
-            </label>
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-[auto_1fr_1fr]">
               <label className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  Mode
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" sideOffset={4}>
+                      Managed: Paperclip stores and serves the instructions bundle. External: you provide a path on disk where the instructions live.
+                    </TooltipContent>
+                  </Tooltip>
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={currentMode === "managed" ? "default" : "outline"}
+                    onClick={() => {
+                      if (currentMode === "external") {
+                        externalBundleRef.current = {
+                          rootPath: currentRootPath,
+                          entryFile: currentEntryFile,
+                          selectedFile: selectedOrEntryFile,
+                        };
+                      }
+                      const nextEntryFile = currentEntryFile || "AGENTS.md";
+                      setBundleDraft({
+                        mode: "managed",
+                        rootPath: bundle?.managedRootPath ?? currentRootPath,
+                        entryFile: nextEntryFile,
+                      });
+                      setSelectedFile(nextEntryFile);
+                    }}
+                  >
+                    Managed
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={currentMode === "external" ? "default" : "outline"}
+                    onClick={() => {
+                      const externalBundle = externalBundleRef.current;
+                      const nextEntryFile = externalBundle?.entryFile ?? currentEntryFile ?? "AGENTS.md";
+                      setBundleDraft({
+                        mode: "external",
+                        rootPath: externalBundle?.rootPath ?? (bundle?.mode === "external" ? (bundle.rootPath ?? "") : ""),
+                        entryFile: nextEntryFile,
+                      });
+                      setSelectedFile(externalBundle?.selectedFile ?? nextEntryFile);
+                    }}
+                  >
+                    External
+                  </Button>
+                </div>
+              </label>
+              <label className="space-y-1.5 min-w-0">
                 <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                   Root path
                   <Tooltip>
@@ -1874,8 +1874,8 @@ function PromptsTab({
                   </Tooltip>
                 </span>
                 {currentMode === "managed" ? (
-                  <div className="flex items-center gap-1.5 font-mono text-sm text-muted-foreground">
-                    <span className="min-w-0 break-all">{currentRootPath || "(managed)"}</span>
+                  <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground pt-1.5">
+                    <span className="min-w-0 truncate" title={currentRootPath || undefined}>{currentRootPath || "(managed)"}</span>
                     {currentRootPath && (
                       <CopyText text={currentRootPath} className="shrink-0">
                         <Copy className="h-3.5 w-3.5" />
