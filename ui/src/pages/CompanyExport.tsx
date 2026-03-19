@@ -343,36 +343,6 @@ const ROLE_LABELS: Record<string, string> = {
   vp: "VP", manager: "Manager", engineer: "Engineer", agent: "Agent",
 };
 
-/** Sanitize slug for use as a Mermaid node ID. */
-function mermaidId(slug: string): string {
-  return slug.replace(/[^a-zA-Z0-9_]/g, "_");
-}
-
-/** Escape text for Mermaid node labels. */
-function mermaidEscape(s: string): string {
-  return s.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-/** Generate a Mermaid org chart from the selected agents. */
-function generateOrgChartMermaid(agents: CompanyPortabilityManifest["agents"]): string | null {
-  if (agents.length === 0) return null;
-  const lines: string[] = [];
-  lines.push("```mermaid");
-  lines.push("graph TD");
-  for (const agent of agents) {
-    const roleLabel = ROLE_LABELS[agent.role] ?? agent.role;
-    lines.push(`    ${mermaidId(agent.slug)}["${mermaidEscape(agent.name)}<br/><small>${mermaidEscape(roleLabel)}</small>"]`);
-  }
-  const slugSet = new Set(agents.map((a) => a.slug));
-  for (const agent of agents) {
-    if (agent.reportsToSlug && slugSet.has(agent.reportsToSlug)) {
-      lines.push(`    ${mermaidId(agent.reportsToSlug)} --> ${mermaidId(agent.slug)}`);
-    }
-  }
-  lines.push("```");
-  return lines.join("\n");
-}
-
 /**
  * Regenerate README.md content based on the currently checked files.
  * Only counts/lists entities whose files are in the checked set.
@@ -400,10 +370,9 @@ function generateReadmeFromSelection(
     lines.push(`> ${companyDescription}`);
     lines.push("");
   }
-  // Org chart as Mermaid diagram
-  const mermaid = generateOrgChartMermaid(agents);
-  if (mermaid) {
-    lines.push(mermaid);
+  // Org chart image (generated during export as images/org-chart.png)
+  if (agents.length > 0) {
+    lines.push("![Org Chart](images/org-chart.png)");
     lines.push("");
   }
 
