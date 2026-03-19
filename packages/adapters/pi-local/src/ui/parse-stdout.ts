@@ -130,6 +130,7 @@ export function parsePiStdoutLine(line: string, ts: string): TranscriptEntry[] {
 
   if (type === "tool_execution_end") {
     const toolCallId = asString(parsed.toolCallId);
+    const toolName = asString(parsed.toolName);
     const result = parsed.result;
     const isError = parsed.isError === true;
     const contentStr = typeof result === "string" ? result : JSON.stringify(result);
@@ -138,6 +139,7 @@ export function parsePiStdoutLine(line: string, ts: string): TranscriptEntry[] {
       kind: "tool_result",
       ts,
       toolUseId: toolCallId || "unknown",
+      toolName,
       content: contentStr,
       isError,
     }];
