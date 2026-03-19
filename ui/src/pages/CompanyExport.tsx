@@ -587,11 +587,11 @@ export function CompanyExport() {
         if (!isTaskPath(filePath)) checked.add(filePath);
       }
       setCheckedFiles(checked);
-      // Expand top-level dirs
+      // Expand top-level dirs (except tasks — collapsed by default)
       const tree = buildFileTree(result.files);
       const topDirs = new Set<string>();
       for (const node of tree) {
-        if (node.kind === "dir") topDirs.add(node.path);
+        if (node.kind === "dir" && node.name !== "tasks") topDirs.add(node.path);
       }
 
       // If URL contains a deep-linked file path, select it and expand ancestors
