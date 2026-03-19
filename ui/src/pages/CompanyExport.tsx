@@ -536,7 +536,6 @@ export function CompanyExport() {
   const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
   const [treeSearch, setTreeSearch] = useState("");
   const [taskLimit, setTaskLimit] = useState(TASKS_PAGE_SIZE);
-  const [includeTasks, setIncludeTasks] = useState(false);
   const savedExpandedRef = useRef<Set<string> | null>(null);
   const initialFileFromUrl = useRef(filePathFromLocation(location.pathname));
 
@@ -581,7 +580,7 @@ export function CompanyExport() {
   const exportPreviewMutation = useMutation({
     mutationFn: () =>
       companiesApi.exportPreview(selectedCompanyId!, {
-        include: { company: true, agents: true, projects: true, issues: includeTasks },
+        include: { company: true, agents: true, projects: true, issues: true },
       }),
     onSuccess: (result) => {
       setExportData(result);
@@ -627,7 +626,7 @@ export function CompanyExport() {
   const downloadMutation = useMutation({
     mutationFn: () =>
       companiesApi.exportPackage(selectedCompanyId!, {
-        include: { company: true, agents: true, projects: true, issues: includeTasks },
+        include: { company: true, agents: true, projects: true, issues: true },
         selectedFiles: Array.from(checkedFiles).sort(),
       }),
     onSuccess: (result) => {
@@ -653,7 +652,7 @@ export function CompanyExport() {
     setExportData(null);
     exportPreviewMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompanyId, includeTasks]);
+  }, [selectedCompanyId]);
 
   const tree = useMemo(
     () => (exportData ? buildFileTree(exportData.files) : []),
@@ -833,13 +832,6 @@ export function CompanyExport() {
             <span className="text-muted-foreground">
               {selectedCount} / {totalFiles} file{totalFiles === 1 ? "" : "s"} selected
             </span>
-            <button
-              type="button"
-              className="text-muted-foreground underline underline-offset-4"
-              onClick={() => setIncludeTasks((value) => !value)}
-            >
-              {includeTasks ? "Hide task files" : "Load task files"}
-            </button>
             {warnings.length > 0 && (
               <span className="text-amber-500">
                 {warnings.length} warning{warnings.length === 1 ? "" : "s"}
