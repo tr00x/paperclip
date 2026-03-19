@@ -1,16 +1,18 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import type { Db } from "@paperclipai/db";
 import {
   companyPortabilityExportSchema,
   companyPortabilityImportSchema,
   companyPortabilityPreviewSchema,
   createCompanySchema,
+  updateCompanyBrandingSchema,
   updateCompanySchema,
 } from "@paperclipai/shared";
 import { forbidden } from "../errors.js";
 import { validate } from "../middleware/validate.js";
 import {
   accessService,
+  agentService,
   budgetService,
   companyPortabilityService,
   companyService,
@@ -21,9 +23,24 @@ import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 export function companyRoutes(db: Db) {
   const router = Router();
   const svc = companyService(db);
+  const agents = agentService(db);
   const portability = companyPortabilityService(db);
   const access = accessService(db);
   const budgets = budgetService(db);
+
+  async function assertCanUpdateBranding(req: Request, companyId: string) {
+    assertCompanyAccess(req, companyId);
+    if (req.actor.type === "board") return;
+    if (!req.actor.agentId) throw forbidden("Agent authentication required");
+
+    const actorAgent = await agents.getById(req.actor.agentId);
+    if (!actorAgent || actorAgent.companyId !== companyId) {
+      throw forbidden("Agent key cannot access another company");
+    }
+    if (actorAgent.role !== "ceo") {
+      throw forbidden("Only CEO agents can update company branding");
+    }
+  }
 
   router.get("/", async (req, res) => {
     assertBoard(req);
@@ -158,6 +175,29 @@ export function companyRoutes(db: Db) {
       actorType: "user",
       actorId: req.actor.userId ?? "board",
       action: "company.updated",
+      entityType: "company",
+      entityId: companyId,
+      details: req.body,
+    });
+    res.json(company);
+  });
+
+  router.patch("/:companyId/branding", validate(updateCompanyBrandingSchema), async (req, res) => {
+    const companyId = req.params.companyId as string;
+    await assertCanUpdateBranding(req, companyId);
+    const company = await svc.update(companyId, req.body);
+    if (!company) {
+      res.status(404).json({ error: "Company not found" });
+      return;
+    }
+    const actor = getActorInfo(req);
+    await logActivity(db, {
+      companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "company.branding_updated",
       entityType: "company",
       entityId: companyId,
       details: req.body,

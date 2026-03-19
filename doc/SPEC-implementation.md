@@ -441,6 +441,7 @@ All endpoints are under `/api` and return JSON.
 - `POST /companies`
 - `GET /companies/:companyId`
 - `PATCH /companies/:companyId`
+- `PATCH /companies/:companyId/branding`
 - `POST /companies/:companyId/archive`
 
 ## 10.2 Goals
