@@ -289,7 +289,11 @@ describe("inbox helpers", () => {
       getInboxWorkItems({
         issues: [olderIssue, newerIssue],
         approvals: [approval],
-      }).map((item) => item.kind === "issue" ? `issue:${item.issue.id}` : `approval:${item.approval.id}`),
+      }).map((item) => {
+        if (item.kind === "issue") return `issue:${item.issue.id}`;
+        if (item.kind === "approval") return `approval:${item.approval.id}`;
+        return `run:${item.run.id}`;
+      }),
     ).toEqual([
       "issue:1",
       "approval:approval-between",
