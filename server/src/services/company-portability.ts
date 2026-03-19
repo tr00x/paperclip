@@ -1765,7 +1765,14 @@ export function companyPortabilityService(db: Db) {
 
     const projectsSvc = projectService(db);
     const issuesSvc = issueService(db);
-    const allProjects = include.projects || include.issues ? await projectsSvc.list(companyId) : [];
+    const allProjectsRaw = include.projects || include.issues ? await projectsSvc.list(companyId) : [];
+    const allProjects = allProjectsRaw.filter((project) => !project.archivedAt);
+    if (include.projects) {
+      const skippedArchived = allProjectsRaw.length - allProjects.length;
+      if (skippedArchived > 0) {
+        warnings.push(`Skipped ${skippedArchived} archived project${skippedArchived === 1 ? "" : "s"} from export.`);
+      }
+    }
     const projectById = new Map(allProjects.map((project) => [project.id, project]));
     const projectByReference = new Map<string, typeof allProjects[number]>();
     for (const project of allProjects) {
