@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { CompanyPortabilityFileEntry } from "@paperclipai/shared";
 
 const companySvc = {
   getById: vi.fn(),
@@ -82,6 +83,11 @@ vi.mock("../services/agent-instructions.js", () => ({
 }));
 
 const { companyPortabilityService } = await import("../services/company-portability.js");
+
+function asTextFile(entry: CompanyPortabilityFileEntry | undefined) {
+  expect(typeof entry).toBe("string");
+  return typeof entry === "string" ? entry : "";
+}
 
 describe("company portability", () => {
   const paperclipKey = "paperclipai/paperclip/paperclip";
@@ -301,19 +307,19 @@ describe("company portability", () => {
       },
     });
 
-    expect(exported.files["COMPANY.md"]).toContain('name: "Paperclip"');
-    expect(exported.files["COMPANY.md"]).toContain('schema: "agentcompanies/v1"');
-    expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain("You are ClaudeCoder.");
-    expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain("skills:");
-    expect(exported.files["agents/claudecoder/AGENTS.md"]).toContain(`- "${paperclipKey}"`);
-    expect(exported.files["agents/cmo/AGENTS.md"]).not.toContain("skills:");
-    expect(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"]).toContain("metadata:");
-    expect(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"]).toContain('kind: "github-dir"');
+    expect(asTextFile(exported.files["COMPANY.md"])).toContain('name: "Paperclip"');
+    expect(asTextFile(exported.files["COMPANY.md"])).toContain('schema: "agentcompanies/v1"');
+    expect(asTextFile(exported.files["agents/claudecoder/AGENTS.md"])).toContain("You are ClaudeCoder.");
+    expect(asTextFile(exported.files["agents/claudecoder/AGENTS.md"])).toContain("skills:");
+    expect(asTextFile(exported.files["agents/claudecoder/AGENTS.md"])).toContain(`- "${paperclipKey}"`);
+    expect(asTextFile(exported.files["agents/cmo/AGENTS.md"])).not.toContain("skills:");
+    expect(asTextFile(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"])).toContain("metadata:");
+    expect(asTextFile(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"])).toContain('kind: "github-dir"');
     expect(exported.files["skills/paperclipai/paperclip/paperclip/references/api.md"]).toBeUndefined();
-    expect(exported.files["skills/company/PAP/company-playbook/SKILL.md"]).toContain("# Company Playbook");
-    expect(exported.files["skills/company/PAP/company-playbook/references/checklist.md"]).toContain("# Checklist");
+    expect(asTextFile(exported.files["skills/company/PAP/company-playbook/SKILL.md"])).toContain("# Company Playbook");
+    expect(asTextFile(exported.files["skills/company/PAP/company-playbook/references/checklist.md"])).toContain("# Checklist");
 
-    const extension = exported.files[".paperclip.yaml"];
+    const extension = asTextFile(exported.files[".paperclip.yaml"]);
     expect(extension).toContain('schema: "paperclip/v1"');
     expect(extension).not.toContain("promptTemplate");
     expect(extension).not.toContain("instructionsFilePath");
@@ -345,9 +351,9 @@ describe("company portability", () => {
       expandReferencedSkills: true,
     });
 
-    expect(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"]).toContain("# Paperclip");
-    expect(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"]).toContain("metadata:");
-    expect(exported.files["skills/paperclipai/paperclip/paperclip/references/api.md"]).toContain("# API");
+    expect(asTextFile(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"])).toContain("# Paperclip");
+    expect(asTextFile(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"])).toContain("metadata:");
+    expect(asTextFile(exported.files["skills/paperclipai/paperclip/paperclip/references/api.md"])).toContain("# API");
   });
 
   it("exports the company logo into images/ and references it from .paperclip.yaml", async () => {
@@ -474,9 +480,9 @@ describe("company portability", () => {
       },
     });
 
-    expect(exported.files["skills/local/release-changelog/SKILL.md"]).toContain("# Local Release Changelog");
-    expect(exported.files["skills/paperclipai/paperclip/release-changelog/SKILL.md"]).toContain("metadata:");
-    expect(exported.files["skills/paperclipai/paperclip/release-changelog/SKILL.md"]).toContain("paperclipai/paperclip/release-changelog");
+    expect(asTextFile(exported.files["skills/local/release-changelog/SKILL.md"])).toContain("# Local Release Changelog");
+    expect(asTextFile(exported.files["skills/paperclipai/paperclip/release-changelog/SKILL.md"])).toContain("metadata:");
+    expect(asTextFile(exported.files["skills/paperclipai/paperclip/release-changelog/SKILL.md"])).toContain("paperclipai/paperclip/release-changelog");
   });
 
   it("builds export previews without tasks by default", async () => {
