@@ -45,6 +45,24 @@ describe("company skill import source parsing", () => {
     expect(parsed.requestedSkillSlug).toBe("find-skills");
   });
 
+  it("resolves skills.sh URL with org/repo/skill to GitHub repo", () => {
+    const parsed = parseSkillImportSourceInput(
+      "https://skills.sh/google-labs-code/stitch-skills/design-md",
+    );
+
+    expect(parsed.resolvedSource).toBe("https://github.com/google-labs-code/stitch-skills");
+    expect(parsed.requestedSkillSlug).toBe("design-md");
+  });
+
+  it("resolves skills.sh URL with org/repo (no skill) to GitHub repo", () => {
+    const parsed = parseSkillImportSourceInput(
+      "https://skills.sh/vercel-labs/skills",
+    );
+
+    expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
+    expect(parsed.requestedSkillSlug).toBeNull();
+  });
+
   it("parses skills.sh commands whose requested skill differs from the folder name", () => {
     const parsed = parseSkillImportSourceInput(
       "npx skills add https://github.com/remotion-dev/skills --skill remotion-best-practices",

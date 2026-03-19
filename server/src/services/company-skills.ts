@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { and, asc, eq } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { companySkills } from "@paperclipai/db";
-import { readPaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
+import { readPaperclipSkillSyncPreference, writePaperclipSkillSyncPreference } from "@paperclipai/adapter-utils/server-utils";
 import type { PaperclipSkillEntry } from "@paperclipai/adapter-utils/server-utils";
 import type {
   CompanySkill,
@@ -574,6 +574,17 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
     return {
       resolvedSource: `https://github.com/${normalizedSource}`,
       requestedSkillSlug,
+      warnings,
+    };
+  }
+
+  // Detect skills.sh URLs and resolve to GitHub: https://skills.sh/org/repo/skill → org/repo/skill key
+  const skillsShMatch = normalizedSource.match(/^https?:\/\/(?:www\.)?skills\.sh\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:\/([A-Za-z0-9_.-]+))?(?:[?#].*)?$/i);
+  if (skillsShMatch) {
+    const [, owner, repo, skillSlugRaw] = skillsShMatch;
+    return {
+      resolvedSource: `https://github.com/${owner}/${repo}`,
+      requestedSkillSlug: skillSlugRaw ? normalizeSkillSlug(skillSlugRaw) : requestedSkillSlug,
       warnings,
     };
   }
@@ -2195,6 +2206,48 @@ export function companySkillService(db: Db) {
     return { imported, warnings };
   }
 
+  async function deleteSkill(companyId: string, skillId: string): Promise<CompanySkill | null> {
+    const row = await db
+      .select()
+      .from(companySkills)
+      .where(and(eq(companySkills.id, skillId), eq(companySkills.companyId, companyId)))
+      .then((rows) => rows[0] ?? null);
+    if (!row) return null;
+
+    const skill = toCompanySkill(row);
+
+    // Remove from any agent desiredSkills that reference this skill
+    const agentRows = await agents.list(companyId);
+    const allSkills = await listFull(companyId);
+    for (const agent of agentRows) {
+      const config = agent.adapterConfig as Record<string, unknown>;
+      const preference = readPaperclipSkillSyncPreference(config);
+      const referencesSkill = preference.desiredSkills.some((ref) => {
+        const resolved = resolveSkillReference(allSkills, ref);
+        return resolved.skill?.id === skillId;
+      });
+      if (referencesSkill) {
+        const filtered = preference.desiredSkills.filter((ref) => {
+          const resolved = resolveSkillReference(allSkills, ref);
+          return resolved.skill?.id !== skillId;
+        });
+        await agents.update(agent.id, {
+          adapterConfig: writePaperclipSkillSyncPreference(config, filtered),
+        });
+      }
+    }
+
+    // Delete DB row
+    await db
+      .delete(companySkills)
+      .where(eq(companySkills.id, skillId));
+
+    // Clean up materialized runtime files
+    await fs.rm(resolveRuntimeSkillMaterializedPath(companyId, skill), { recursive: true, force: true });
+
+    return skill;
+  }
+
   return {
     list,
     listFull,
@@ -2209,6 +2262,7 @@ export function companySkillService(db: Db) {
     readFile,
     updateFile,
     createLocalSkill,
+    deleteSkill,
     importFromSource,
     scanProjectWorkspaces,
     importPackageFiles,
