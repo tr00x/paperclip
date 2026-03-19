@@ -132,7 +132,7 @@ Authorized managers can install company skills independently of hiring, then ass
 - Assign skills to existing agents with `POST /api/agents/{agentId}/skills/sync`.
 - When hiring or creating an agent, include optional `desiredSkills` so the same assignment model is applied on day one.
 
-Keep the detailed workflow out of this hot-path file. For concrete commands and examples, read:
+If you are asked to install a skill for the company or an agent you MUST read:
 `skills/paperclip/references/company-skills.md`
 
 ## Critical Rules

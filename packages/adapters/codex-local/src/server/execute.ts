@@ -16,7 +16,6 @@ import {
   ensurePathInEnv,
   readPaperclipRuntimeSkillEntries,
   resolvePaperclipDesiredSkillNames,
-  removeMaintainerOnlySkillSymlinks,
   renderTemplate,
   joinPromptSections,
   runChildProcess,
@@ -136,6 +135,10 @@ async function pruneBrokenUnavailablePaperclipSkillSymlinks(
   }
 }
 
+function resolveCodexWorkspaceSkillsDir(cwd: string): string {
+  return path.join(cwd, ".agents", "skills");
+}
+
 type EnsureCodexSkillsInjectedOptions = {
   skillsHome?: string;
   skillsEntries?: Array<{ key: string; runtimeName: string; source: string }>;
@@ -154,18 +157,8 @@ export async function ensureCodexSkillsInjected(
   const skillsEntries = allSkillsEntries.filter((entry) => desiredSet.has(entry.key));
   if (skillsEntries.length === 0) return;
 
-  const skillsHome = options.skillsHome ?? path.join(resolveCodexHomeDir(process.env), "skills");
+  const skillsHome = options.skillsHome ?? resolveCodexWorkspaceSkillsDir(process.cwd());
   await fs.mkdir(skillsHome, { recursive: true });
-  const removedSkills = await removeMaintainerOnlySkillSymlinks(
-    skillsHome,
-    skillsEntries.map((entry) => entry.runtimeName),
-  );
-  for (const skillName of removedSkills) {
-    await onLog(
-      "stdout",
-      `[paperclip] Removed maintainer-only Codex skill "${skillName}" from ${skillsHome}\n`,
-    );
-  }
   const linkSkill = options.linkSkill;
   for (const entry of skillsEntries) {
     const target = path.join(skillsHome, entry.runtimeName);
@@ -279,10 +272,11 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     configuredCodexHome ? null : await prepareWorktreeCodexHome(process.env, onLog, agent.companyId);
   const defaultCodexHome = resolveCodexHomeDir(process.env, agent.companyId);
   const effectiveCodexHome = configuredCodexHome ?? preparedWorktreeCodexHome ?? defaultCodexHome;
+  const codexWorkspaceSkillsDir = resolveCodexWorkspaceSkillsDir(cwd);
   await ensureCodexSkillsInjected(
     onLog,
     {
-      skillsHome: path.join(effectiveCodexHome, "skills"),
+      skillsHome: codexWorkspaceSkillsDir,
       skillsEntries: codexSkillEntries,
       desiredSkillNames,
     },

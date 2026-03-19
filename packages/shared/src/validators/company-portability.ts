@@ -19,11 +19,21 @@ export const portabilityEnvInputSchema = z.object({
   portability: z.enum(["portable", "system_dependent"]),
 });
 
+export const portabilityFileEntrySchema = z.union([
+  z.string(),
+  z.object({
+    encoding: z.literal("base64"),
+    data: z.string(),
+    contentType: z.string().min(1).optional().nullable(),
+  }),
+]);
+
 export const portabilityCompanyManifestEntrySchema = z.object({
   path: z.string().min(1),
   name: z.string().min(1),
   description: z.string().nullable(),
   brandColor: z.string().nullable(),
+  logoPath: z.string().nullable(),
   requireBoardApprovalForNewAgents: z.boolean(),
 });
 
@@ -122,7 +132,7 @@ export const portabilitySourceSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("inline"),
     rootPath: z.string().min(1).optional().nullable(),
-    files: z.record(z.string()),
+    files: z.record(portabilityFileEntrySchema),
   }),
   z.object({
     type: z.literal("github"),

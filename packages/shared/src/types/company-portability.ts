@@ -15,11 +15,20 @@ export interface CompanyPortabilityEnvInput {
   portability: "portable" | "system_dependent";
 }
 
+export type CompanyPortabilityFileEntry =
+  | string
+  | {
+      encoding: "base64";
+      data: string;
+      contentType?: string | null;
+    };
+
 export interface CompanyPortabilityCompanyManifestEntry {
   path: string;
   name: string;
   description: string | null;
   brandColor: string | null;
+  logoPath: string | null;
   requireBoardApprovalForNewAgents: boolean;
 }
 
@@ -110,7 +119,7 @@ export interface CompanyPortabilityManifest {
 export interface CompanyPortabilityExportResult {
   rootPath: string;
   manifest: CompanyPortabilityManifest;
-  files: Record<string, string>;
+  files: Record<string, CompanyPortabilityFileEntry>;
   warnings: string[];
   paperclipExtensionPath: string;
 }
@@ -123,7 +132,7 @@ export interface CompanyPortabilityExportPreviewFile {
 export interface CompanyPortabilityExportPreviewResult {
   rootPath: string;
   manifest: CompanyPortabilityManifest;
-  files: Record<string, string>;
+  files: Record<string, CompanyPortabilityFileEntry>;
   fileInventory: CompanyPortabilityExportPreviewFile[];
   counts: {
     files: number;
@@ -140,7 +149,7 @@ export type CompanyPortabilitySource =
   | {
       type: "inline";
       rootPath?: string | null;
-      files: Record<string, string>;
+      files: Record<string, CompanyPortabilityFileEntry>;
     }
   | {
       type: "github";
@@ -207,7 +216,7 @@ export interface CompanyPortabilityPreviewResult {
     issuePlans: CompanyPortabilityPreviewIssuePlan[];
   };
   manifest: CompanyPortabilityManifest;
-  files: Record<string, string>;
+  files: Record<string, CompanyPortabilityFileEntry>;
   envInputs: CompanyPortabilityEnvInput[];
   warnings: string[];
   errors: string[];

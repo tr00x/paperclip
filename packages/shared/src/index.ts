@@ -231,6 +231,7 @@ export type {
   InstanceUserRoleGrant,
   CompanyPortabilityInclude,
   CompanyPortabilityEnvInput,
+  CompanyPortabilityFileEntry,
   CompanyPortabilityCompanyManifestEntry,
   CompanyPortabilityAgentManifestEntry,
   CompanyPortabilitySkillManifestEntry,

@@ -9,6 +9,7 @@ import type {
   CompanyPortabilityCollisionStrategy,
   CompanyPortabilityEnvInput,
   CompanyPortabilityExport,
+  CompanyPortabilityFileEntry,
   CompanyPortabilityExportPreviewResult,
   CompanyPortabilityExportResult,
   CompanyPortabilityImport,
@@ -35,9 +36,11 @@ import {
   writePaperclipSkillSyncPreference,
 } from "@paperclipai/adapter-utils/server-utils";
 import { notFound, unprocessable } from "../errors.js";
+import type { StorageService } from "../storage/types.js";
 import { accessService } from "./access.js";
 import { agentService } from "./agents.js";
 import { agentInstructionsService } from "./agent-instructions.js";
+import { assetService } from "./assets.js";
 import { generateReadme } from "./company-export-readme.js";
 import { companySkillService } from "./company-skills.js";
 import { companyService } from "./companies.js";
@@ -323,7 +326,7 @@ function isSensitiveEnvKey(key: string) {
 
 type ResolvedSource = {
   manifest: CompanyPortabilityManifest;
-  files: Record<string, string>;
+  files: Record<string, CompanyPortabilityFileEntry>;
   warnings: string[];
 };
 
@@ -399,6 +402,16 @@ type EnvInputRecord = {
   description?: string | null;
   portability?: "portable" | "system_dependent";
 };
+
+const COMPANY_LOGO_CONTENT_TYPE_EXTENSIONS: Record<string, string> = {
+  "image/gif": ".gif",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/svg+xml": ".svg",
+  "image/webp": ".webp",
+};
+
+const COMPANY_LOGO_FILE_NAME = "company-logo";
 
 const RUNTIME_DEFAULT_RULES: Array<{ path: string[]; value: unknown }> = [
   { path: ["heartbeat", "cooldownSec"], value: 10 },
@@ -524,12 +537,83 @@ function resolvePortablePath(fromPath: string, targetPath: string) {
   return normalizePortablePath(path.posix.join(baseDir, targetPath.replace(/\\/g, "/")));
 }
 
+function isPortableBinaryFile(
+  value: CompanyPortabilityFileEntry,
+): value is Extract<CompanyPortabilityFileEntry, { encoding: "base64" }> {
+  return typeof value === "object" && value !== null && value.encoding === "base64" && typeof value.data === "string";
+}
+
+function readPortableTextFile(
+  files: Record<string, CompanyPortabilityFileEntry>,
+  filePath: string,
+) {
+  const value = files[filePath];
+  return typeof value === "string" ? value : null;
+}
+
+function inferContentTypeFromPath(filePath: string) {
+  const extension = path.posix.extname(filePath).toLowerCase();
+  switch (extension) {
+    case ".gif":
+      return "image/gif";
+    case ".jpeg":
+    case ".jpg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".svg":
+      return "image/svg+xml";
+    case ".webp":
+      return "image/webp";
+    default:
+      return null;
+  }
+}
+
+function resolveCompanyLogoExtension(contentType: string | null | undefined, originalFilename: string | null | undefined) {
+  const fromContentType = contentType ? COMPANY_LOGO_CONTENT_TYPE_EXTENSIONS[contentType.toLowerCase()] : null;
+  if (fromContentType) return fromContentType;
+
+  const extension = originalFilename ? path.extname(originalFilename).toLowerCase() : "";
+  return extension || ".png";
+}
+
+function portableBinaryFileToBuffer(entry: Extract<CompanyPortabilityFileEntry, { encoding: "base64" }>) {
+  return Buffer.from(entry.data, "base64");
+}
+
+function portableFileToBuffer(entry: CompanyPortabilityFileEntry, filePath: string) {
+  if (typeof entry === "string") {
+    return Buffer.from(entry, "utf8");
+  }
+  if (isPortableBinaryFile(entry)) {
+    return portableBinaryFileToBuffer(entry);
+  }
+  throw unprocessable(`Unsupported file entry encoding for ${filePath}`);
+}
+
+function bufferToPortableBinaryFile(buffer: Buffer, contentType: string | null): CompanyPortabilityFileEntry {
+  return {
+    encoding: "base64",
+    data: buffer.toString("base64"),
+    contentType,
+  };
+}
+
+async function streamToBuffer(stream: NodeJS.ReadableStream) {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
 function normalizeFileMap(
-  files: Record<string, string>,
+  files: Record<string, CompanyPortabilityFileEntry>,
   rootPath?: string | null,
-): Record<string, string> {
+): Record<string, CompanyPortabilityFileEntry> {
   const normalizedRoot = rootPath ? normalizePortablePath(rootPath) : null;
-  const out: Record<string, string> = {};
+  const out: Record<string, CompanyPortabilityFileEntry> = {};
   for (const [rawPath, content] of Object.entries(files)) {
     let nextPath = normalizePortablePath(rawPath);
     if (normalizedRoot && nextPath === normalizedRoot) {
@@ -627,7 +711,7 @@ function filterPortableExtensionYaml(yaml: string, selectedFiles: Set<string>) {
 }
 
 function filterExportFiles(
-  files: Record<string, string>,
+  files: Record<string, CompanyPortabilityFileEntry>,
   selectedFilesInput: string[] | undefined,
   paperclipExtensionPath: string,
 ) {
@@ -640,20 +724,21 @@ function filterExportFiles(
       .map((entry) => normalizePortablePath(entry))
       .filter((entry) => entry.length > 0),
   );
-  const filtered: Record<string, string> = {};
+  const filtered: Record<string, CompanyPortabilityFileEntry> = {};
   for (const [filePath, content] of Object.entries(files)) {
     if (!selectedFiles.has(filePath)) continue;
     filtered[filePath] = content;
   }
 
-  if (selectedFiles.has(paperclipExtensionPath) && filtered[paperclipExtensionPath]) {
-    filtered[paperclipExtensionPath] = filterPortableExtensionYaml(filtered[paperclipExtensionPath]!, selectedFiles);
+  const extensionEntry = filtered[paperclipExtensionPath];
+  if (selectedFiles.has(paperclipExtensionPath) && typeof extensionEntry === "string") {
+    filtered[paperclipExtensionPath] = filterPortableExtensionYaml(extensionEntry, selectedFiles);
   }
 
   return filtered;
 }
 
-function findPaperclipExtensionPath(files: Record<string, string>) {
+function findPaperclipExtensionPath(files: Record<string, CompanyPortabilityFileEntry>) {
   if (typeof files[".paperclip.yaml"] === "string") return ".paperclip.yaml";
   if (typeof files[".paperclip.yml"] === "string") return ".paperclip.yml";
   return Object.keys(files).find((entry) => entry.endsWith("/.paperclip.yaml") || entry.endsWith("/.paperclip.yml")) ?? null;
@@ -1332,6 +1417,14 @@ async function fetchOptionalText(url: string) {
   return response.text();
 }
 
+async function fetchBinary(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw unprocessable(`Failed to fetch ${url}: ${response.status}`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url, {
     headers: {
@@ -1425,13 +1518,13 @@ function readAgentSkillRefs(frontmatter: Record<string, unknown>) {
 }
 
 function buildManifestFromPackageFiles(
-  files: Record<string, string>,
+  files: Record<string, CompanyPortabilityFileEntry>,
   opts?: { sourceLabel?: { companyId: string; companyName: string } | null },
 ): ResolvedSource {
   const normalizedFiles = normalizeFileMap(files);
-  const companyPath =
-    normalizedFiles["COMPANY.md"]
-    ?? undefined;
+  const companyPath = typeof normalizedFiles["COMPANY.md"] === "string"
+    ? normalizedFiles["COMPANY.md"]
+    : undefined;
   const resolvedCompanyPath = companyPath !== undefined
     ? "COMPANY.md"
     : Object.keys(normalizedFiles).find((entry) => entry.endsWith("/COMPANY.md") || entry === "COMPANY.md");
@@ -1439,11 +1532,15 @@ function buildManifestFromPackageFiles(
     throw unprocessable("Company package is missing COMPANY.md");
   }
 
-  const companyDoc = parseFrontmatterMarkdown(normalizedFiles[resolvedCompanyPath]!);
+  const companyMarkdown = readPortableTextFile(normalizedFiles, resolvedCompanyPath);
+  if (typeof companyMarkdown !== "string") {
+    throw unprocessable(`Company package file is not readable as text: ${resolvedCompanyPath}`);
+  }
+  const companyDoc = parseFrontmatterMarkdown(companyMarkdown);
   const companyFrontmatter = companyDoc.frontmatter;
   const paperclipExtensionPath = findPaperclipExtensionPath(normalizedFiles);
   const paperclipExtension = paperclipExtensionPath
-    ? parseYamlFile(normalizedFiles[paperclipExtensionPath] ?? "")
+    ? parseYamlFile(readPortableTextFile(normalizedFiles, paperclipExtensionPath) ?? "")
     : {};
   const paperclipCompany = isPlainRecord(paperclipExtension.company) ? paperclipExtension.company : {};
   const paperclipAgents = isPlainRecord(paperclipExtension.agents) ? paperclipExtension.agents : {};
@@ -1503,6 +1600,7 @@ function buildManifestFromPackageFiles(
       name: companyName,
       description: asString(companyFrontmatter.description),
       brandColor: asString(paperclipCompany.brandColor),
+      logoPath: asString(paperclipCompany.logoPath) ?? asString(paperclipCompany.logo),
       requireBoardApprovalForNewAgents:
         typeof paperclipCompany.requireBoardApprovalForNewAgents === "boolean"
           ? paperclipCompany.requireBoardApprovalForNewAgents
@@ -1516,8 +1614,11 @@ function buildManifestFromPackageFiles(
   };
 
   const warnings: string[] = [];
+  if (manifest.company?.logoPath && !normalizedFiles[manifest.company.logoPath]) {
+    warnings.push(`Referenced company logo file is missing from package: ${manifest.company.logoPath}`);
+  }
   for (const agentPath of agentPaths) {
-    const markdownRaw = normalizedFiles[agentPath];
+    const markdownRaw = readPortableTextFile(normalizedFiles, agentPath);
     if (typeof markdownRaw !== "string") {
       warnings.push(`Referenced agent file is missing from package: ${agentPath}`);
       continue;
@@ -1566,7 +1667,7 @@ function buildManifestFromPackageFiles(
   }
 
   for (const skillPath of skillPaths) {
-    const markdownRaw = normalizedFiles[skillPath];
+    const markdownRaw = readPortableTextFile(normalizedFiles, skillPath);
     if (typeof markdownRaw !== "string") {
       warnings.push(`Referenced skill file is missing from package: ${skillPath}`);
       continue;
@@ -1651,7 +1752,7 @@ function buildManifestFromPackageFiles(
   }
 
   for (const projectPath of projectPaths) {
-    const markdownRaw = normalizedFiles[projectPath];
+    const markdownRaw = readPortableTextFile(normalizedFiles, projectPath);
     if (typeof markdownRaw !== "string") {
       warnings.push(`Referenced project file is missing from package: ${projectPath}`);
       continue;
@@ -1685,7 +1786,7 @@ function buildManifestFromPackageFiles(
   }
 
   for (const taskPath of taskPaths) {
-    const markdownRaw = normalizedFiles[taskPath];
+    const markdownRaw = readPortableTextFile(normalizedFiles, taskPath);
     if (typeof markdownRaw !== "string") {
       warnings.push(`Referenced task file is missing from package: ${taskPath}`);
       continue;
@@ -1773,9 +1874,10 @@ function resolveRawGitHubUrl(owner: string, repo: string, ref: string, filePath:
   return `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${normalizedFilePath}`;
 }
 
-export function companyPortabilityService(db: Db) {
+export function companyPortabilityService(db: Db, storage?: StorageService) {
   const companies = companyService(db);
   const agents = agentService(db);
+  const assetRecords = assetService(db);
   const instructions = agentInstructionsService();
   const access = accessService(db);
   const projects = projectService(db);
@@ -1818,7 +1920,7 @@ export function companyPortabilityService(db: Db) {
     const companyPath = parsed.companyPath === "COMPANY.md"
       ? "COMPANY.md"
       : normalizePortablePath(path.posix.relative(parsed.basePath || ".", parsed.companyPath));
-    const files: Record<string, string> = {
+    const files: Record<string, CompanyPortabilityFileEntry> = {
       [companyPath]: companyMarkdown,
     };
     const tree = await fetchJson<{ tree?: Array<{ path: string; type: string }> }>(
@@ -1859,6 +1961,18 @@ export function companyPortabilityService(db: Db) {
     }
 
     const resolved = buildManifestFromPackageFiles(files);
+    const companyLogoPath = resolved.manifest.company?.logoPath;
+    if (companyLogoPath && !resolved.files[companyLogoPath]) {
+      const repoPath = [parsed.basePath, companyLogoPath].filter(Boolean).join("/");
+      try {
+        const binary = await fetchBinary(
+          resolveRawGitHubUrl(parsed.owner, parsed.repo, ref, repoPath),
+        );
+        resolved.files[companyLogoPath] = bufferToPortableBinaryFile(binary, inferContentTypeFromPath(companyLogoPath));
+      } catch (err) {
+        warnings.push(`Failed to fetch company logo ${companyLogoPath} from GitHub: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     resolved.warnings.unshift(...warnings);
     return resolved;
   }
