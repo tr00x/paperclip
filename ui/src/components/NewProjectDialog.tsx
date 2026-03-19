@@ -258,8 +258,8 @@ export function NewProjectDialog() {
           />
         </div>
 
-        <div className="px-4 pb-3 space-y-3 border-t border-border">
-          <div className="rounded-md border border-border p-2">
+        <div className="px-4 pt-3 pb-3 space-y-3 border-t border-border">
+          <div>
             <div className="mb-1 flex items-center gap-1.5">
               <label className="block text-xs text-muted-foreground">Repo URL</label>
               <span className="text-xs text-muted-foreground/50">optional</span>
@@ -280,7 +280,7 @@ export function NewProjectDialog() {
             />
           </div>
 
-          <div className="rounded-md border border-border p-2">
+          <div>
             <div className="mb-1 flex items-center gap-1.5">
               <label className="block text-xs text-muted-foreground">Local folder</label>
               <span className="text-xs text-muted-foreground/50">optional</span>
