@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type {
+  CompanyPortabilityFileEntry,
   CompanyPortabilityExportPreviewResult,
   CompanyPortabilityExportResult,
   CompanyPortabilityManifest,
@@ -16,6 +17,7 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { MarkdownBody } from "../components/MarkdownBody";
 import { cn } from "../lib/utils";
 import { createZipArchive } from "../lib/zip";
+import { getPortableFileDataUrl, getPortableFileText, isPortableImageFile } from "../lib/portable-files";
 import {
   Download,
   Package,
@@ -145,7 +147,13 @@ function filterPaperclipYaml(yaml: string, checkedFiles: Set<string>): string {
   // Flush last section
   flushSection();
 
-  return out.join("\n");
+  let filtered = out.join("\n");
+  const logoPathMatch = filtered.match(/^\s{2}logoPath:\s*["']?([^"'\n]+)["']?\s*$/m);
+  if (logoPathMatch && !checkedFiles.has(logoPathMatch[1]!)) {
+    filtered = filtered.replace(/^\s{2}logoPath:\s*["']?([^"'\n]+)["']?\s*\n?/m, "");
+  }
+
+  return filtered;
 }
 
 /** Filter tree nodes whose path (or descendant paths) match a search string */
@@ -263,9 +271,9 @@ function paginateTaskNodes(
 function downloadZip(
   exported: CompanyPortabilityExportResult,
   selectedFiles: Set<string>,
-  effectiveFiles: Record<string, string>,
+  effectiveFiles: Record<string, CompanyPortabilityFileEntry>,
 ) {
-  const filteredFiles: Record<string, string> = {};
+  const filteredFiles: Record<string, CompanyPortabilityFileEntry> = {};
   for (const [path] of Object.entries(exported.files)) {
     if (selectedFiles.has(path)) filteredFiles[path] = effectiveFiles[path] ?? exported.files[path];
   }
@@ -465,7 +473,7 @@ function ExportPreviewPane({
   onSkillClick,
 }: {
   selectedFile: string | null;
-  content: string | null;
+  content: CompanyPortabilityFileEntry | null;
   onSkillClick?: (skill: string) => void;
 }) {
   if (!selectedFile || content === null) {
@@ -474,8 +482,10 @@ function ExportPreviewPane({
     );
   }
 
-  const isMarkdown = selectedFile.endsWith(".md");
-  const parsed = isMarkdown ? parseFrontmatter(content) : null;
+  const textContent = getPortableFileText(content);
+  const isMarkdown = selectedFile.endsWith(".md") && textContent !== null;
+  const parsed = isMarkdown && textContent ? parseFrontmatter(textContent) : null;
+  const imageSrc = isPortableImageFile(selectedFile, content) ? getPortableFileDataUrl(selectedFile, content) : null;
 
   return (
     <div className="min-w-0">
@@ -489,11 +499,19 @@ function ExportPreviewPane({
             {parsed.body.trim() && <MarkdownBody>{parsed.body}</MarkdownBody>}
           </>
         ) : isMarkdown ? (
-          <MarkdownBody>{content}</MarkdownBody>
-        ) : (
+          <MarkdownBody>{textContent ?? ""}</MarkdownBody>
+        ) : imageSrc ? (
+          <div className="flex min-h-[520px] items-center justify-center rounded-lg border border-border bg-accent/10 p-6">
+            <img src={imageSrc} alt={selectedFile} className="max-h-[480px] max-w-full object-contain" />
+          </div>
+        ) : textContent !== null ? (
           <pre className="overflow-x-auto whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-mono text-sm text-foreground">
-            <code>{content}</code>
+            <code>{textContent}</code>
           </pre>
+        ) : (
+          <div className="rounded-lg border border-border bg-accent/10 px-4 py-3 text-sm text-muted-foreground">
+            Binary asset preview is not available for this file type.
+          </div>
         )}
       </div>
     </div>
@@ -674,17 +692,17 @@ export function CompanyExport() {
   // Recompute .paperclip.yaml and README.md content whenever checked files
   // change so the preview & download always reflect the current selection.
   const effectiveFiles = useMemo(() => {
-    if (!exportData) return {} as Record<string, string>;
+    if (!exportData) return {} as Record<string, CompanyPortabilityFileEntry>;
     const filtered = { ...exportData.files };
 
     // Filter .paperclip.yaml
     const yamlPath = exportData.paperclipExtensionPath;
-    if (yamlPath && exportData.files[yamlPath]) {
+    if (yamlPath && typeof exportData.files[yamlPath] === "string") {
       filtered[yamlPath] = filterPaperclipYaml(exportData.files[yamlPath], checkedFiles);
     }
 
     // Regenerate README.md based on checked selection
-    if (exportData.files["README.md"]) {
+    if (typeof exportData.files["README.md"] === "string") {
       const companyName = exportData.manifest.company?.name ?? selectedCompany?.name ?? "Company";
       const companyDescription = exportData.manifest.company?.description ?? null;
       filtered["README.md"] = generateReadmeFromSelection(
@@ -818,7 +836,11 @@ export function CompanyExport() {
     return <EmptyState icon={Package} message="Loading export data..." />;
   }
 
-  const previewContent = selectedFile ? (effectiveFiles[selectedFile] ?? null) : null;
+  const previewContent = selectedFile
+    ? (() => {
+        return effectiveFiles[selectedFile] ?? null;
+      })()
+    : null;
 
   return (
     <div>

@@ -4,6 +4,7 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import type {
   Company,
+  CompanyPortabilityFileEntry,
   CompanyPortabilityExportResult,
   CompanyPortabilityInclude,
   CompanyPortabilityPreviewResult,
@@ -48,6 +49,30 @@ interface CompanyImportOptions extends BaseClientOptions {
   agents?: string;
   collision?: CompanyCollisionMode;
   dryRun?: boolean;
+}
+
+const binaryContentTypeByExtension: Record<string, string> = {
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
+function readPortableFileEntry(filePath: string, contents: Buffer): CompanyPortabilityFileEntry {
+  const contentType = binaryContentTypeByExtension[path.extname(filePath).toLowerCase()];
+  if (!contentType) return contents.toString("utf8");
+  return {
+    encoding: "base64",
+    data: contents.toString("base64"),
+    contentType,
+  };
+}
+
+function portableFileEntryToWriteValue(entry: CompanyPortabilityFileEntry): string | Uint8Array {
+  if (typeof entry === "string") return entry;
+  return Buffer.from(entry.data, "base64");
 }
 
 function isUuidLike(value: string): boolean {
@@ -95,7 +120,11 @@ function isGithubUrl(input: string): boolean {
   return /^https?:\/\/github\.com\//i.test(input.trim());
 }
 
-async function collectPackageFiles(root: string, current: string, files: Record<string, string>): Promise<void> {
+async function collectPackageFiles(
+  root: string,
+  current: string,
+  files: Record<string, CompanyPortabilityFileEntry>,
+): Promise<void> {
   const entries = await readdir(current, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.name.startsWith(".git")) continue;
@@ -107,20 +136,21 @@ async function collectPackageFiles(root: string, current: string, files: Record<
     if (!entry.isFile()) continue;
     const isMarkdown = entry.name.endsWith(".md");
     const isPaperclipYaml = entry.name === ".paperclip.yaml" || entry.name === ".paperclip.yml";
-    if (!isMarkdown && !isPaperclipYaml) continue;
+    const contentType = binaryContentTypeByExtension[path.extname(entry.name).toLowerCase()];
+    if (!isMarkdown && !isPaperclipYaml && !contentType) continue;
     const relativePath = path.relative(root, absolutePath).replace(/\\/g, "/");
-    files[relativePath] = await readFile(absolutePath, "utf8");
+    files[relativePath] = readPortableFileEntry(relativePath, await readFile(absolutePath));
   }
 }
 
 async function resolveInlineSourceFromPath(inputPath: string): Promise<{
   rootPath: string;
-  files: Record<string, string>;
+  files: Record<string, CompanyPortabilityFileEntry>;
 }> {
   const resolved = path.resolve(inputPath);
   const resolvedStat = await stat(resolved);
   const rootDir = resolvedStat.isDirectory() ? resolved : path.dirname(resolved);
-  const files: Record<string, string> = {};
+  const files: Record<string, CompanyPortabilityFileEntry> = {};
   await collectPackageFiles(rootDir, rootDir, files);
   return {
     rootPath: path.basename(rootDir),
@@ -135,7 +165,12 @@ async function writeExportToFolder(outDir: string, exported: CompanyPortabilityE
     const normalized = relativePath.replace(/\\/g, "/");
     const filePath = path.join(root, normalized);
     await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, content, "utf8");
+    const writeValue = portableFileEntryToWriteValue(content);
+    if (typeof writeValue === "string") {
+      await writeFile(filePath, writeValue, "utf8");
+    } else {
+      await writeFile(filePath, writeValue);
+    }
   }
 }
 
@@ -397,7 +432,7 @@ export function registerCompanyCommands(program: Command): void {
           }
 
           let sourcePayload:
-            | { type: "inline"; rootPath?: string | null; files: Record<string, string> }
+            | { type: "inline"; rootPath?: string | null; files: Record<string, CompanyPortabilityFileEntry> }
             | { type: "url"; url: string }
             | { type: "github"; url: string };
 

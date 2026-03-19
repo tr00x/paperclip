@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CompanyPortabilityCollisionStrategy,
+  CompanyPortabilityFileEntry,
   CompanyPortabilityPreviewResult,
   CompanyPortabilitySource,
   CompanyPortabilityAdapterOverride,
@@ -41,6 +42,7 @@ import {
   PackageFileTree,
 } from "../components/PackageFileTree";
 import { readZipArchive } from "../lib/zip";
+import { getPortableFileDataUrl, getPortableFileText, isPortableImageFile } from "../lib/portable-files";
 
 // ── Import-specific helpers ───────────────────────────────────────────
 
@@ -179,7 +181,7 @@ function ImportPreviewPane({
   renamedTo,
 }: {
   selectedFile: string | null;
-  content: string | null;
+  content: CompanyPortabilityFileEntry | null;
   action: string | null;
   renamedTo: string | null;
 }) {
@@ -189,8 +191,10 @@ function ImportPreviewPane({
     );
   }
 
-  const isMarkdown = selectedFile.endsWith(".md");
-  const parsed = isMarkdown ? parseFrontmatter(content) : null;
+  const textContent = getPortableFileText(content);
+  const isMarkdown = selectedFile.endsWith(".md") && textContent !== null;
+  const parsed = isMarkdown && textContent ? parseFrontmatter(textContent) : null;
+  const imageSrc = isPortableImageFile(selectedFile, content) ? getPortableFileDataUrl(selectedFile, content) : null;
   const actionColor = action ? (ACTION_COLORS[action] ?? ACTION_COLORS.skip) : "";
 
   return (
@@ -222,11 +226,19 @@ function ImportPreviewPane({
             {parsed.body.trim() && <MarkdownBody>{parsed.body}</MarkdownBody>}
           </>
         ) : isMarkdown ? (
-          <MarkdownBody>{content}</MarkdownBody>
-        ) : (
+          <MarkdownBody>{textContent ?? ""}</MarkdownBody>
+        ) : imageSrc ? (
+          <div className="flex min-h-[520px] items-center justify-center rounded-lg border border-border bg-accent/10 p-6">
+            <img src={imageSrc} alt={selectedFile} className="max-h-[480px] max-w-full object-contain" />
+          </div>
+        ) : textContent !== null ? (
           <pre className="overflow-x-auto whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-mono text-sm text-foreground">
-            <code>{content}</code>
+            <code>{textContent}</code>
           </pre>
+        ) : (
+          <div className="rounded-lg border border-border bg-accent/10 px-4 py-3 text-sm text-muted-foreground">
+            Binary asset preview is not available for this file type.
+          </div>
         )}
       </div>
     </div>
@@ -557,7 +569,7 @@ function AdapterPickerList({
 async function readLocalPackageZip(file: File): Promise<{
   name: string;
   rootPath: string | null;
-  files: Record<string, string>;
+  files: Record<string, CompanyPortabilityFileEntry>;
 }> {
   if (!/\.zip$/i.test(file.name)) {
     throw new Error("Select a .zip company package.");
@@ -592,7 +604,7 @@ export function CompanyImport() {
   const [localPackage, setLocalPackage] = useState<{
     name: string;
     rootPath: string | null;
-    files: Record<string, string>;
+    files: Record<string, CompanyPortabilityFileEntry>;
   } | null>(null);
 
   // Target state
@@ -990,7 +1002,9 @@ export function CompanyImport() {
   const hasErrors = importPreview ? importPreview.errors.length > 0 : false;
 
   const previewContent = selectedFile && importPreview
-    ? (importPreview.files[selectedFile] ?? null)
+    ? (() => {
+        return importPreview.files[selectedFile] ?? null;
+      })()
     : null;
   const selectedAction = selectedFile ? (actionMap.get(selectedFile) ?? null) : null;
 

@@ -27,7 +27,7 @@ const TREE_ROW_HEIGHT_CLASS = "min-h-9";
 // ── Helpers ───────────────────────────────────────────────────────────
 
 export function buildFileTree(
-  files: Record<string, string>,
+  files: Record<string, unknown>,
   actionMap?: Map<string, string>,
 ): FileTreeNode[] {
   const root: FileTreeNode = { name: "", path: "", kind: "dir", children: [] };

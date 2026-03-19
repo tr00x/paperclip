@@ -1,3 +1,5 @@
+import type { CompanyPortabilityFileEntry } from "@paperclipai/shared";
+
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
@@ -88,12 +90,58 @@ function sharedArchiveRoot(paths: string[]) {
     : null;
 }
 
+const binaryContentTypeByExtension: Record<string, string> = {
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp",
+};
+
+function inferBinaryContentType(pathValue: string) {
+  const normalized = normalizeArchivePath(pathValue);
+  const extensionIndex = normalized.lastIndexOf(".");
+  if (extensionIndex === -1) return null;
+  return binaryContentTypeByExtension[normalized.slice(extensionIndex).toLowerCase()] ?? null;
+}
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function base64ToBytes(base64: string) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function bytesToPortableFileEntry(pathValue: string, bytes: Uint8Array): CompanyPortabilityFileEntry {
+  const contentType = inferBinaryContentType(pathValue);
+  if (!contentType) return textDecoder.decode(bytes);
+  return {
+    encoding: "base64",
+    data: bytesToBase64(bytes),
+    contentType,
+  };
+}
+
+function portableFileEntryToBytes(entry: CompanyPortabilityFileEntry): Uint8Array {
+  if (typeof entry === "string") return textEncoder.encode(entry);
+  return base64ToBytes(entry.data);
+}
+
 export function readZipArchive(source: ArrayBuffer | Uint8Array): {
   rootPath: string | null;
-  files: Record<string, string>;
+  files: Record<string, CompanyPortabilityFileEntry>;
 } {
   const bytes = source instanceof Uint8Array ? source : new Uint8Array(source);
-  const entries: Array<{ path: string; body: string }> = [];
+  const entries: Array<{ path: string; body: CompanyPortabilityFileEntry }> = [];
   let offset = 0;
 
   while (offset + 4 <= bytes.length) {
@@ -133,7 +181,7 @@ export function readZipArchive(source: ArrayBuffer | Uint8Array): {
     if (archivePath && !archivePath.endsWith("/")) {
       entries.push({
         path: archivePath,
-        body: textDecoder.decode(bytes.slice(bodyOffset, bodyEnd)),
+        body: bytesToPortableFileEntry(archivePath, bytes.slice(bodyOffset, bodyEnd)),
       });
     }
 
@@ -141,7 +189,7 @@ export function readZipArchive(source: ArrayBuffer | Uint8Array): {
   }
 
   const rootPath = sharedArchiveRoot(entries.map((entry) => entry.path));
-  const files: Record<string, string> = {};
+  const files: Record<string, CompanyPortabilityFileEntry> = {};
   for (const entry of entries) {
     const normalizedPath =
       rootPath && entry.path.startsWith(`${rootPath}/`)
@@ -154,7 +202,7 @@ export function readZipArchive(source: ArrayBuffer | Uint8Array): {
   return { rootPath, files };
 }
 
-export function createZipArchive(files: Record<string, string>, rootPath: string): Uint8Array {
+export function createZipArchive(files: Record<string, CompanyPortabilityFileEntry>, rootPath: string): Uint8Array {
   const normalizedRoot = normalizeArchivePath(rootPath);
   const localChunks: Uint8Array[] = [];
   const centralChunks: Uint8Array[] = [];
@@ -165,7 +213,7 @@ export function createZipArchive(files: Record<string, string>, rootPath: string
   for (const [relativePath, contents] of Object.entries(files).sort(([left], [right]) => left.localeCompare(right))) {
     const archivePath = normalizeArchivePath(`${normalizedRoot}/${relativePath}`);
     const fileName = textEncoder.encode(archivePath);
-    const body = textEncoder.encode(contents);
+    const body = portableFileEntryToBytes(contents);
     const checksum = crc32(body);
 
     const localHeader = new Uint8Array(30 + fileName.length);
