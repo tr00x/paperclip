@@ -55,6 +55,19 @@ function mermaidEscape(s: string): string {
   return s.replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Build a display label for a skill's source, linking to GitHub when available. */
+function skillSourceLabel(skill: CompanyPortabilityManifest["skills"][number]): string {
+  if (skill.sourceLocator) {
+    // For GitHub or URL sources, render as a markdown link
+    if (skill.sourceType === "github" || skill.sourceType === "url") {
+      return `[${skill.sourceType}](${skill.sourceLocator})`;
+    }
+    return skill.sourceLocator;
+  }
+  if (skill.sourceType === "local") return "local";
+  return skill.sourceType ?? "\u2014";
+}
+
 /**
  * Generate the README.md content for a company export.
  */
@@ -123,6 +136,20 @@ export function generateReadme(
     for (const project of manifest.projects) {
       const desc = project.description ? ` \u2014 ${project.description}` : "";
       lines.push(`- **${project.name}**${desc}`);
+    }
+    lines.push("");
+  }
+
+  // Skills list
+  if (manifest.skills.length > 0) {
+    lines.push("### Skills");
+    lines.push("");
+    lines.push("| Skill | Description | Source |");
+    lines.push("|-------|-------------|--------|");
+    for (const skill of manifest.skills) {
+      const desc = skill.description ?? "\u2014";
+      const source = skillSourceLabel(skill);
+      lines.push(`| ${skill.name} | ${desc} | ${source} |`);
     }
     lines.push("");
   }
