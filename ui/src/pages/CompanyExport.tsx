@@ -470,10 +470,12 @@ function generateReadmeFromSelection(
 function ExportPreviewPane({
   selectedFile,
   content,
+  allFiles,
   onSkillClick,
 }: {
   selectedFile: string | null;
   content: CompanyPortabilityFileEntry | null;
+  allFiles: Record<string, CompanyPortabilityFileEntry>;
   onSkillClick?: (skill: string) => void;
 }) {
   if (!selectedFile || content === null) {
@@ -487,6 +489,20 @@ function ExportPreviewPane({
   const parsed = isMarkdown && textContent ? parseFrontmatter(textContent) : null;
   const imageSrc = isPortableImageFile(selectedFile, content) ? getPortableFileDataUrl(selectedFile, content) : null;
 
+  // Resolve relative image paths within the export package (e.g. images/org-chart.png)
+  const resolveImageSrc = isMarkdown
+    ? (src: string) => {
+        // Skip absolute URLs and data URIs
+        if (/^(?:https?:|data:)/i.test(src)) return null;
+        // Resolve relative to the directory of the current markdown file
+        const dir = selectedFile.includes("/") ? selectedFile.slice(0, selectedFile.lastIndexOf("/") + 1) : "";
+        const resolved = dir + src;
+        const entry = allFiles[resolved] ?? allFiles[src];
+        if (!entry) return null;
+        return getPortableFileDataUrl(resolved in allFiles ? resolved : src, entry);
+      }
+    : undefined;
+
   return (
     <div className="min-w-0">
       <div className="border-b border-border px-5 py-3">
@@ -496,10 +512,10 @@ function ExportPreviewPane({
         {parsed ? (
           <>
             <FrontmatterCard data={parsed.data} onSkillClick={onSkillClick} />
-            {parsed.body.trim() && <MarkdownBody>{parsed.body}</MarkdownBody>}
+            {parsed.body.trim() && <MarkdownBody resolveImageSrc={resolveImageSrc}>{parsed.body}</MarkdownBody>}
           </>
         ) : isMarkdown ? (
-          <MarkdownBody>{textContent ?? ""}</MarkdownBody>
+          <MarkdownBody resolveImageSrc={resolveImageSrc}>{textContent ?? ""}</MarkdownBody>
         ) : imageSrc ? (
           <div className="flex min-h-[520px] items-center justify-center rounded-lg border border-border bg-accent/10 p-6">
             <img src={imageSrc} alt={selectedFile} className="max-h-[480px] max-w-full object-contain" />
@@ -924,7 +940,7 @@ export function CompanyExport() {
           </div>
         </aside>
         <div className="min-w-0 overflow-y-auto pl-6">
-          <ExportPreviewPane selectedFile={selectedFile} content={previewContent} onSkillClick={handleSkillClick} />
+          <ExportPreviewPane selectedFile={selectedFile} content={previewContent} allFiles={effectiveFiles} onSkillClick={handleSkillClick} />
         </div>
       </div>
     </div>

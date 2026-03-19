@@ -8,6 +8,8 @@ import { useTheme } from "../context/ThemeContext";
 interface MarkdownBodyProps {
   children: string;
   className?: string;
+  /** Optional resolver for relative image paths (e.g. within export packages) */
+  resolveImageSrc?: (src: string) => string | null;
 }
 
 let mermaidLoaderPromise: Promise<typeof import("mermaid").default> | null = null;
@@ -112,7 +114,7 @@ function MermaidDiagramBlock({ source, darkMode }: { source: string; darkMode: b
   );
 }
 
-export function MarkdownBody({ children, className }: MarkdownBodyProps) {
+export function MarkdownBody({ children, className, resolveImageSrc }: MarkdownBodyProps) {
   const { theme } = useTheme();
   return (
     <div
@@ -152,6 +154,12 @@ export function MarkdownBody({ children, className }: MarkdownBodyProps) {
               </a>
             );
           },
+          img: resolveImageSrc
+            ? ({ src, alt, ...imgProps }) => {
+                const resolved = src ? resolveImageSrc(src) : null;
+                return <img {...imgProps} src={resolved ?? src} alt={alt ?? ""} />;
+              }
+            : undefined,
         }}
       >
         {children}
