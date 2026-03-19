@@ -63,7 +63,9 @@ export function agentRoutes(db: Db) {
     gemini_local: "instructionsFilePath",
     opencode_local: "instructionsFilePath",
     cursor: "instructionsFilePath",
+    pi_local: "instructionsFilePath",
   };
+  const DEFAULT_MANAGED_INSTRUCTIONS_ADAPTER_TYPES = new Set(Object.keys(DEFAULT_INSTRUCTIONS_PATH_KEYS));
   const KNOWN_INSTRUCTIONS_PATH_KEYS = new Set(["instructionsFilePath", "agentsMdPath"]);
 
   const router = Router();
@@ -326,6 +328,43 @@ export function agentRoutes(db: Db) {
       throw unprocessable("adapterConfig.cwd must be an absolute path to resolve relative instructions path");
     }
     return path.resolve(cwd, trimmed);
+  }
+
+  async function materializeDefaultInstructionsBundleForNewAgent<T extends {
+    id: string;
+    companyId: string;
+    name: string;
+    adapterType: string;
+    adapterConfig: unknown;
+  }>(agent: T): Promise<T> {
+    if (!DEFAULT_MANAGED_INSTRUCTIONS_ADAPTER_TYPES.has(agent.adapterType)) {
+      return agent;
+    }
+
+    const adapterConfig = asRecord(agent.adapterConfig) ?? {};
+    const hasExplicitInstructionsBundle =
+      Boolean(asNonEmptyString(adapterConfig.instructionsBundleMode))
+      || Boolean(asNonEmptyString(adapterConfig.instructionsRootPath))
+      || Boolean(asNonEmptyString(adapterConfig.instructionsEntryFile))
+      || Boolean(asNonEmptyString(adapterConfig.instructionsFilePath))
+      || Boolean(asNonEmptyString(adapterConfig.agentsMdPath));
+    if (hasExplicitInstructionsBundle) {
+      return agent;
+    }
+
+    const promptTemplate = typeof adapterConfig.promptTemplate === "string"
+      ? adapterConfig.promptTemplate
+      : "";
+    const materialized = await instructions.materializeManagedBundle(
+      agent,
+      { "AGENTS.md": promptTemplate },
+      { entryFile: "AGENTS.md", replaceExisting: false },
+    );
+    const nextAdapterConfig = { ...materialized.adapterConfig };
+    delete nextAdapterConfig.promptTemplate;
+
+    const updated = await svc.update(agent.id, { adapterConfig: nextAdapterConfig });
+    return (updated as T | null) ?? { ...agent, adapterConfig: nextAdapterConfig };
   }
 
   async function assertCanManageInstructionsPath(req: Request, targetAgent: { id: string; companyId: string }) {
@@ -1035,12 +1074,13 @@ export function agentRoutes(db: Db) {
 
     const requiresApproval = company.requireBoardApprovalForNewAgents;
     const status = requiresApproval ? "pending_approval" : "idle";
-    const agent = await svc.create(companyId, {
+    const createdAgent = await svc.create(companyId, {
       ...normalizedHireInput,
       status,
       spentMonthlyCents: 0,
       lastHeartbeatAt: null,
     });
+    const agent = await materializeDefaultInstructionsBundleForNewAgent(createdAgent);
 
     let approval: Awaited<ReturnType<typeof approvalsSvc.getById>> | null = null;
     const actor = getActorInfo(req);
@@ -1049,7 +1089,7 @@ export function agentRoutes(db: Db) {
       const requestedAdapterType = normalizedHireInput.adapterType ?? agent.adapterType;
       const requestedAdapterConfig =
         redactEventPayload(
-          (normalizedHireInput.adapterConfig ?? agent.adapterConfig) as Record<string, unknown>,
+          (agent.adapterConfig ?? normalizedHireInput.adapterConfig) as Record<string, unknown>,
         ) ?? {};
       const requestedRuntimeConfig =
         redactEventPayload(
@@ -1172,13 +1212,14 @@ export function agentRoutes(db: Db) {
       normalizedAdapterConfig,
     );
 
-    const agent = await svc.create(companyId, {
+    const createdAgent = await svc.create(companyId, {
       ...createInput,
       adapterConfig: normalizedAdapterConfig,
       status: "idle",
       spentMonthlyCents: 0,
       lastHeartbeatAt: null,
     });
+    const agent = await materializeDefaultInstructionsBundleForNewAgent(createdAgent);
 
     const actor = getActorInfo(req);
     await logActivity(db, {

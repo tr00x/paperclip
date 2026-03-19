@@ -16,7 +16,9 @@ const mockAccessService = vi.hoisted(() => ({
   hasPermission: vi.fn(),
 }));
 
-const mockApprovalService = vi.hoisted(() => ({}));
+const mockApprovalService = vi.hoisted(() => ({
+  create: vi.fn(),
+}));
 const mockBudgetService = vi.hoisted(() => ({}));
 const mockHeartbeatService = vi.hoisted(() => ({}));
 const mockIssueApprovalService = vi.hoisted(() => ({
@@ -176,13 +178,26 @@ describe("agent skill routes", () => {
       budgetMonthlyCents: Number(input.budgetMonthlyCents ?? 0),
       permissions: null,
     }));
-    mockApprovalService.create = vi.fn(async (_companyId: string, input: Record<string, unknown>) => ({
+    mockApprovalService.create.mockImplementation(async (_companyId: string, input: Record<string, unknown>) => ({
       id: "approval-1",
       companyId: "company-1",
       type: "hire_agent",
       status: "pending",
       payload: input.payload ?? {},
     }));
+    mockAgentInstructionsService.materializeManagedBundle.mockImplementation(
+      async (agent: Record<string, unknown>, files: Record<string, string>) => ({
+        bundle: null,
+        adapterConfig: {
+          ...((agent.adapterConfig as Record<string, unknown> | undefined) ?? {}),
+          instructionsBundleMode: "managed",
+          instructionsRootPath: `/tmp/${String(agent.id)}/instructions`,
+          instructionsEntryFile: "AGENTS.md",
+          instructionsFilePath: `/tmp/${String(agent.id)}/instructions/AGENTS.md`,
+          promptTemplate: files["AGENTS.md"] ?? "",
+        },
+      }),
+    );
     mockLogActivity.mockResolvedValue(undefined);
     mockAccessService.canUser.mockResolvedValue(true);
     mockAccessService.hasPermission.mockResolvedValue(true);
@@ -289,6 +304,44 @@ describe("agent skill routes", () => {
     );
   });
 
+  it("materializes a managed AGENTS.md for directly created local agents", async () => {
+    const res = await request(createApp())
+      .post("/api/companies/company-1/agents")
+      .send({
+        name: "QA Agent",
+        role: "engineer",
+        adapterType: "claude_local",
+        adapterConfig: {
+          promptTemplate: "You are QA.",
+        },
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(mockAgentInstructionsService.materializeManagedBundle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "11111111-1111-4111-8111-111111111111",
+        adapterType: "claude_local",
+      }),
+      { "AGENTS.md": "You are QA." },
+      { entryFile: "AGENTS.md", replaceExisting: false },
+    );
+    expect(mockAgentService.update).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      expect.objectContaining({
+        adapterConfig: expect.objectContaining({
+          instructionsBundleMode: "managed",
+          instructionsEntryFile: "AGENTS.md",
+          instructionsFilePath: "/tmp/11111111-1111-4111-8111-111111111111/instructions/AGENTS.md",
+        }),
+      }),
+    );
+    expect(mockAgentService.update.mock.calls.at(-1)?.[1]).not.toMatchObject({
+      adapterConfig: expect.objectContaining({
+        promptTemplate: expect.anything(),
+      }),
+    });
+  });
+
   it("includes canonical desired skills in hire approvals", async () => {
     const db = createDb(true);
 
@@ -315,5 +368,36 @@ describe("agent skill routes", () => {
         }),
       }),
     );
+  });
+
+  it("uses managed AGENTS config in hire approval payloads", async () => {
+    const res = await request(createApp(createDb(true)))
+      .post("/api/companies/company-1/agent-hires")
+      .send({
+        name: "QA Agent",
+        role: "engineer",
+        adapterType: "claude_local",
+        adapterConfig: {
+          promptTemplate: "You are QA.",
+        },
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(mockApprovalService.create).toHaveBeenCalledWith(
+      "company-1",
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          adapterConfig: expect.objectContaining({
+            instructionsBundleMode: "managed",
+            instructionsEntryFile: "AGENTS.md",
+            instructionsFilePath: "/tmp/11111111-1111-4111-8111-111111111111/instructions/AGENTS.md",
+          }),
+        }),
+      }),
+    );
+    const approvalInput = mockApprovalService.create.mock.calls.at(-1)?.[1] as
+      | { payload?: { adapterConfig?: Record<string, unknown> } }
+      | undefined;
+    expect(approvalInput?.payload?.adapterConfig?.promptTemplate).toBeUndefined();
   });
 });
