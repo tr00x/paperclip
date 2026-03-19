@@ -34,6 +34,7 @@ interface CompanyDeleteOptions extends BaseClientOptions {
 interface CompanyExportOptions extends BaseClientOptions {
   out?: string;
   include?: string;
+  skills?: string;
   projects?: string;
   issues?: string;
   projectIssues?: string;
@@ -112,11 +113,11 @@ function parseCsvValues(input: string | undefined): string[] {
   return Array.from(new Set(input.split(",").map((part) => part.trim()).filter(Boolean)));
 }
 
-function isHttpUrl(input: string): boolean {
+export function isHttpUrl(input: string): boolean {
   return /^https?:\/\//i.test(input.trim());
 }
 
-function isGithubUrl(input: string): boolean {
+export function isGithubUrl(input: string): boolean {
   return /^https?:\/\/github\.com\//i.test(input.trim());
 }
 
@@ -337,6 +338,7 @@ export function registerCompanyCommands(program: Command): void {
       .argument("<companyId>", "Company ID")
       .requiredOption("--out <path>", "Output directory")
       .option("--include <values>", "Comma-separated include set: company,agents,projects,issues", "company,agents")
+      .option("--skills <values>", "Comma-separated skill slugs/keys to export")
       .option("--projects <values>", "Comma-separated project shortnames/ids to export")
       .option("--issues <values>", "Comma-separated issue identifiers/ids to export")
       .option("--project-issues <values>", "Comma-separated project shortnames/ids whose issues should be exported")
@@ -349,6 +351,7 @@ export function registerCompanyCommands(program: Command): void {
             `/api/companies/${companyId}/export`,
             {
               include,
+              skills: parseCsvValues(opts.skills),
               projects: parseCsvValues(opts.projects),
               issues: parseCsvValues(opts.issues),
               projectIssues: parseCsvValues(opts.projectIssues),
@@ -433,13 +436,16 @@ export function registerCompanyCommands(program: Command): void {
 
           let sourcePayload:
             | { type: "inline"; rootPath?: string | null; files: Record<string, CompanyPortabilityFileEntry> }
-            | { type: "url"; url: string }
             | { type: "github"; url: string };
 
           if (isHttpUrl(from)) {
-            sourcePayload = isGithubUrl(from)
-              ? { type: "github", url: from }
-              : { type: "url", url: from };
+            if (!isGithubUrl(from)) {
+              throw new Error(
+                "Only GitHub URLs and local paths are supported for import. " +
+                "Generic HTTP URLs are not supported. Use a GitHub URL (https://github.com/...) or a local directory path.",
+              );
+            }
+            sourcePayload = { type: "github", url: from };
           } else {
             const inline = await resolveInlineSourceFromPath(from);
             sourcePayload = {

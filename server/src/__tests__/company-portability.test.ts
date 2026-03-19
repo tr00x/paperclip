@@ -356,6 +356,42 @@ describe("company portability", () => {
     expect(asTextFile(exported.files["skills/paperclipai/paperclip/paperclip/references/api.md"])).toContain("# API");
   });
 
+  it("exports only selected skills when skills filter is provided", async () => {
+    const portability = companyPortabilityService({} as any);
+
+    const exported = await portability.exportBundle("company-1", {
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+      skills: ["company-playbook"],
+    });
+
+    expect(exported.files["skills/company/PAP/company-playbook/SKILL.md"]).toBeDefined();
+    expect(asTextFile(exported.files["skills/company/PAP/company-playbook/SKILL.md"])).toContain("# Company Playbook");
+    expect(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"]).toBeUndefined();
+  });
+
+  it("warns and exports all skills when skills filter matches nothing", async () => {
+    const portability = companyPortabilityService({} as any);
+
+    const exported = await portability.exportBundle("company-1", {
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+      skills: ["nonexistent-skill"],
+    });
+
+    expect(exported.warnings).toContainEqual(expect.stringContaining("nonexistent-skill"));
+    expect(exported.files["skills/company/PAP/company-playbook/SKILL.md"]).toBeDefined();
+    expect(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"]).toBeDefined();
+  });
+
   it("exports the company logo into images/ and references it from .paperclip.yaml", async () => {
     const storage = {
       getObject: vi.fn().mockResolvedValue({
