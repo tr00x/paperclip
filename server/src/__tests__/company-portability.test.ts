@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const companySvc = {
@@ -38,6 +39,11 @@ const companySkillSvc = {
   importPackageFiles: vi.fn(),
 };
 
+const assetSvc = {
+  getById: vi.fn(),
+  create: vi.fn(),
+};
+
 const agentInstructionsSvc = {
   exportFiles: vi.fn(),
   materializeManagedBundle: vi.fn(),
@@ -67,6 +73,10 @@ vi.mock("../services/company-skills.js", () => ({
   companySkillService: () => companySkillSvc,
 }));
 
+vi.mock("../services/assets.js", () => ({
+  assetService: () => assetSvc,
+}));
+
 vi.mock("../services/agent-instructions.js", () => ({
   agentInstructionsService: () => agentInstructionsSvc,
 }));
@@ -85,6 +95,8 @@ describe("company portability", () => {
       description: null,
       issuePrefix: "PAP",
       brandColor: "#5c5fff",
+      logoAssetId: null,
+      logoUrl: null,
       requireBoardApprovalForNewAgents: true,
     });
     agentSvc.list.mockResolvedValue([
@@ -243,6 +255,12 @@ describe("company portability", () => {
       };
     });
     companySkillSvc.importPackageFiles.mockResolvedValue([]);
+    assetSvc.getById.mockReset();
+    assetSvc.getById.mockResolvedValue(null);
+    assetSvc.create.mockReset();
+    assetSvc.create.mockResolvedValue({
+      id: "asset-created",
+    });
     accessSvc.listActiveUserMemberships.mockResolvedValue([
       {
         id: "membership-1",
@@ -330,6 +348,50 @@ describe("company portability", () => {
     expect(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"]).toContain("# Paperclip");
     expect(exported.files["skills/paperclipai/paperclip/paperclip/SKILL.md"]).toContain("metadata:");
     expect(exported.files["skills/paperclipai/paperclip/paperclip/references/api.md"]).toContain("# API");
+  });
+
+  it("exports the company logo into images/ and references it from .paperclip.yaml", async () => {
+    const storage = {
+      getObject: vi.fn().mockResolvedValue({
+        stream: Readable.from([Buffer.from("png-bytes")]),
+      }),
+    };
+    companySvc.getById.mockResolvedValue({
+      id: "company-1",
+      name: "Paperclip",
+      description: null,
+      issuePrefix: "PAP",
+      brandColor: "#5c5fff",
+      logoAssetId: "logo-1",
+      logoUrl: "/api/assets/logo-1/content",
+      requireBoardApprovalForNewAgents: true,
+    });
+    assetSvc.getById.mockResolvedValue({
+      id: "logo-1",
+      companyId: "company-1",
+      objectKey: "assets/companies/logo-1",
+      contentType: "image/png",
+      originalFilename: "logo.png",
+    });
+
+    const portability = companyPortabilityService({} as any, storage as any);
+
+    const exported = await portability.exportBundle("company-1", {
+      include: {
+        company: true,
+        agents: false,
+        projects: false,
+        issues: false,
+      },
+    });
+
+    expect(storage.getObject).toHaveBeenCalledWith("company-1", "assets/companies/logo-1");
+    expect(exported.files["images/company-logo.png"]).toEqual({
+      encoding: "base64",
+      data: Buffer.from("png-bytes").toString("base64"),
+      contentType: "image/png",
+    });
+    expect(exported.files[".paperclip.yaml"]).toContain('logoPath: "images/company-logo.png"');
   });
 
   it("exports duplicate skill slugs into readable namespaced paths", async () => {
@@ -572,6 +634,91 @@ describe("company portability", () => {
         },
       }),
     }));
+  });
+
+  it("imports a packaged company logo and attaches it to the target company", async () => {
+    const storage = {
+      putFile: vi.fn().mockResolvedValue({
+        provider: "local_disk",
+        objectKey: "assets/companies/imported-logo",
+        contentType: "image/png",
+        byteSize: 9,
+        sha256: "logo-sha",
+        originalFilename: "company-logo.png",
+      }),
+    };
+    companySvc.create.mockResolvedValue({
+      id: "company-imported",
+      name: "Imported Paperclip",
+      logoAssetId: null,
+    });
+    companySvc.update.mockResolvedValue({
+      id: "company-imported",
+      name: "Imported Paperclip",
+      logoAssetId: "asset-created",
+    });
+    agentSvc.create.mockResolvedValue({
+      id: "agent-created",
+      name: "ClaudeCoder",
+    });
+
+    const portability = companyPortabilityService({} as any, storage as any);
+    const exported = await portability.exportBundle("company-1", {
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+    });
+
+    exported.files["images/company-logo.png"] = {
+      encoding: "base64",
+      data: Buffer.from("png-bytes").toString("base64"),
+      contentType: "image/png",
+    };
+    exported.files[".paperclip.yaml"] = `${exported.files[".paperclip.yaml"]}`.replace(
+      'brandColor: "#5c5fff"\n',
+      'brandColor: "#5c5fff"\n  logoPath: "images/company-logo.png"\n',
+    );
+
+    agentSvc.list.mockResolvedValue([]);
+
+    await portability.importBundle({
+      source: {
+        type: "inline",
+        rootPath: exported.rootPath,
+        files: exported.files,
+      },
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+      target: {
+        mode: "new_company",
+        newCompanyName: "Imported Paperclip",
+      },
+      agents: "all",
+      collisionStrategy: "rename",
+    }, "user-1");
+
+    expect(storage.putFile).toHaveBeenCalledWith(expect.objectContaining({
+      companyId: "company-imported",
+      namespace: "assets/companies",
+      originalFilename: "company-logo.png",
+      contentType: "image/png",
+      body: Buffer.from("png-bytes"),
+    }));
+    expect(assetSvc.create).toHaveBeenCalledWith("company-imported", expect.objectContaining({
+      objectKey: "assets/companies/imported-logo",
+      contentType: "image/png",
+      createdByUserId: "user-1",
+    }));
+    expect(companySvc.update).toHaveBeenCalledWith("company-imported", {
+      logoAssetId: "asset-created",
+    });
   });
 
   it("copies source company memberships for safe new-company imports", async () => {

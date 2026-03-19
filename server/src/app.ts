@@ -136,7 +136,7 @@ export async function createApp(
       companyDeletionEnabled: opts.companyDeletionEnabled,
     }),
   );
-  api.use("/companies", companyRoutes(db));
+  api.use("/companies", companyRoutes(db, opts.storageService));
   api.use(companySkillRoutes(db));
   api.use(agentRoutes(db));
   api.use(assetRoutes(db, opts.storageService));

@@ -628,6 +628,16 @@ function normalizeFileMap(
   return out;
 }
 
+function pickTextFiles(files: Record<string, CompanyPortabilityFileEntry>) {
+  const out: Record<string, string> = {};
+  for (const [filePath, content] of Object.entries(files)) {
+    if (typeof content === "string") {
+      out[filePath] = content;
+    }
+  }
+  return out;
+}
+
 function collectSelectedExportSlugs(selectedFiles: Set<string>) {
   const agents = new Set<string>();
   const projects = new Set<string>();
@@ -707,7 +717,12 @@ function filterPortableExtensionYaml(yaml: string, selectedFiles: Set<string>) {
   }
 
   flushSection();
-  return out.join("\n");
+  let filtered = out.join("\n");
+  const logoPathMatch = filtered.match(/^\s{2}logoPath:\s*["']?([^"'\n]+)["']?\s*$/m);
+  if (logoPathMatch && !selectedFiles.has(logoPathMatch[1]!)) {
+    filtered = filtered.replace(/^\s{2}logoPath:\s*["']?([^"'\n]+)["']?\s*\n?/m, "");
+  }
+  return filtered;
 }
 
 function filterExportFiles(
@@ -956,6 +971,7 @@ const YAML_KEY_PRIORITY = [
   "icon",
   "capabilities",
   "brandColor",
+  "logoPath",
   "adapter",
   "runtime",
   "permissions",
@@ -1105,7 +1121,7 @@ function applySelectedFilesToSource(source: ResolvedSource, selectedFiles?: stri
     throw unprocessable("Company package is missing COMPANY.md");
   }
 
-  const effectiveFiles: Record<string, string> = {};
+  const effectiveFiles: Record<string, CompanyPortabilityFileEntry> = {};
   for (const [filePath, content] of Object.entries(source.files)) {
     const normalizedPath = normalizePortablePath(filePath);
     if (!normalizedSelection.has(normalizedPath)) continue;
@@ -1993,10 +2009,11 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
     const company = await companies.getById(companyId);
     if (!company) throw notFound("Company not found");
 
-    const files: Record<string, string> = {};
+    const files: Record<string, CompanyPortabilityFileEntry> = {};
     const warnings: string[] = [];
     const envInputs: CompanyPortabilityManifest["envInputs"] = [];
     const rootPath = normalizeAgentUrlKey(company.name) ?? "company-package";
+    let companyLogoPath: string | null = null;
 
     const allAgentRows = include.agents ? await agents.list(companyId, { includeTerminated: true }) : [];
     const liveAgentRows = allAgentRows.filter((agent) => agent.status !== "terminated");
@@ -2164,6 +2181,26 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       },
       companyBodySections.join("\n\n").trim(),
     );
+
+    if (include.company && company.logoAssetId) {
+      if (!storage) {
+        warnings.push("Skipped company logo from export because storage is unavailable.");
+      } else {
+        const logoAsset = await assetRecords.getById(company.logoAssetId);
+        if (!logoAsset) {
+          warnings.push(`Skipped company logo ${company.logoAssetId} because the asset record was not found.`);
+        } else {
+          try {
+            const object = await storage.getObject(company.id, logoAsset.objectKey);
+            const body = await streamToBuffer(object.stream);
+            companyLogoPath = `images/${COMPANY_LOGO_FILE_NAME}${resolveCompanyLogoExtension(logoAsset.contentType, logoAsset.originalFilename)}`;
+            files[companyLogoPath] = bufferToPortableBinaryFile(body, logoAsset.contentType);
+          } catch (err) {
+            warnings.push(`Failed to export company logo ${company.logoAssetId}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+      }
+    }
 
     const paperclipAgentsOut: Record<string, Record<string, unknown>> = {};
     const paperclipProjectsOut: Record<string, Record<string, unknown>> = {};
@@ -2359,6 +2396,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
         schema: "paperclip/v1",
         company: stripEmptyValues({
           brandColor: company.brandColor ?? null,
+          logoPath: companyLogoPath,
           requireBoardApprovalForNewAgents: company.requireBoardApprovalForNewAgents ? undefined : false,
         }),
         agents: Object.keys(paperclipAgents).length > 0 ? paperclipAgents : undefined,
@@ -2506,7 +2544,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
 
     for (const agent of selectedAgents) {
       const filePath = ensureMarkdownPath(agent.path);
-      const markdown = source.files[filePath];
+      const markdown = readPortableTextFile(source.files, filePath);
       if (typeof markdown !== "string") {
         errors.push(`Missing markdown file for agent ${agent.slug}: ${filePath}`);
         continue;
@@ -2525,7 +2563,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
 
     if (include.projects) {
       for (const project of manifest.projects) {
-        const markdown = source.files[ensureMarkdownPath(project.path)];
+        const markdown = readPortableTextFile(source.files, ensureMarkdownPath(project.path));
         if (typeof markdown !== "string") {
           errors.push(`Missing markdown file for project ${project.slug}: ${project.path}`);
           continue;
@@ -2539,7 +2577,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
 
     if (include.issues) {
       for (const issue of manifest.issues) {
-        const markdown = source.files[ensureMarkdownPath(issue.path)];
+        const markdown = readPortableTextFile(source.files, ensureMarkdownPath(issue.path));
         if (typeof markdown !== "string") {
           errors.push(`Missing markdown file for task ${issue.slug}: ${issue.path}`);
           continue;
@@ -2861,6 +2899,55 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
 
     if (!targetCompany) throw notFound("Target company not found");
 
+    if (include.company) {
+      const logoPath = sourceManifest.company?.logoPath ?? null;
+      if (!logoPath) {
+        const cleared = await companies.update(targetCompany.id, { logoAssetId: null });
+        targetCompany = cleared ?? targetCompany;
+      } else {
+        const logoFile = plan.source.files[logoPath];
+        if (!logoFile) {
+          warnings.push(`Skipped company logo import because ${logoPath} is missing from the package.`);
+        } else if (!storage) {
+          warnings.push("Skipped company logo import because storage is unavailable.");
+        } else {
+          const contentType = isPortableBinaryFile(logoFile)
+            ? (logoFile.contentType ?? inferContentTypeFromPath(logoPath))
+            : inferContentTypeFromPath(logoPath);
+          if (!contentType || !COMPANY_LOGO_CONTENT_TYPE_EXTENSIONS[contentType]) {
+            warnings.push(`Skipped company logo import for ${logoPath} because the file type is unsupported.`);
+          } else {
+            try {
+              const body = portableFileToBuffer(logoFile, logoPath);
+              const stored = await storage.putFile({
+                companyId: targetCompany.id,
+                namespace: "assets/companies",
+                originalFilename: path.posix.basename(logoPath),
+                contentType,
+                body,
+              });
+              const createdAsset = await assetRecords.create(targetCompany.id, {
+                provider: stored.provider,
+                objectKey: stored.objectKey,
+                contentType: stored.contentType,
+                byteSize: stored.byteSize,
+                sha256: stored.sha256,
+                originalFilename: stored.originalFilename,
+                createdByAgentId: null,
+                createdByUserId: actorUserId ?? null,
+              });
+              const updated = await companies.update(targetCompany.id, {
+                logoAssetId: createdAsset.id,
+              });
+              targetCompany = updated ?? targetCompany;
+            } catch (err) {
+              warnings.push(`Failed to import company logo ${logoPath}: ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+        }
+      }
+    }
+
     const resultAgents: CompanyPortabilityImportResult["agents"] = [];
     const importedSlugToAgentId = new Map<string, string>();
     const existingSlugToAgentId = new Map<string, string>();
@@ -2875,7 +2962,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       existingProjectSlugToId.set(existing.urlKey, existing.id);
     }
 
-    const importedSkills = await companySkills.importPackageFiles(targetCompany.id, plan.source.files, {
+    const importedSkills = await companySkills.importPackageFiles(targetCompany.id, pickTextFiles(plan.source.files), {
       onConflict: resolveSkillConflictStrategy(mode, plan.collisionStrategy),
     });
     const desiredSkillRefMap = new Map<string, string>();
@@ -2908,9 +2995,11 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
         const bundleFiles = Object.fromEntries(
           Object.entries(plan.source.files)
             .filter(([filePath]) => filePath.startsWith(bundlePrefix))
-            .map(([filePath, content]) => [normalizePortablePath(filePath.slice(bundlePrefix.length)), content]),
+            .flatMap(([filePath, content]) => typeof content === "string"
+              ? [[normalizePortablePath(filePath.slice(bundlePrefix.length)), content] as const]
+              : []),
         );
-        const markdownRaw = bundleFiles["AGENTS.md"] ?? plan.source.files[manifestAgent.path];
+        const markdownRaw = bundleFiles["AGENTS.md"] ?? readPortableTextFile(plan.source.files, manifestAgent.path);
         const fallbackPromptTemplate = asString((manifestAgent.adapterConfig as Record<string, unknown>).promptTemplate) || "";
         if (!markdownRaw && fallbackPromptTemplate) {
           bundleFiles["AGENTS.md"] = fallbackPromptTemplate;
@@ -3065,7 +3154,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
 
     if (include.issues) {
       for (const manifestIssue of sourceManifest.issues) {
-        const markdownRaw = plan.source.files[manifestIssue.path];
+        const markdownRaw = readPortableTextFile(plan.source.files, manifestIssue.path);
         const parsed = markdownRaw ? parseFrontmatterMarkdown(markdownRaw) : null;
         const description = parsed?.body || manifestIssue.description || null;
         const assigneeAgentId = manifestIssue.assigneeAgentSlug

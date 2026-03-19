@@ -18,13 +18,14 @@ import {
   companyService,
   logActivity,
 } from "../services/index.js";
+import type { StorageService } from "../storage/types.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 
-export function companyRoutes(db: Db) {
+export function companyRoutes(db: Db, storage?: StorageService) {
   const router = Router();
   const svc = companyService(db);
   const agents = agentService(db);
-  const portability = companyPortabilityService(db);
+  const portability = companyPortabilityService(db, storage);
   const access = accessService(db);
   const budgets = budgetService(db);
 

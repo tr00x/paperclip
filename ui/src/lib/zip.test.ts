@@ -70,4 +70,28 @@ describe("createZipArchive", () => {
       },
     });
   });
+
+  it("round-trips binary image files without coercing them to text", () => {
+    const archive = createZipArchive(
+      {
+        "images/company-logo.png": {
+          encoding: "base64",
+          data: Buffer.from("png-bytes").toString("base64"),
+          contentType: "image/png",
+        },
+      },
+      "paperclip-demo",
+    );
+
+    expect(readZipArchive(archive)).toEqual({
+      rootPath: "paperclip-demo",
+      files: {
+        "images/company-logo.png": {
+          encoding: "base64",
+          data: Buffer.from("png-bytes").toString("base64"),
+          contentType: "image/png",
+        },
+      },
+    });
+  });
 });
