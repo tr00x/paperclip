@@ -148,6 +148,8 @@ function sourceMeta(sourceBadge: CompanySkillSourceBadge, sourceLabel: string | 
     normalizedLabel.includes("skills.sh") || normalizedLabel.includes("vercel-labs/skills");
 
   switch (sourceBadge) {
+    case "skills_sh":
+      return { icon: VercelMark, label: sourceLabel ?? "skills.sh", managedLabel: "skills.sh managed" };
     case "github":
       return isSkillsShManaged
         ? { icon: VercelMark, label: sourceLabel ?? "skills.sh", managedLabel: "skills.sh managed" }

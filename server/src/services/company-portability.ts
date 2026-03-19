@@ -119,7 +119,7 @@ function deriveManifestSkillKey(
   const sourceKind = asString(metadata?.sourceKind);
   const owner = normalizeSkillSlug(asString(metadata?.owner));
   const repo = normalizeSkillSlug(asString(metadata?.repo));
-  if ((sourceType === "github" || sourceKind === "github") && owner && repo) {
+  if ((sourceType === "github" || sourceType === "skills_sh" || sourceKind === "github" || sourceKind === "skills_sh") && owner && repo) {
     return `${owner}/${repo}/${slug}`;
   }
   if (sourceKind === "paperclip_bundled") {
@@ -246,10 +246,10 @@ function deriveSkillExportDirCandidates(
     pushSuffix("paperclip");
   }
 
-  if (skill.sourceType === "github") {
+  if (skill.sourceType === "github" || skill.sourceType === "skills_sh") {
     pushSuffix(asString(metadata?.repo));
     pushSuffix(asString(metadata?.owner));
-    pushSuffix("github");
+    pushSuffix(skill.sourceType === "skills_sh" ? "skills_sh" : "github");
   } else if (skill.sourceType === "url") {
     try {
       pushSuffix(skill.sourceLocator ? new URL(skill.sourceLocator).host : null);
@@ -1178,7 +1178,7 @@ async function buildSkillSourceEntry(skill: CompanySkill) {
     };
   }
 
-  if (skill.sourceType === "github") {
+  if (skill.sourceType === "github" || skill.sourceType === "skills_sh") {
     const owner = asString(metadata?.owner);
     const repo = asString(metadata?.repo);
     const repoSkillDir = asString(metadata?.repoSkillDir);
@@ -1207,7 +1207,7 @@ function shouldReferenceSkillOnExport(skill: CompanySkill, expandReferencedSkill
   if (expandReferencedSkills) return false;
   const metadata = isPlainRecord(skill.metadata) ? skill.metadata : null;
   if (asString(metadata?.sourceKind) === "paperclip_bundled") return true;
-  return skill.sourceType === "github" || skill.sourceType === "url";
+  return skill.sourceType === "github" || skill.sourceType === "skills_sh" || skill.sourceType === "url";
 }
 
 async function buildReferencedSkillMarkdown(skill: CompanySkill) {

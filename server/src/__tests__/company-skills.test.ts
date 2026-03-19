@@ -35,32 +35,36 @@ describe("company skill import source parsing", () => {
 
     expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
     expect(parsed.requestedSkillSlug).toBe("find-skills");
+    expect(parsed.originalSkillsShUrl).toBeNull();
     expect(parsed.warnings).toEqual([]);
   });
 
-  it("parses owner/repo/skill shorthand as a GitHub repo plus requested skill", () => {
+  it("parses owner/repo/skill shorthand as skills.sh-managed", () => {
     const parsed = parseSkillImportSourceInput("vercel-labs/skills/find-skills");
 
     expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
     expect(parsed.requestedSkillSlug).toBe("find-skills");
+    expect(parsed.originalSkillsShUrl).toBe("https://skills.sh/vercel-labs/skills/find-skills");
   });
 
-  it("resolves skills.sh URL with org/repo/skill to GitHub repo", () => {
+  it("resolves skills.sh URL with org/repo/skill to GitHub repo and preserves original URL", () => {
     const parsed = parseSkillImportSourceInput(
       "https://skills.sh/google-labs-code/stitch-skills/design-md",
     );
 
     expect(parsed.resolvedSource).toBe("https://github.com/google-labs-code/stitch-skills");
     expect(parsed.requestedSkillSlug).toBe("design-md");
+    expect(parsed.originalSkillsShUrl).toBe("https://skills.sh/google-labs-code/stitch-skills/design-md");
   });
 
-  it("resolves skills.sh URL with org/repo (no skill) to GitHub repo", () => {
+  it("resolves skills.sh URL with org/repo (no skill) to GitHub repo and preserves original URL", () => {
     const parsed = parseSkillImportSourceInput(
       "https://skills.sh/vercel-labs/skills",
     );
 
     expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
     expect(parsed.requestedSkillSlug).toBeNull();
+    expect(parsed.originalSkillsShUrl).toBe("https://skills.sh/vercel-labs/skills");
   });
 
   it("parses skills.sh commands whose requested skill differs from the folder name", () => {
@@ -70,6 +74,14 @@ describe("company skill import source parsing", () => {
 
     expect(parsed.resolvedSource).toBe("https://github.com/remotion-dev/skills");
     expect(parsed.requestedSkillSlug).toBe("remotion-best-practices");
+    expect(parsed.originalSkillsShUrl).toBeNull();
+  });
+
+  it("does not set originalSkillsShUrl for owner/repo shorthand", () => {
+    const parsed = parseSkillImportSourceInput("vercel-labs/skills");
+
+    expect(parsed.resolvedSource).toBe("https://github.com/vercel-labs/skills");
+    expect(parsed.originalSkillsShUrl).toBeNull();
   });
 });
 

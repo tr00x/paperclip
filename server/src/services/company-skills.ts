@@ -66,6 +66,7 @@ export type ImportPackageSkillResult = {
 type ParsedSkillImportSource = {
   resolvedSource: string;
   requestedSkillSlug: string | null;
+  originalSkillsShUrl: string | null;
   warnings: string[];
 };
 
@@ -251,7 +252,7 @@ function deriveCanonicalSkillKey(
 
   const owner = normalizeSkillSlug(asString(metadata?.owner));
   const repo = normalizeSkillSlug(asString(metadata?.repo));
-  if ((input.sourceType === "github" || sourceKind === "github") && owner && repo) {
+  if ((input.sourceType === "github" || input.sourceType === "skills_sh" || sourceKind === "github" || sourceKind === "skills_sh") && owner && repo) {
     return `${owner}/${repo}/${slug}`;
   }
 
@@ -561,11 +562,13 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
     throw unprocessable("Skill source is required.");
   }
 
+  // Key-style imports (org/repo/skill) originate from the skills.sh registry
   if (!/^https?:\/\//i.test(normalizedSource) && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(normalizedSource)) {
     const [owner, repo, skillSlugRaw] = normalizedSource.split("/");
     return {
       resolvedSource: `https://github.com/${owner}/${repo}`,
       requestedSkillSlug: normalizeSkillSlug(skillSlugRaw),
+      originalSkillsShUrl: `https://skills.sh/${owner}/${repo}/${skillSlugRaw}`,
       warnings,
     };
   }
@@ -574,6 +577,7 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
     return {
       resolvedSource: `https://github.com/${normalizedSource}`,
       requestedSkillSlug,
+      originalSkillsShUrl: null,
       warnings,
     };
   }
@@ -585,6 +589,7 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
     return {
       resolvedSource: `https://github.com/${owner}/${repo}`,
       requestedSkillSlug: skillSlugRaw ? normalizeSkillSlug(skillSlugRaw) : requestedSkillSlug,
+      originalSkillsShUrl: normalizedSource,
       warnings,
     };
   }
@@ -592,6 +597,7 @@ export function parseSkillImportSourceInput(rawInput: string): ParsedSkillImport
   return {
     resolvedSource: normalizedSource,
     requestedSkillSlug,
+    originalSkillsShUrl: null,
     warnings,
   };
 }
@@ -1292,6 +1298,18 @@ function deriveSkillSourceInfo(skill: CompanySkill): {
     };
   }
 
+  if (skill.sourceType === "skills_sh") {
+    const owner = asString(metadata.owner) ?? null;
+    const repo = asString(metadata.repo) ?? null;
+    return {
+      editable: false,
+      editableReason: "Skills.sh-managed skills are read-only.",
+      sourceLabel: skill.sourceLocator ?? (owner && repo ? `${owner}/${repo}` : null),
+      sourceBadge: "skills_sh",
+      sourcePath: null,
+    };
+  }
+
   if (skill.sourceType === "github") {
     const owner = asString(metadata.owner) ?? null;
     const repo = asString(metadata.repo) ?? null;
@@ -1543,7 +1561,7 @@ export function companySkillService(db: Db) {
     const skill = await getById(skillId);
     if (!skill || skill.companyId !== companyId) return null;
 
-    if (skill.sourceType !== "github") {
+    if (skill.sourceType !== "github" && skill.sourceType !== "skills_sh") {
       return {
         supported: false,
         reason: "Only GitHub-managed skills support update checks.",
@@ -1603,7 +1621,7 @@ export function companySkillService(db: Db) {
       } else {
         throw notFound("Skill file not found");
       }
-    } else if (skill.sourceType === "github") {
+    } else if (skill.sourceType === "github" || skill.sourceType === "skills_sh") {
       const metadata = getSkillMeta(skill);
       const owner = asString(metadata.owner);
       const repo = asString(metadata.repo);
@@ -2201,6 +2219,17 @@ export function companySkillService(db: Db) {
           ? `Skill ${parsed.requestedSkillSlug} was not found in the provided source.`
           : "No skills were found in the provided source.",
       );
+    }
+    // Override sourceType/sourceLocator for skills imported via skills.sh
+    if (parsed.originalSkillsShUrl) {
+      for (const skill of filteredSkills) {
+        skill.sourceType = "skills_sh";
+        skill.sourceLocator = parsed.originalSkillsShUrl;
+        if (skill.metadata) {
+          (skill.metadata as Record<string, unknown>).sourceKind = "skills_sh";
+        }
+        skill.key = deriveCanonicalSkillKey(companyId, skill);
+      }
     }
     const imported = await upsertImportedSkills(companyId, filteredSkills);
     return { imported, warnings };

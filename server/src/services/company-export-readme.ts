@@ -59,7 +59,7 @@ function mermaidEscape(s: string): string {
 function skillSourceLabel(skill: CompanyPortabilityManifest["skills"][number]): string {
   if (skill.sourceLocator) {
     // For GitHub or URL sources, render as a markdown link
-    if (skill.sourceType === "github" || skill.sourceType === "url") {
+    if (skill.sourceType === "github" || skill.sourceType === "skills_sh" || skill.sourceType === "url") {
       return `[${skill.sourceType}](${skill.sourceLocator})`;
     }
     return skill.sourceLocator;
