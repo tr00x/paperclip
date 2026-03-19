@@ -11,6 +11,18 @@ const FILE_KEY = "instructionsFilePath";
 const PROMPT_KEY = "promptTemplate";
 const BOOTSTRAP_PROMPT_KEY = "bootstrapPromptTemplate";
 const LEGACY_PROMPT_TEMPLATE_PATH = "promptTemplate.legacy.md";
+const IGNORED_INSTRUCTIONS_FILE_NAMES = new Set([".DS_Store", "Thumbs.db", "Desktop.ini"]);
+const IGNORED_INSTRUCTIONS_DIRECTORY_NAMES = new Set([
+  ".git",
+  ".nox",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".tox",
+  ".venv",
+  "__pycache__",
+  "node_modules",
+  "venv",
+]);
 
 type BundleMode = "managed" | "external";
 
@@ -143,13 +155,27 @@ async function statIfExists(targetPath: string) {
   return fs.stat(targetPath).catch(() => null);
 }
 
+function shouldIgnoreInstructionsEntry(entry: { name: string; isDirectory(): boolean; isFile(): boolean }) {
+  if (entry.name === "." || entry.name === "..") return true;
+  if (entry.isDirectory()) {
+    return IGNORED_INSTRUCTIONS_DIRECTORY_NAMES.has(entry.name);
+  }
+  if (!entry.isFile()) return false;
+  return (
+    IGNORED_INSTRUCTIONS_FILE_NAMES.has(entry.name)
+    || entry.name.startsWith("._")
+    || entry.name.endsWith(".pyc")
+    || entry.name.endsWith(".pyo")
+  );
+}
+
 async function listFilesRecursive(rootPath: string): Promise<string[]> {
   const output: string[] = [];
 
   async function walk(currentPath: string, relativeDir: string) {
     const entries = await fs.readdir(currentPath, { withFileTypes: true }).catch(() => []);
     for (const entry of entries) {
-      if (entry.name === "." || entry.name === "..") continue;
+      if (shouldIgnoreInstructionsEntry(entry)) continue;
       const absolutePath = path.join(currentPath, entry.name);
       const relativePath = normalizeRelativeFilePath(
         relativeDir ? path.posix.join(relativeDir, entry.name) : entry.name,

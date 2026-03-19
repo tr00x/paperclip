@@ -120,4 +120,45 @@ describe("agent instructions service", () => {
     expect(result.bundle.rootPath).toBe(externalRoot);
     await expect(fs.readFile(path.join(externalRoot, "docs", "AGENTS.md"), "utf8")).resolves.toBe("# Managed Agent\n");
   });
+
+  it("filters junk files, dependency bundles, and python caches from bundle listings and exports", async () => {
+    const externalRoot = await makeTempDir("paperclip-agent-instructions-ignore-");
+    cleanupDirs.add(externalRoot);
+
+    await fs.writeFile(path.join(externalRoot, "AGENTS.md"), "# External Agent\n", "utf8");
+    await fs.writeFile(path.join(externalRoot, ".gitignore"), "node_modules/\n", "utf8");
+    await fs.writeFile(path.join(externalRoot, ".DS_Store"), "junk", "utf8");
+    await fs.mkdir(path.join(externalRoot, "docs"), { recursive: true });
+    await fs.writeFile(path.join(externalRoot, "docs", "TOOLS.md"), "## Tools\n", "utf8");
+    await fs.writeFile(path.join(externalRoot, "docs", "module.pyc"), "compiled", "utf8");
+    await fs.writeFile(path.join(externalRoot, "docs", "._TOOLS.md"), "appledouble", "utf8");
+    await fs.mkdir(path.join(externalRoot, "node_modules", "pkg"), { recursive: true });
+    await fs.writeFile(path.join(externalRoot, "node_modules", "pkg", "index.js"), "export {};\n", "utf8");
+    await fs.mkdir(path.join(externalRoot, "python", "__pycache__"), { recursive: true });
+    await fs.writeFile(
+      path.join(externalRoot, "python", "__pycache__", "module.cpython-313.pyc"),
+      "compiled",
+      "utf8",
+    );
+    await fs.mkdir(path.join(externalRoot, ".pytest_cache"), { recursive: true });
+    await fs.writeFile(path.join(externalRoot, ".pytest_cache", "README.md"), "cache", "utf8");
+
+    const svc = agentInstructionsService();
+    const agent = makeAgent({
+      instructionsBundleMode: "external",
+      instructionsRootPath: externalRoot,
+      instructionsEntryFile: "AGENTS.md",
+      instructionsFilePath: path.join(externalRoot, "AGENTS.md"),
+    });
+
+    const bundle = await svc.getBundle(agent);
+    const exported = await svc.exportFiles(agent);
+
+    expect(bundle.files.map((file) => file.path)).toEqual([".gitignore", "AGENTS.md", "docs/TOOLS.md"]);
+    expect(Object.keys(exported.files).sort((left, right) => left.localeCompare(right))).toEqual([
+      ".gitignore",
+      "AGENTS.md",
+      "docs/TOOLS.md",
+    ]);
+  });
 });
