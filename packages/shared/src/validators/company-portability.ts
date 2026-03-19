@@ -150,9 +150,12 @@ export const portabilityCollisionStrategySchema = z.enum(["rename", "skip", "rep
 
 export const companyPortabilityExportSchema = z.object({
   include: portabilityIncludeSchema.optional(),
+  agents: z.array(z.string().min(1)).optional(),
+  skills: z.array(z.string().min(1)).optional(),
   projects: z.array(z.string().min(1)).optional(),
   issues: z.array(z.string().min(1)).optional(),
   projectIssues: z.array(z.string().min(1)).optional(),
+  selectedFiles: z.array(z.string().min(1)).optional(),
   expandReferencedSkills: z.boolean().optional(),
 });
 

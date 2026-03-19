@@ -149,3 +149,9 @@ curl -sS -X POST "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/agents"
 - Built-in Paperclip runtime skills are still added automatically when required by the adapter.
 - If a reference is missing or ambiguous, the API returns `422`.
 - Prefer linking back to the relevant issue, approval, and agent when you comment about skill changes.
+- Use company portability routes when you need whole-package import/export, not just a skill:
+  - `POST /api/companies/:companyId/imports/preview`
+  - `POST /api/companies/:companyId/imports/apply`
+  - `POST /api/companies/:companyId/exports/preview`
+  - `POST /api/companies/:companyId/exports`
+- Use skill-only import when the task is specifically to add a skill to the company library without importing the surrounding company/team/package structure.

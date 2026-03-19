@@ -9,6 +9,7 @@ import type {
   CompanyPortabilityCollisionStrategy,
   CompanyPortabilityEnvInput,
   CompanyPortabilityExport,
+  CompanyPortabilityExportPreviewResult,
   CompanyPortabilityExportResult,
   CompanyPortabilityImport,
   CompanyPortabilityImportResult,
@@ -53,6 +54,27 @@ const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
 const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename";
 const execFileAsync = promisify(execFile);
 let bundledSkillsCommitPromise: Promise<string | null> | null = null;
+
+function resolveImportMode(options?: ImportBehaviorOptions): ImportMode {
+  return options?.mode ?? "board_full";
+}
+
+function resolveSkillConflictStrategy(mode: ImportMode, collisionStrategy: CompanyPortabilityCollisionStrategy) {
+  if (mode === "board_full") return "replace" as const;
+  return collisionStrategy === "skip" ? "skip" as const : "rename" as const;
+}
+
+function classifyPortableFileKind(pathValue: string): CompanyPortabilityExportPreviewResult["fileInventory"][number]["kind"] {
+  const normalized = normalizePortablePath(pathValue);
+  if (normalized === "COMPANY.md") return "company";
+  if (normalized === ".paperclip.yaml" || normalized === ".paperclip.yml") return "extension";
+  if (normalized === "README.md") return "readme";
+  if (normalized.startsWith("agents/")) return "agent";
+  if (normalized.startsWith("skills/")) return "skill";
+  if (normalized.startsWith("projects/")) return "project";
+  if (normalized.startsWith("tasks/")) return "issue";
+  return "other";
+}
 
 function normalizeSkillSlug(value: string | null | undefined) {
   return value ? normalizeAgentUrlKey(value) ?? null : null;
@@ -357,6 +379,13 @@ type ImportPlanInternal = {
   selectedAgents: CompanyPortabilityAgentManifestEntry[];
 };
 
+type ImportMode = "board_full" | "agent_safe";
+
+type ImportBehaviorOptions = {
+  mode?: ImportMode;
+  sourceCompanyId?: string | null;
+};
+
 type AgentLike = {
   id: string;
   name: string;
@@ -513,6 +542,115 @@ function normalizeFileMap(
     out[nextPath] = content;
   }
   return out;
+}
+
+function collectSelectedExportSlugs(selectedFiles: Set<string>) {
+  const agents = new Set<string>();
+  const projects = new Set<string>();
+  const tasks = new Set<string>();
+  for (const filePath of selectedFiles) {
+    const agentMatch = filePath.match(/^agents\/([^/]+)\//);
+    if (agentMatch) agents.add(agentMatch[1]!);
+    const projectMatch = filePath.match(/^projects\/([^/]+)\//);
+    if (projectMatch) projects.add(projectMatch[1]!);
+    const taskMatch = filePath.match(/^tasks\/([^/]+)\//);
+    if (taskMatch) tasks.add(taskMatch[1]!);
+  }
+  return { agents, projects, tasks };
+}
+
+function filterPortableExtensionYaml(yaml: string, selectedFiles: Set<string>) {
+  const selected = collectSelectedExportSlugs(selectedFiles);
+  const lines = yaml.split("\n");
+  const out: string[] = [];
+  const filterableSections = new Set(["agents", "projects", "tasks"]);
+
+  let currentSection: string | null = null;
+  let currentEntry: string | null = null;
+  let includeEntry = true;
+  let sectionHeaderLine: string | null = null;
+  let sectionBuffer: string[] = [];
+
+  const flushSection = () => {
+    if (sectionHeaderLine !== null && sectionBuffer.length > 0) {
+      out.push(sectionHeaderLine);
+      out.push(...sectionBuffer);
+    }
+    sectionHeaderLine = null;
+    sectionBuffer = [];
+  };
+
+  for (const line of lines) {
+    const topMatch = line.match(/^([a-zA-Z_][\w-]*):\s*(.*)$/);
+    if (topMatch && !line.startsWith(" ")) {
+      flushSection();
+      currentEntry = null;
+      includeEntry = true;
+
+      const key = topMatch[1]!;
+      if (filterableSections.has(key)) {
+        currentSection = key;
+        sectionHeaderLine = line;
+        continue;
+      }
+
+      currentSection = null;
+      out.push(line);
+      continue;
+    }
+
+    if (currentSection && filterableSections.has(currentSection)) {
+      const entryMatch = line.match(/^  ([\w][\w-]*):\s*(.*)$/);
+      if (entryMatch && !line.startsWith("    ")) {
+        const slug = entryMatch[1]!;
+        currentEntry = slug;
+        const sectionSlugs = selected[currentSection as keyof typeof selected];
+        includeEntry = sectionSlugs.has(slug);
+        if (includeEntry) sectionBuffer.push(line);
+        continue;
+      }
+
+      if (currentEntry !== null) {
+        if (includeEntry) sectionBuffer.push(line);
+        continue;
+      }
+
+      sectionBuffer.push(line);
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  flushSection();
+  return out.join("\n");
+}
+
+function filterExportFiles(
+  files: Record<string, string>,
+  selectedFilesInput: string[] | undefined,
+  paperclipExtensionPath: string,
+) {
+  if (!selectedFilesInput || selectedFilesInput.length === 0) {
+    return files;
+  }
+
+  const selectedFiles = new Set(
+    selectedFilesInput
+      .map((entry) => normalizePortablePath(entry))
+      .filter((entry) => entry.length > 0),
+  );
+  const filtered: Record<string, string> = {};
+  for (const [filePath, content] of Object.entries(files)) {
+    if (!selectedFiles.has(filePath)) continue;
+    filtered[filePath] = content;
+  }
+
+  if (selectedFiles.has(paperclipExtensionPath) && filtered[paperclipExtensionPath]) {
+    filtered[paperclipExtensionPath] = filterPortableExtensionYaml(filtered[paperclipExtensionPath]!, selectedFiles);
+  }
+
+  return filtered;
 }
 
 function findPaperclipExtensionPath(files: Record<string, string>) {
@@ -1731,6 +1869,7 @@ export function companyPortabilityService(db: Db) {
   ): Promise<CompanyPortabilityExportResult> {
     const include = normalizeInclude({
       ...input.include,
+      agents: input.agents && input.agents.length > 0 ? true : input.include?.agents,
       projects: input.projects && input.projects.length > 0 ? true : input.include?.projects,
       issues:
         (input.issues && input.issues.length > 0) || (input.projectIssues && input.projectIssues.length > 0)
@@ -1746,14 +1885,46 @@ export function companyPortabilityService(db: Db) {
     const rootPath = normalizeAgentUrlKey(company.name) ?? "company-package";
 
     const allAgentRows = include.agents ? await agents.list(companyId, { includeTerminated: true }) : [];
-    const agentRows = allAgentRows.filter((agent) => agent.status !== "terminated");
+    const liveAgentRows = allAgentRows.filter((agent) => agent.status !== "terminated");
     const companySkillRows = await companySkills.listFull(companyId);
     if (include.agents) {
-      const skipped = allAgentRows.length - agentRows.length;
+      const skipped = allAgentRows.length - liveAgentRows.length;
       if (skipped > 0) {
         warnings.push(`Skipped ${skipped} terminated agent${skipped === 1 ? "" : "s"} from export.`);
       }
     }
+
+    const agentByReference = new Map<string, typeof liveAgentRows[number]>();
+    for (const agent of liveAgentRows) {
+      agentByReference.set(agent.id, agent);
+      agentByReference.set(agent.name, agent);
+      const normalizedName = normalizeAgentUrlKey(agent.name);
+      if (normalizedName) {
+        agentByReference.set(normalizedName, agent);
+      }
+    }
+
+    const selectedAgents = new Map<string, typeof liveAgentRows[number]>();
+    for (const selector of input.agents ?? []) {
+      const trimmed = selector.trim();
+      if (!trimmed) continue;
+      const normalized = normalizeAgentUrlKey(trimmed) ?? trimmed;
+      const match = agentByReference.get(trimmed) ?? agentByReference.get(normalized);
+      if (!match) {
+        warnings.push(`Agent selector "${selector}" was not found and was skipped.`);
+        continue;
+      }
+      selectedAgents.set(match.id, match);
+    }
+
+    if (include.agents && selectedAgents.size === 0) {
+      for (const agent of liveAgentRows) {
+        selectedAgents.set(agent.id, agent);
+      }
+    }
+
+    const agentRows = Array.from(selectedAgents.values())
+      .sort((left, right) => left.name.localeCompare(right.name));
 
     const usedSlugs = new Set<string>();
     const idToSlug = new Map<string, string>();
@@ -1890,8 +2061,35 @@ export function companyPortabilityService(db: Db) {
     const paperclipProjectsOut: Record<string, Record<string, unknown>> = {};
     const paperclipTasksOut: Record<string, Record<string, unknown>> = {};
 
-    const skillExportDirs = buildSkillExportDirMap(companySkillRows, company.issuePrefix);
+    const skillByReference = new Map<string, typeof companySkillRows[number]>();
     for (const skill of companySkillRows) {
+      skillByReference.set(skill.id, skill);
+      skillByReference.set(skill.key, skill);
+      skillByReference.set(skill.slug, skill);
+      skillByReference.set(skill.name, skill);
+    }
+    const selectedSkills = new Map<string, typeof companySkillRows[number]>();
+    for (const selector of input.skills ?? []) {
+      const trimmed = selector.trim();
+      if (!trimmed) continue;
+      const normalized = normalizeSkillKey(trimmed) ?? normalizeSkillSlug(trimmed) ?? trimmed;
+      const match = skillByReference.get(trimmed) ?? skillByReference.get(normalized);
+      if (!match) {
+        warnings.push(`Skill selector "${selector}" was not found and was skipped.`);
+        continue;
+      }
+      selectedSkills.set(match.id, match);
+    }
+    if (selectedSkills.size === 0) {
+      for (const skill of companySkillRows) {
+        selectedSkills.set(skill.id, skill);
+      }
+    }
+    const selectedSkillRows = Array.from(selectedSkills.values())
+      .sort((left, right) => left.key.localeCompare(right.key));
+
+    const skillExportDirs = buildSkillExportDirMap(selectedSkillRows, company.issuePrefix);
+    for (const skill of selectedSkillRows) {
       const packageDir = skillExportDirs.get(skill.key) ?? `skills/${normalizeSkillSlug(skill.slug) ?? "skill"}`;
       if (shouldReferenceSkillOnExport(skill, Boolean(input.expandReferencedSkills))) {
         files[`${packageDir}/SKILL.md`] = await buildReferencedSkillMarkdown(skill);
@@ -2062,32 +2260,94 @@ export function companyPortabilityService(db: Db) {
       { preserveEmptyStrings: true },
     );
 
-    const resolved = buildManifestFromPackageFiles(files, {
+    let finalFiles = filterExportFiles(files, input.selectedFiles, paperclipExtensionPath);
+    let resolved = buildManifestFromPackageFiles(finalFiles, {
       sourceLabel: {
         companyId: company.id,
         companyName: company.name,
       },
     });
-    resolved.manifest.includes = include;
+    resolved.manifest.includes = {
+      company: resolved.manifest.company !== null,
+      agents: resolved.manifest.agents.length > 0,
+      projects: resolved.manifest.projects.length > 0,
+      issues: resolved.manifest.issues.length > 0,
+    };
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
 
-    // Generate README.md with Mermaid org chart
-    files["README.md"] = generateReadme(resolved.manifest, {
-      companyName: company.name,
-      companyDescription: company.description ?? null,
+    if (!input.selectedFiles || input.selectedFiles.some((entry) => normalizePortablePath(entry) === "README.md")) {
+      finalFiles["README.md"] = generateReadme(resolved.manifest, {
+        companyName: company.name,
+        companyDescription: company.description ?? null,
+      });
+    }
+
+    resolved = buildManifestFromPackageFiles(finalFiles, {
+      sourceLabel: {
+        companyId: company.id,
+        companyName: company.name,
+      },
     });
+    resolved.manifest.includes = {
+      company: resolved.manifest.company !== null,
+      agents: resolved.manifest.agents.length > 0,
+      projects: resolved.manifest.projects.length > 0,
+      issues: resolved.manifest.issues.length > 0,
+    };
+    resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
+    resolved.warnings.unshift(...warnings);
 
     return {
       rootPath,
       manifest: resolved.manifest,
-      files,
+      files: finalFiles,
       warnings: resolved.warnings,
       paperclipExtensionPath,
     };
   }
 
-  async function buildPreview(input: CompanyPortabilityPreview): Promise<ImportPlanInternal> {
+  async function previewExport(
+    companyId: string,
+    input: CompanyPortabilityExport,
+  ): Promise<CompanyPortabilityExportPreviewResult> {
+    const previewInput: CompanyPortabilityExport = {
+      ...input,
+      include: {
+        ...input.include,
+        issues:
+          input.include?.issues
+          ?? Boolean((input.issues && input.issues.length > 0) || (input.projectIssues && input.projectIssues.length > 0))
+          ?? false,
+      },
+    };
+    if (previewInput.include && previewInput.include.issues === undefined) {
+      previewInput.include.issues = false;
+    }
+    const exported = await exportBundle(companyId, previewInput);
+    return {
+      ...exported,
+      fileInventory: Object.keys(exported.files)
+        .sort((left, right) => left.localeCompare(right))
+        .map((filePath) => ({
+          path: filePath,
+          kind: classifyPortableFileKind(filePath),
+        })),
+      counts: {
+        files: Object.keys(exported.files).length,
+        agents: exported.manifest.agents.length,
+        skills: exported.manifest.skills.length,
+        projects: exported.manifest.projects.length,
+        issues: exported.manifest.issues.length,
+      },
+    };
+  }
+
+  async function buildPreview(
+    input: CompanyPortabilityPreview,
+    options?: ImportBehaviorOptions,
+  ): Promise<ImportPlanInternal> {
+    const mode = resolveImportMode(options);
     const requestedInclude = normalizeInclude(input.include);
     const source = applySelectedFilesToSource(await resolveSource(input.source), input.selectedFiles);
     const manifest = source.manifest;
@@ -2098,6 +2358,9 @@ export function companyPortabilityService(db: Db) {
       issues: requestedInclude.issues && manifest.issues.length > 0,
     };
     const collisionStrategy = input.collisionStrategy ?? DEFAULT_COLLISION_STRATEGY;
+    if (mode === "agent_safe" && collisionStrategy === "replace") {
+      throw unprocessable("Safe import routes do not allow replace collision strategy.");
+    }
     const warnings = [...source.warnings];
     const errors: string[] = [];
 
@@ -2221,6 +2484,20 @@ export function companyPortabilityService(db: Db) {
         }
         existingProjectSlugs.add(existing.urlKey);
       }
+
+      const existingSkills = await companySkills.listFull(input.target.companyId);
+      const existingSkillKeys = new Set(existingSkills.map((skill) => skill.key));
+      const existingSkillSlugs = new Set(existingSkills.map((skill) => normalizeSkillSlug(skill.slug) ?? skill.slug));
+      for (const skill of manifest.skills) {
+        const skillSlug = normalizeSkillSlug(skill.slug) ?? skill.slug;
+        if (existingSkillKeys.has(skill.key) || existingSkillSlugs.has(skillSlug)) {
+          if (mode === "agent_safe") {
+            warnings.push(`Existing skill "${skill.slug}" matched during safe import and will ${collisionStrategy === "skip" ? "be skipped" : "be renamed"} instead of overwritten.`);
+          } else if (collisionStrategy === "replace") {
+            warnings.push(`Existing skill "${skill.slug}" (${skill.key}) will be overwritten by import.`);
+          }
+        }
+      }
     }
 
     for (const manifestAgent of selectedAgents) {
@@ -2236,7 +2513,7 @@ export function companyPortabilityService(db: Db) {
         continue;
       }
 
-      if (collisionStrategy === "replace") {
+      if (mode === "board_full" && collisionStrategy === "replace") {
         agentPlans.push({
           slug: manifestAgent.slug,
           action: "update",
@@ -2282,7 +2559,7 @@ export function companyPortabilityService(db: Db) {
           });
           continue;
         }
-        if (collisionStrategy === "replace") {
+        if (mode === "board_full" && collisionStrategy === "replace") {
           projectPlans.push({
             slug: manifestProject.slug,
             action: "update",
@@ -2370,7 +2647,7 @@ export function companyPortabilityService(db: Db) {
       plan: {
         companyAction: input.target.mode === "new_company"
           ? "create"
-          : include.company
+          : include.company && mode === "board_full"
             ? "update"
             : "none",
         agentPlans,
@@ -2393,18 +2670,33 @@ export function companyPortabilityService(db: Db) {
     };
   }
 
-  async function previewImport(input: CompanyPortabilityPreview): Promise<CompanyPortabilityPreviewResult> {
-    const plan = await buildPreview(input);
+  async function previewImport(
+    input: CompanyPortabilityPreview,
+    options?: ImportBehaviorOptions,
+  ): Promise<CompanyPortabilityPreviewResult> {
+    const plan = await buildPreview(input, options);
     return plan.preview;
   }
 
   async function importBundle(
     input: CompanyPortabilityImport,
     actorUserId: string | null | undefined,
+    options?: ImportBehaviorOptions,
   ): Promise<CompanyPortabilityImportResult> {
-    const plan = await buildPreview(input);
+    const mode = resolveImportMode(options);
+    const plan = await buildPreview(input, options);
     if (plan.preview.errors.length > 0) {
       throw unprocessable(`Import preview has errors: ${plan.preview.errors.join("; ")}`);
+    }
+    if (
+      mode === "agent_safe"
+      && (
+        plan.preview.plan.companyAction === "update"
+        || plan.preview.plan.agentPlans.some((entry) => entry.action === "update")
+        || plan.preview.plan.projectPlans.some((entry) => entry.action === "update")
+      )
+    ) {
+      throw unprocessable("Safe import routes only allow create or skip actions.");
     }
 
     const sourceManifest = plan.source.manifest;
@@ -2415,6 +2707,15 @@ export function companyPortabilityService(db: Db) {
     let companyAction: "created" | "updated" | "unchanged" = "unchanged";
 
     if (input.target.mode === "new_company") {
+      if (mode === "agent_safe" && !options?.sourceCompanyId) {
+        throw unprocessable("Safe new-company imports require a source company context.");
+      }
+      if (mode === "agent_safe" && options?.sourceCompanyId) {
+        const sourceMemberships = await access.listActiveUserMemberships(options.sourceCompanyId);
+        if (sourceMemberships.length === 0) {
+          throw unprocessable("Safe new-company import requires at least one active user membership on the source company.");
+        }
+      }
       const companyName =
         asString(input.target.newCompanyName) ??
         sourceManifest.company?.name ??
@@ -2428,13 +2729,17 @@ export function companyPortabilityService(db: Db) {
           ? (sourceManifest.company?.requireBoardApprovalForNewAgents ?? true)
           : true,
       });
-      await access.ensureMembership(created.id, "user", actorUserId ?? "board", "owner", "active");
+      if (mode === "agent_safe" && options?.sourceCompanyId) {
+        await access.copyActiveUserMemberships(options.sourceCompanyId, created.id);
+      } else {
+        await access.ensureMembership(created.id, "user", actorUserId ?? "board", "owner", "active");
+      }
       targetCompany = created;
       companyAction = "created";
     } else {
       targetCompany = await companies.getById(input.target.companyId);
       if (!targetCompany) throw notFound("Target company not found");
-      if (include.company && sourceManifest.company) {
+      if (include.company && sourceManifest.company && mode === "board_full") {
         const updated = await companies.update(targetCompany.id, {
           name: sourceManifest.company.name,
           description: sourceManifest.company.description,
@@ -2462,7 +2767,19 @@ export function companyPortabilityService(db: Db) {
       existingProjectSlugToId.set(existing.urlKey, existing.id);
     }
 
-    await companySkills.importPackageFiles(targetCompany.id, plan.source.files);
+    const importedSkills = await companySkills.importPackageFiles(targetCompany.id, plan.source.files, {
+      onConflict: resolveSkillConflictStrategy(mode, plan.collisionStrategy),
+    });
+    const desiredSkillRefMap = new Map<string, string>();
+    for (const importedSkill of importedSkills) {
+      desiredSkillRefMap.set(importedSkill.originalKey, importedSkill.skill.key);
+      desiredSkillRefMap.set(importedSkill.originalSlug, importedSkill.skill.key);
+      if (importedSkill.action === "skipped") {
+        warnings.push(`Skipped skill ${importedSkill.originalSlug}; existing skill ${importedSkill.skill.slug} was kept.`);
+      } else if (importedSkill.originalKey !== importedSkill.skill.key) {
+        warnings.push(`Imported skill ${importedSkill.originalSlug} as ${importedSkill.skill.slug} to avoid overwriting an existing skill.`);
+      }
+    }
 
     if (include.agents) {
       for (const planAgent of plan.preview.plan.agentPlans) {
@@ -2501,7 +2818,7 @@ export function companyPortabilityService(db: Db) {
           ? { ...adapterOverride.adapterConfig }
           : { ...manifestAgent.adapterConfig } as Record<string, unknown>;
 
-        const desiredSkills = manifestAgent.skills ?? [];
+        const desiredSkills = (manifestAgent.skills ?? []).map((skillRef) => desiredSkillRefMap.get(skillRef) ?? skillRef);
         const adapterConfigWithSkills = writePaperclipSkillSyncPreference(
           baseAdapterConfig,
           desiredSkills,
@@ -2689,6 +3006,7 @@ export function companyPortabilityService(db: Db) {
 
   return {
     exportBundle,
+    previewExport,
     previewImport,
     importBundle,
   };

@@ -115,6 +115,27 @@ export interface CompanyPortabilityExportResult {
   paperclipExtensionPath: string;
 }
 
+export interface CompanyPortabilityExportPreviewFile {
+  path: string;
+  kind: "company" | "agent" | "skill" | "project" | "issue" | "extension" | "readme" | "other";
+}
+
+export interface CompanyPortabilityExportPreviewResult {
+  rootPath: string;
+  manifest: CompanyPortabilityManifest;
+  files: Record<string, string>;
+  fileInventory: CompanyPortabilityExportPreviewFile[];
+  counts: {
+    files: number;
+    agents: number;
+    skills: number;
+    projects: number;
+    issues: number;
+  };
+  warnings: string[];
+  paperclipExtensionPath: string;
+}
+
 export type CompanyPortabilitySource =
   | {
       type: "inline";
@@ -220,8 +241,11 @@ export interface CompanyPortabilityImportResult {
 
 export interface CompanyPortabilityExportRequest {
   include?: Partial<CompanyPortabilityInclude>;
+  agents?: string[];
+  skills?: string[];
   projects?: string[];
   issues?: string[];
   projectIssues?: string[];
+  selectedFiles?: string[];
   expandReferencedSkills?: boolean;
 }

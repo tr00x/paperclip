@@ -14,6 +14,8 @@ const agentSvc = {
 
 const accessSvc = {
   ensureMembership: vi.fn(),
+  listActiveUserMemberships: vi.fn(),
+  copyActiveUserMemberships: vi.fn(),
 };
 
 const projectSvc = {
@@ -241,6 +243,17 @@ describe("company portability", () => {
       };
     });
     companySkillSvc.importPackageFiles.mockResolvedValue([]);
+    accessSvc.listActiveUserMemberships.mockResolvedValue([
+      {
+        id: "membership-1",
+        companyId: "company-1",
+        principalType: "user",
+        principalId: "user-1",
+        membershipRole: "owner",
+        status: "active",
+      },
+    ]);
+    accessSvc.copyActiveUserMemberships.mockResolvedValue([]);
     agentInstructionsSvc.exportFiles.mockImplementation(async (agent: { name: string }) => ({
       files: { "AGENTS.md": agent.name === "CMO" ? "You are CMO." : "You are ClaudeCoder." },
       entryFile: "AGENTS.md",
@@ -404,6 +417,52 @@ describe("company portability", () => {
     expect(exported.files["skills/paperclipai/paperclip/release-changelog/SKILL.md"]).toContain("paperclipai/paperclip/release-changelog");
   });
 
+  it("builds export previews without tasks by default", async () => {
+    const portability = companyPortabilityService({} as any);
+
+    projectSvc.list.mockResolvedValue([
+      {
+        id: "project-1",
+        name: "Launch",
+        urlKey: "launch",
+        description: "Ship it",
+        leadAgentId: "agent-1",
+        targetDate: null,
+        color: null,
+        status: "planned",
+        executionWorkspacePolicy: null,
+        archivedAt: null,
+      },
+    ]);
+    issueSvc.list.mockResolvedValue([
+      {
+        id: "issue-1",
+        identifier: "PAP-1",
+        title: "Write launch task",
+        description: "Task body",
+        projectId: "project-1",
+        assigneeAgentId: "agent-1",
+        status: "todo",
+        priority: "medium",
+        labelIds: [],
+        billingCode: null,
+        executionWorkspaceSettings: null,
+        assigneeAdapterOverrides: null,
+      },
+    ]);
+
+    const preview = await portability.previewExport("company-1", {
+      include: {
+        company: true,
+        agents: true,
+        projects: true,
+      },
+    });
+
+    expect(preview.counts.issues).toBe(0);
+    expect(preview.fileInventory.some((entry) => entry.path.startsWith("tasks/"))).toBe(false);
+  });
+
   it("reads env inputs back from .paperclip.yaml during preview import", async () => {
     const portability = companyPortabilityService({} as any);
 
@@ -503,7 +562,9 @@ describe("company portability", () => {
       collisionStrategy: "rename",
     }, "user-1");
 
-    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith("company-imported", exported.files);
+    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith("company-imported", exported.files, {
+      onConflict: "replace",
+    });
     expect(agentSvc.create).toHaveBeenCalledWith("company-imported", expect.objectContaining({
       adapterConfig: expect.objectContaining({
         paperclipSkillSync: {
@@ -511,6 +572,60 @@ describe("company portability", () => {
         },
       }),
     }));
+  });
+
+  it("copies source company memberships for safe new-company imports", async () => {
+    const portability = companyPortabilityService({} as any);
+
+    companySvc.create.mockResolvedValue({
+      id: "company-imported",
+      name: "Imported Paperclip",
+    });
+    agentSvc.create.mockResolvedValue({
+      id: "agent-created",
+      name: "ClaudeCoder",
+    });
+
+    const exported = await portability.exportBundle("company-1", {
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+    });
+
+    agentSvc.list.mockResolvedValue([]);
+
+    await portability.importBundle({
+      source: {
+        type: "inline",
+        rootPath: exported.rootPath,
+        files: exported.files,
+      },
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+      target: {
+        mode: "new_company",
+        newCompanyName: "Imported Paperclip",
+      },
+      agents: "all",
+      collisionStrategy: "rename",
+    }, null, {
+      mode: "agent_safe",
+      sourceCompanyId: "company-1",
+    });
+
+    expect(accessSvc.listActiveUserMemberships).toHaveBeenCalledWith("company-1");
+    expect(accessSvc.copyActiveUserMemberships).toHaveBeenCalledWith("company-1", "company-imported");
+    expect(accessSvc.ensureMembership).not.toHaveBeenCalledWith("company-imported", "user", expect.anything(), "owner", "active");
+    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith("company-imported", exported.files, {
+      onConflict: "rename",
+    });
   });
 
   it("imports only selected files and leaves unchecked company metadata alone", async () => {
@@ -567,12 +682,18 @@ describe("company portability", () => {
         "COMPANY.md": expect.any(String),
         "agents/cmo/AGENTS.md": expect.any(String),
       }),
+      {
+        onConflict: "replace",
+      },
     );
     expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith(
       "company-1",
       expect.not.objectContaining({
         "agents/claudecoder/AGENTS.md": expect.any(String),
       }),
+      {
+        onConflict: "replace",
+      },
     );
     expect(agentSvc.create).toHaveBeenCalledTimes(1);
     expect(agentSvc.create).toHaveBeenCalledWith("company-1", expect.objectContaining({

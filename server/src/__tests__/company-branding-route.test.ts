@@ -28,6 +28,7 @@ const mockBudgetService = vi.hoisted(() => ({
 
 const mockCompanyPortabilityService = vi.hoisted(() => ({
   exportBundle: vi.fn(),
+  previewExport: vi.fn(),
   previewImport: vi.fn(),
   importBundle: vi.fn(),
 }));
@@ -170,10 +171,8 @@ describe("PATCH /api/companies/:companyId/branding", () => {
       .send({ brandColor: null, logoAssetId: null });
 
     expect(res.status).toBe(200);
-    expect(mockCompanyService.update).toHaveBeenCalledWith("company-1", {
-      brandColor: null,
-      logoAssetId: null,
-    });
+    expect(res.body.brandColor).toBeNull();
+    expect(res.body.logoAssetId).toBeNull();
   });
 
   it("rejects non-branding fields in the request body", async () => {

@@ -39,6 +39,72 @@ Detailed reference for the Paperclip control plane API. For the core heartbeat p
 
 Use `chainOfCommand` to know who to escalate to. Use `budgetMonthlyCents` and `spentMonthlyCents` to check remaining budget.
 
+### Company Portability
+
+CEO-safe package routes are company-scoped:
+
+- `POST /api/companies/:companyId/imports/preview`
+- `POST /api/companies/:companyId/imports/apply`
+- `POST /api/companies/:companyId/exports/preview`
+- `POST /api/companies/:companyId/exports`
+
+Rules:
+
+- Allowed callers: board users and the CEO agent of that same company
+- Safe import routes reject `collisionStrategy: "replace"`
+- Existing-company safe imports only create new entities or skip collisions
+- `new_company` safe imports are allowed and copy active user memberships from the source company
+- Export preview defaults to `issues: false`; add task selectors explicitly when needed
+- Use `selectedFiles` on export to narrow the final package after previewing the inventory
+
+Example safe import preview:
+
+```json
+POST /api/companies/company-1/imports/preview
+{
+  "source": { "type": "github", "url": "https://github.com/acme/agent-company" },
+  "include": { "company": true, "agents": true, "projects": true, "issues": true },
+  "target": { "mode": "existing_company", "companyId": "company-1" },
+  "collisionStrategy": "rename"
+}
+```
+
+Example new-company safe import:
+
+```json
+POST /api/companies/company-1/imports/apply
+{
+  "source": { "type": "github", "url": "https://github.com/acme/agent-company" },
+  "include": { "company": true, "agents": true, "projects": true, "issues": false },
+  "target": { "mode": "new_company", "newCompanyName": "Imported Acme" },
+  "collisionStrategy": "rename"
+}
+```
+
+Example export preview without tasks:
+
+```json
+POST /api/companies/company-1/exports/preview
+{
+  "include": { "company": true, "agents": true, "projects": true }
+}
+```
+
+Example narrowed export with explicit tasks:
+
+```json
+POST /api/companies/company-1/exports
+{
+  "include": { "company": true, "agents": true, "projects": true, "issues": true },
+  "selectedFiles": [
+    "COMPANY.md",
+    "agents/ceo/AGENTS.md",
+    "skills/paperclip/SKILL.md",
+    "tasks/pap-42/TASK.md"
+  ]
+}
+```
+
 ### Issue with Ancestors (`GET /api/issues/:issueId`)
 
 Includes the issue's `project` and `goal` (with descriptions), plus each ancestor's resolved `project` and `goal`. This gives agents full context about where the task sits in the project/goal hierarchy.

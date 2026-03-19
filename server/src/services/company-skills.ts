@@ -52,6 +52,17 @@ type ImportedSkill = {
   metadata: Record<string, unknown> | null;
 };
 
+type PackageSkillConflictStrategy = "replace" | "rename" | "skip";
+
+export type ImportPackageSkillResult = {
+  skill: CompanySkill;
+  action: "created" | "updated" | "skipped";
+  originalKey: string;
+  originalSlug: string;
+  requestedRefs: string[];
+  reason: string | null;
+};
+
 type ParsedSkillImportSource = {
   resolvedSource: string;
   requestedSkillSlug: string | null;
@@ -178,6 +189,29 @@ function normalizeSkillKey(value: string | null | undefined) {
 
 function hashSkillValue(value: string) {
   return createHash("sha256").update(value).digest("hex").slice(0, 10);
+}
+
+function uniqueSkillSlug(baseSlug: string, usedSlugs: Set<string>) {
+  if (!usedSlugs.has(baseSlug)) return baseSlug;
+  let attempt = 2;
+  let candidate = `${baseSlug}-${attempt}`;
+  while (usedSlugs.has(candidate)) {
+    attempt += 1;
+    candidate = `${baseSlug}-${attempt}`;
+  }
+  return candidate;
+}
+
+function uniqueImportedSkillKey(companyId: string, baseSlug: string, usedKeys: Set<string>) {
+  const initial = `company/${companyId}/${baseSlug}`;
+  if (!usedKeys.has(initial)) return initial;
+  let attempt = 2;
+  let candidate = `company/${companyId}/${baseSlug}-${attempt}`;
+  while (usedKeys.has(candidate)) {
+    attempt += 1;
+    candidate = `company/${companyId}/${baseSlug}-${attempt}`;
+  }
+  return candidate;
 }
 
 function buildSkillRuntimeName(key: string, slug: string) {
@@ -1953,7 +1987,13 @@ export function companySkillService(db: Db) {
     return out;
   }
 
-  async function importPackageFiles(companyId: string, files: Record<string, string>): Promise<CompanySkill[]> {
+  async function importPackageFiles(
+    companyId: string,
+    files: Record<string, string>,
+    options?: {
+      onConflict?: PackageSkillConflictStrategy;
+    },
+  ): Promise<ImportPackageSkillResult[]> {
     await ensureSkillInventoryCurrent(companyId);
     const normalizedFiles = normalizePackageFileMap(files);
     const importedSkills = readInlineSkillImports(companyId, normalizedFiles);
@@ -1967,7 +2007,105 @@ export function companySkillService(db: Db) {
       }
     }
 
-    return upsertImportedSkills(companyId, importedSkills);
+    const conflictStrategy = options?.onConflict ?? "replace";
+    const existingSkills = await listFull(companyId);
+    const existingByKey = new Map(existingSkills.map((skill) => [skill.key, skill]));
+    const existingBySlug = new Map(
+      existingSkills.map((skill) => [normalizeSkillSlug(skill.slug) ?? skill.slug, skill]),
+    );
+    const usedSlugs = new Set(existingBySlug.keys());
+    const usedKeys = new Set(existingByKey.keys());
+
+    const toPersist: ImportedSkill[] = [];
+    const prepared: Array<{
+      skill: ImportedSkill;
+      originalKey: string;
+      originalSlug: string;
+      existingBefore: CompanySkill | null;
+      actionHint: "created" | "updated";
+      reason: string | null;
+    }> = [];
+    const out: ImportPackageSkillResult[] = [];
+
+    for (const importedSkill of importedSkills) {
+      const originalKey = importedSkill.key;
+      const originalSlug = importedSkill.slug;
+      const normalizedSlug = normalizeSkillSlug(importedSkill.slug) ?? importedSkill.slug;
+      const existingByIncomingKey = existingByKey.get(importedSkill.key) ?? null;
+      const existingByIncomingSlug = existingBySlug.get(normalizedSlug) ?? null;
+      const conflict = existingByIncomingKey ?? existingByIncomingSlug;
+
+      if (!conflict || conflictStrategy === "replace") {
+        toPersist.push(importedSkill);
+        prepared.push({
+          skill: importedSkill,
+          originalKey,
+          originalSlug,
+          existingBefore: existingByIncomingKey,
+          actionHint: existingByIncomingKey ? "updated" : "created",
+          reason: existingByIncomingKey ? "Existing skill key matched; replace strategy." : null,
+        });
+        usedSlugs.add(normalizedSlug);
+        usedKeys.add(importedSkill.key);
+        continue;
+      }
+
+      if (conflictStrategy === "skip") {
+        out.push({
+          skill: conflict,
+          action: "skipped",
+          originalKey,
+          originalSlug,
+          requestedRefs: Array.from(new Set([originalKey, originalSlug])),
+          reason: "Existing skill matched; skip strategy.",
+        });
+        continue;
+      }
+
+      const renamedSlug = uniqueSkillSlug(normalizedSlug || "skill", usedSlugs);
+      const renamedKey = uniqueImportedSkillKey(companyId, renamedSlug, usedKeys);
+      const renamedSkill: ImportedSkill = {
+        ...importedSkill,
+        slug: renamedSlug,
+        key: renamedKey,
+        metadata: {
+          ...(importedSkill.metadata ?? {}),
+          skillKey: renamedKey,
+          importedFromSkillKey: originalKey,
+          importedFromSkillSlug: originalSlug,
+        },
+      };
+      toPersist.push(renamedSkill);
+      prepared.push({
+        skill: renamedSkill,
+        originalKey,
+        originalSlug,
+        existingBefore: null,
+        actionHint: "created",
+        reason: `Existing skill matched; renamed to ${renamedSlug}.`,
+      });
+      usedSlugs.add(renamedSlug);
+      usedKeys.add(renamedKey);
+    }
+
+    if (toPersist.length === 0) return out;
+
+    const persisted = await upsertImportedSkills(companyId, toPersist);
+    for (let index = 0; index < prepared.length; index += 1) {
+      const persistedSkill = persisted[index];
+      const preparedSkill = prepared[index];
+      if (!persistedSkill || !preparedSkill) continue;
+      out.push({
+        skill: persistedSkill,
+        action: preparedSkill.actionHint,
+        originalKey: preparedSkill.originalKey,
+        originalSlug: preparedSkill.originalSlug,
+        requestedRefs: Array.from(new Set([preparedSkill.originalKey, preparedSkill.originalSlug])),
+        reason: preparedSkill.reason,
+      });
+    }
+
+    return out;
   }
 
   async function upsertImportedSkills(companyId: string, imported: ImportedSkill[]): Promise<CompanySkill[]> {

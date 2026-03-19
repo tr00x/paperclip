@@ -1,5 +1,6 @@
 import type {
   Company,
+  CompanyPortabilityExportPreviewResult,
   CompanyPortabilityExportResult,
   CompanyPortabilityImportRequest,
   CompanyPortabilityImportResult,
@@ -38,12 +39,41 @@ export const companiesApi = {
     companyId: string,
     data: {
       include?: { company?: boolean; agents?: boolean; projects?: boolean; issues?: boolean };
+      agents?: string[];
+      skills?: string[];
       projects?: string[];
       issues?: string[];
       projectIssues?: string[];
+      selectedFiles?: string[];
     },
   ) =>
     api.post<CompanyPortabilityExportResult>(`/companies/${companyId}/export`, data),
+  exportPreview: (
+    companyId: string,
+    data: {
+      include?: { company?: boolean; agents?: boolean; projects?: boolean; issues?: boolean };
+      agents?: string[];
+      skills?: string[];
+      projects?: string[];
+      issues?: string[];
+      projectIssues?: string[];
+      selectedFiles?: string[];
+    },
+  ) =>
+    api.post<CompanyPortabilityExportPreviewResult>(`/companies/${companyId}/exports/preview`, data),
+  exportPackage: (
+    companyId: string,
+    data: {
+      include?: { company?: boolean; agents?: boolean; projects?: boolean; issues?: boolean };
+      agents?: string[];
+      skills?: string[];
+      projects?: string[];
+      issues?: string[];
+      projectIssues?: string[];
+      selectedFiles?: string[];
+    },
+  ) =>
+    api.post<CompanyPortabilityExportResult>(`/companies/${companyId}/exports`, data),
   importPreview: (data: CompanyPortabilityPreviewRequest) =>
     api.post<CompanyPortabilityPreviewResult>("/companies/import/preview", data),
   importBundle: (data: CompanyPortabilityImportRequest) =>

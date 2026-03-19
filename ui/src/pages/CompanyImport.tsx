@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  CompanyPortabilityCollisionStrategy,
   CompanyPortabilityPreviewResult,
   CompanyPortabilitySource,
   CompanyPortabilityAdapterOverride,
@@ -609,6 +610,7 @@ export function CompanyImport() {
   const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
   const [skippedSlugs, setSkippedSlugs] = useState<Set<string>>(new Set());
   const [confirmedSlugs, setConfirmedSlugs] = useState<Set<string>>(new Set());
+  const [collisionStrategy, setCollisionStrategy] = useState<CompanyPortabilityCollisionStrategy>("rename");
 
   // Adapter override state
   const [adapterOverrides, setAdapterOverrides] = useState<Record<string, string>>({});
@@ -656,7 +658,7 @@ export function CompanyImport() {
           targetMode === "new"
             ? { mode: "new_company", newCompanyName: newCompanyName || null }
             : { mode: "existing_company", companyId: selectedCompanyId! },
-        collisionStrategy: "rename",
+        collisionStrategy,
       });
     },
     onSuccess: (result) => {
@@ -760,7 +762,7 @@ export function CompanyImport() {
           targetMode === "new"
             ? { mode: "new_company", newCompanyName: newCompanyName || null }
             : { mode: "existing_company", companyId: selectedCompanyId! },
-        collisionStrategy: "rename",
+        collisionStrategy,
         nameOverrides: buildFinalNameOverrides(),
         selectedFiles: buildSelectedFiles(),
         adapterOverrides: buildFinalAdapterOverrides(),
@@ -1116,6 +1118,24 @@ export function CompanyImport() {
           </Field>
         )}
 
+        <Field
+          label="Collision strategy"
+          hint="Board imports can rename, skip, or replace matching company content."
+        >
+          <select
+            className="w-full rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none"
+            value={collisionStrategy}
+            onChange={(e) => {
+              setCollisionStrategy(e.target.value as CompanyPortabilityCollisionStrategy);
+              setImportPreview(null);
+            }}
+          >
+            <option value="rename">Rename on conflict</option>
+            <option value="skip">Skip on conflict</option>
+            <option value="replace">Replace existing</option>
+          </select>
+        </Field>
+
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -1142,7 +1162,7 @@ export function CompanyImport() {
               </span>
               {conflicts.length > 0 && (
                 <span className="text-amber-500">
-                  {conflicts.length} rename{conflicts.length === 1 ? "" : "s"}
+                  {conflicts.length} conflict{conflicts.length === 1 ? "" : "s"}
                 </span>
               )}
               {importPreview.errors.length > 0 && (

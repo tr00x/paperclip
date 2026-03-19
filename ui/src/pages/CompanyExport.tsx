@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import type { CompanyPortabilityExportResult, CompanyPortabilityManifest } from "@paperclipai/shared";
+import type {
+  CompanyPortabilityExportPreviewResult,
+  CompanyPortabilityExportResult,
+  CompanyPortabilityManifest,
+} from "@paperclipai/shared";
 import { useNavigate, useLocation } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -526,12 +530,13 @@ export function CompanyExport() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [exportData, setExportData] = useState<CompanyPortabilityExportResult | null>(null);
+  const [exportData, setExportData] = useState<CompanyPortabilityExportPreviewResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
   const [treeSearch, setTreeSearch] = useState("");
   const [taskLimit, setTaskLimit] = useState(TASKS_PAGE_SIZE);
+  const [includeTasks, setIncludeTasks] = useState(false);
   const savedExpandedRef = useRef<Set<string> | null>(null);
   const initialFileFromUrl = useRef(filePathFromLocation(location.pathname));
 
@@ -573,20 +578,21 @@ export function CompanyExport() {
     ]);
   }, [setBreadcrumbs]);
 
-  // Load export data on mount
-  const exportMutation = useMutation({
+  const exportPreviewMutation = useMutation({
     mutationFn: () =>
-      companiesApi.exportBundle(selectedCompanyId!, {
-        include: { company: true, agents: true, projects: true, issues: true },
+      companiesApi.exportPreview(selectedCompanyId!, {
+        include: { company: true, agents: true, projects: true, issues: includeTasks },
       }),
     onSuccess: (result) => {
       setExportData(result);
-      // Check all files EXCEPT tasks by default
-      const checked = new Set<string>();
-      for (const filePath of Object.keys(result.files)) {
-        if (!isTaskPath(filePath)) checked.add(filePath);
-      }
-      setCheckedFiles(checked);
+      setCheckedFiles((prev) => {
+        const next = new Set<string>();
+        for (const filePath of Object.keys(result.files)) {
+          if (prev.has(filePath)) next.add(filePath);
+          else if (!isTaskPath(filePath)) next.add(filePath);
+        }
+        return next;
+      });
       // Expand top-level dirs (except tasks — collapsed by default)
       const tree = buildFileTree(result.files);
       const topDirs = new Set<string>();
@@ -618,13 +624,36 @@ export function CompanyExport() {
     },
   });
 
+  const downloadMutation = useMutation({
+    mutationFn: () =>
+      companiesApi.exportPackage(selectedCompanyId!, {
+        include: { company: true, agents: true, projects: true, issues: includeTasks },
+        selectedFiles: Array.from(checkedFiles).sort(),
+      }),
+    onSuccess: (result) => {
+      const resultCheckedFiles = new Set(Object.keys(result.files));
+      downloadZip(result, resultCheckedFiles, result.files);
+      pushToast({
+        tone: "success",
+        title: "Export downloaded",
+        body: `${resultCheckedFiles.size} file${resultCheckedFiles.size === 1 ? "" : "s"} exported as ${result.rootPath}.zip`,
+      });
+    },
+    onError: (err) => {
+      pushToast({
+        tone: "error",
+        title: "Export failed",
+        body: err instanceof Error ? err.message : "Failed to build export package.",
+      });
+    },
+  });
+
   useEffect(() => {
-    if (selectedCompanyId && !exportData && !exportMutation.isPending) {
-      exportMutation.mutate();
-    }
-    // Only run on mount
+    if (!selectedCompanyId || exportPreviewMutation.isPending) return;
+    setExportData(null);
+    exportPreviewMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, includeTasks]);
 
   const tree = useMemo(
     () => (exportData ? buildFileTree(exportData.files) : []),
@@ -774,20 +803,15 @@ export function CompanyExport() {
   }
 
   function handleDownload() {
-    if (!exportData) return;
-    downloadZip(exportData, checkedFiles, effectiveFiles);
-    pushToast({
-      tone: "success",
-      title: "Export downloaded",
-      body: `${selectedCount} file${selectedCount === 1 ? "" : "s"} exported as ${exportData.rootPath}.zip`,
-    });
+    if (!exportData || checkedFiles.size === 0 || downloadMutation.isPending) return;
+    downloadMutation.mutate();
   }
 
   if (!selectedCompanyId) {
     return <EmptyState icon={Package} message="Select a company to export." />;
   }
 
-  if (exportMutation.isPending && !exportData) {
+  if (exportPreviewMutation.isPending && !exportData) {
     return <PageSkeleton variant="detail" />;
   }
 
@@ -809,6 +833,13 @@ export function CompanyExport() {
             <span className="text-muted-foreground">
               {selectedCount} / {totalFiles} file{totalFiles === 1 ? "" : "s"} selected
             </span>
+            <button
+              type="button"
+              className="text-muted-foreground underline underline-offset-4"
+              onClick={() => setIncludeTasks((value) => !value)}
+            >
+              {includeTasks ? "Hide task files" : "Load task files"}
+            </button>
             {warnings.length > 0 && (
               <span className="text-amber-500">
                 {warnings.length} warning{warnings.length === 1 ? "" : "s"}
@@ -818,10 +849,12 @@ export function CompanyExport() {
           <Button
             size="sm"
             onClick={handleDownload}
-            disabled={selectedCount === 0}
+            disabled={selectedCount === 0 || downloadMutation.isPending}
           >
             <Download className="mr-1.5 h-3.5 w-3.5" />
-            Export {selectedCount} file{selectedCount === 1 ? "" : "s"}
+            {downloadMutation.isPending
+              ? "Building export..."
+              : `Export ${selectedCount} file${selectedCount === 1 ? "" : "s"}`}
           </Button>
         </div>
       </div>

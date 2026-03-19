@@ -238,6 +238,8 @@ export type {
   CompanyPortabilityIssueManifestEntry,
   CompanyPortabilityManifest,
   CompanyPortabilityExportResult,
+  CompanyPortabilityExportPreviewFile,
+  CompanyPortabilityExportPreviewResult,
   CompanyPortabilitySource,
   CompanyPortabilityImportTarget,
   CompanyPortabilityAgentSelection,
