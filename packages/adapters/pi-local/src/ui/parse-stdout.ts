@@ -145,13 +145,18 @@ export function parsePiStdoutLine(line: string, ts: string): TranscriptEntry[] {
     const result = parsed.result;
     const isError = parsed.isError === true;
     
-    // Extract text from Pi's content array format: {"content": [{"type": "text", "text": "..."}]}
+    // Extract text from Pi's content array format
+    // Can be: {"content": [{"type": "text", "text": "..."}]} or [{"type": "text", "text": "..."}]
     let contentStr: string;
     if (typeof result === "string") {
       contentStr = result;
+    } else if (Array.isArray(result)) {
+      // Direct array format: result is [{"type": "text", "text": "..."}]
+      contentStr = extractTextContent(result as Array<{ type: string; text?: string }>);
     } else if (result && typeof result === "object") {
       const resultObj = result as Record<string, unknown>;
       if (Array.isArray(resultObj.content)) {
+        // Wrapped format: result is {"content": [{"type": "text", "text": "..."}]}
         contentStr = extractTextContent(resultObj.content as Array<{ type: string; text?: string }>);
       } else {
         contentStr = JSON.stringify(result);
