@@ -234,7 +234,7 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       const borderColor = isCeo ? "rgba(168,85,247,0.35)" : theme.cardBorder;
       const bgColor = isCeo ? "rgba(168,85,247,0.06)" : theme.cardBg;
 
-      const avatarCY = ln.y + 24;
+      const avatarCY = ln.y + 27;
       const nameY = ln.y + 66;
       const roleY = ln.y + 82;
 
@@ -298,7 +298,7 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       };
       const roleText = schemaRoles[tag] || schemaRoles.default;
 
-      const avatarCY = ln.y + 24;
+      const avatarCY = ln.y + 27;
       const nameY = ln.y + 66;
       const roleY = ln.y + 82;
 
@@ -398,7 +398,7 @@ function defaultRenderCard(ln: LayoutNode, theme: StyleTheme): string {
   const { roleLabel, bg, emojiSvg } = getRoleInfo(ln.node);
   const cx = ln.x + ln.width / 2;
 
-  const avatarCY = ln.y + 24;
+  const avatarCY = ln.y + 27;
   const nameY = ln.y + 66;
   const roleY = ln.y + 82;
 
@@ -483,10 +483,12 @@ function treeBounds(ln: LayoutNode): { minX: number; minY: number; maxX: number;
   return { minX, minY, maxX, maxY };
 }
 
-// Paperclip logo: 24×24 icon + wordmark, vertically centered
+// Paperclip logo: scaled icon (~16px) + wordmark (13px), vertically centered
 const PAPERCLIP_LOGO_SVG = `<g>
-  <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" d="m18 4-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>
-  <text x="28" y="14.5" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="currentColor">Paperclip</text>
+  <g transform="scale(0.72)" transform-origin="0 0">
+    <path stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" d="m18 4-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>
+  </g>
+  <text x="22" y="13" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="currentColor">Paperclip</text>
 </g>`;
 
 // ── Public API ───────────────────────────────────────────────────
