@@ -186,10 +186,10 @@ export async function readZipArchive(source: ArrayBuffer | Uint8Array): Promise<
       throw new Error("Invalid zip archive: truncated file contents.");
     }
 
-    const archivePath = normalizeArchivePath(
-      textDecoder.decode(bytes.slice(nameOffset, nameOffset + fileNameLength)),
-    );
-    if (archivePath && !archivePath.endsWith("/")) {
+    const rawArchivePath = textDecoder.decode(bytes.slice(nameOffset, nameOffset + fileNameLength));
+    const archivePath = normalizeArchivePath(rawArchivePath);
+    const isDirectoryEntry = /\/$/.test(rawArchivePath.replace(/\\/g, "/"));
+    if (archivePath && !isDirectoryEntry) {
       const entryBytes = await inflateZipEntry(compressionMethod, bytes.slice(bodyOffset, bodyEnd));
       entries.push({
         path: archivePath,

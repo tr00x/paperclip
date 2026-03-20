@@ -110,6 +110,78 @@ function createDeflatedZipArchive(files: Record<string, string>, rootPath: strin
   return archive;
 }
 
+function createZipArchiveWithDirectoryEntries(rootPath: string) {
+  const encoder = new TextEncoder();
+  const entries = [
+    { path: `${rootPath}/`, body: new Uint8Array(0), compressionMethod: 0 },
+    { path: `${rootPath}/agents/`, body: new Uint8Array(0), compressionMethod: 0 },
+    { path: `${rootPath}/agents/ceo/`, body: new Uint8Array(0), compressionMethod: 0 },
+    { path: `${rootPath}/COMPANY.md`, body: encoder.encode("# Company\n"), compressionMethod: 8 },
+    { path: `${rootPath}/agents/ceo/AGENTS.md`, body: encoder.encode("# CEO\n"), compressionMethod: 8 },
+  ].map((entry) => ({
+    ...entry,
+    data: entry.compressionMethod === 8 ? new Uint8Array(deflateRawSync(entry.body)) : entry.body,
+    checksum: crc32(entry.body),
+  }));
+
+  const localChunks: Uint8Array[] = [];
+  const centralChunks: Uint8Array[] = [];
+  let localOffset = 0;
+
+  for (const entry of entries) {
+    const fileName = encoder.encode(entry.path);
+    const localHeader = new Uint8Array(30 + fileName.length);
+    writeUint32(localHeader, 0, 0x04034b50);
+    writeUint16(localHeader, 4, 20);
+    writeUint16(localHeader, 6, 0x0800);
+    writeUint16(localHeader, 8, entry.compressionMethod);
+    writeUint32(localHeader, 14, entry.checksum);
+    writeUint32(localHeader, 18, entry.data.length);
+    writeUint32(localHeader, 22, entry.body.length);
+    writeUint16(localHeader, 26, fileName.length);
+    localHeader.set(fileName, 30);
+
+    const centralHeader = new Uint8Array(46 + fileName.length);
+    writeUint32(centralHeader, 0, 0x02014b50);
+    writeUint16(centralHeader, 4, 20);
+    writeUint16(centralHeader, 6, 20);
+    writeUint16(centralHeader, 8, 0x0800);
+    writeUint16(centralHeader, 10, entry.compressionMethod);
+    writeUint32(centralHeader, 16, entry.checksum);
+    writeUint32(centralHeader, 20, entry.data.length);
+    writeUint32(centralHeader, 24, entry.body.length);
+    writeUint16(centralHeader, 28, fileName.length);
+    writeUint32(centralHeader, 42, localOffset);
+    centralHeader.set(fileName, 46);
+
+    localChunks.push(localHeader, entry.data);
+    centralChunks.push(centralHeader);
+    localOffset += localHeader.length + entry.data.length;
+  }
+
+  const centralDirectoryLength = centralChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const archive = new Uint8Array(
+    localChunks.reduce((sum, chunk) => sum + chunk.length, 0) + centralDirectoryLength + 22,
+  );
+  let offset = 0;
+  for (const chunk of localChunks) {
+    archive.set(chunk, offset);
+    offset += chunk.length;
+  }
+  const centralDirectoryOffset = offset;
+  for (const chunk of centralChunks) {
+    archive.set(chunk, offset);
+    offset += chunk.length;
+  }
+  writeUint32(archive, offset, 0x06054b50);
+  writeUint16(archive, offset + 8, entries.length);
+  writeUint16(archive, offset + 10, entries.length);
+  writeUint32(archive, offset + 12, centralDirectoryLength);
+  writeUint32(archive, offset + 16, centralDirectoryOffset);
+
+  return archive;
+}
+
 describe("createZipArchive", () => {
   it("writes a zip archive with the export root path prefixed into each entry", () => {
     const archive = createZipArchive(
@@ -193,6 +265,18 @@ describe("createZipArchive", () => {
       },
       "paperclip-demo",
     );
+
+    await expect(readZipArchive(archive)).resolves.toEqual({
+      rootPath: "paperclip-demo",
+      files: {
+        "COMPANY.md": "# Company\n",
+        "agents/ceo/AGENTS.md": "# CEO\n",
+      },
+    });
+  });
+
+  it("ignores directory entries from standard zip archives", async () => {
+    const archive = createZipArchiveWithDirectoryEntries("paperclip-demo");
 
     await expect(readZipArchive(archive)).resolves.toEqual({
       rootPath: "paperclip-demo",
