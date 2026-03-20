@@ -274,6 +274,13 @@
       "when": 1773931592563,
       "tag": "0038_careless_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1774011294562,
+      "tag": "0039_curly_maria_hill",
+      "breakpoints": true
     }
   ]
 }

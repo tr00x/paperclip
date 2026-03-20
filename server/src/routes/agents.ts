@@ -36,6 +36,7 @@ import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { findServerAdapter, listAdapterModels } from "../adapters/index.js";
 import { redactEventPayload } from "../redaction.js";
 import { redactCurrentUserValue } from "../log-redaction.js";
+import { instanceSettingsService } from "../services/instance-settings.js";
 import { runClaudeLogin } from "@paperclipai/adapter-claude-local/server";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
@@ -64,7 +65,14 @@ export function agentRoutes(db: Db) {
   const issueApprovalsSvc = issueApprovalService(db);
   const secretsSvc = secretService(db);
   const workspaceOperations = workspaceOperationService(db);
+  const instanceSettings = instanceSettingsService(db);
   const strictSecretsMode = process.env.PAPERCLIP_SECRETS_STRICT_MODE === "true";
+
+  async function getCurrentUserRedactionOptions() {
+    return {
+      enabled: (await instanceSettings.getGeneral()).censorUsernameInLogs,
+    };
+  }
 
   function canCreateAgents(agent: { role: string; permissions: Record<string, unknown> | null | undefined }) {
     if (!agent.permissions || typeof agent.permissions !== "object") return false;
@@ -1597,7 +1605,7 @@ export function agentRoutes(db: Db) {
       return;
     }
     assertCompanyAccess(req, run.companyId);
-    res.json(redactCurrentUserValue(run));
+    res.json(redactCurrentUserValue(run, await getCurrentUserRedactionOptions()));
   });
 
   router.post("/heartbeat-runs/:runId/cancel", async (req, res) => {
@@ -1632,11 +1640,12 @@ export function agentRoutes(db: Db) {
     const afterSeq = Number(req.query.afterSeq ?? 0);
     const limit = Number(req.query.limit ?? 200);
     const events = await heartbeat.listEvents(runId, Number.isFinite(afterSeq) ? afterSeq : 0, Number.isFinite(limit) ? limit : 200);
+    const currentUserRedactionOptions = await getCurrentUserRedactionOptions();
     const redactedEvents = events.map((event) =>
       redactCurrentUserValue({
         ...event,
         payload: redactEventPayload(event.payload),
-      }),
+      }, currentUserRedactionOptions),
     );
     res.json(redactedEvents);
   });
@@ -1672,7 +1681,7 @@ export function agentRoutes(db: Db) {
     const context = asRecord(run.contextSnapshot);
     const executionWorkspaceId = asNonEmptyString(context?.executionWorkspaceId);
     const operations = await workspaceOperations.listForRun(runId, executionWorkspaceId);
-    res.json(redactCurrentUserValue(operations));
+    res.json(redactCurrentUserValue(operations, await getCurrentUserRedactionOptions()));
   });
 
   router.get("/workspace-operations/:operationId/log", async (req, res) => {
@@ -1768,7 +1777,7 @@ export function agentRoutes(db: Db) {
     }
 
     res.json({
-      ...redactCurrentUserValue(run),
+      ...redactCurrentUserValue(run, await getCurrentUserRedactionOptions()),
       agentId: agent.id,
       agentName: agent.name,
       adapterType: agent.adapterType,
