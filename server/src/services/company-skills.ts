@@ -377,6 +377,28 @@ function parseYamlBlock(
         index = nested.nextIndex;
         continue;
       }
+      const inlineObjectSeparator = remainder.indexOf(":");
+      if (
+        inlineObjectSeparator > 0 &&
+        !remainder.startsWith("\"") &&
+        !remainder.startsWith("{") &&
+        !remainder.startsWith("[")
+      ) {
+        const key = remainder.slice(0, inlineObjectSeparator).trim();
+        const rawValue = remainder.slice(inlineObjectSeparator + 1).trim();
+        const nextObject: Record<string, unknown> = {
+          [key]: parseYamlScalar(rawValue),
+        };
+        if (index < lines.length && lines[index]!.indent > indentLevel) {
+          const nested = parseYamlBlock(lines, index, indentLevel + 2);
+          if (isPlainRecord(nested.value)) {
+            Object.assign(nextObject, nested.value);
+          }
+          index = nested.nextIndex;
+        }
+        values.push(nextObject);
+        continue;
+      }
       values.push(parseYamlScalar(remainder));
     }
     return { value: values, nextIndex: index };
@@ -804,12 +826,11 @@ export async function readLocalSkillImportFromDirectory(
   const markdown = await fs.readFile(skillFilePath, "utf8");
   const parsed = parseFrontmatterMarkdown(markdown);
   const slug = deriveImportedSkillSlug(parsed.frontmatter, path.basename(resolvedSkillDir));
-  const skillKey = readCanonicalSkillKey(
-    parsed.frontmatter,
-    isPlainRecord(parsed.frontmatter.metadata) ? parsed.frontmatter.metadata : null,
-  );
+  const parsedMetadata = isPlainRecord(parsed.frontmatter.metadata) ? parsed.frontmatter.metadata : null;
+  const skillKey = readCanonicalSkillKey(parsed.frontmatter, parsedMetadata);
   const metadata = {
     ...(skillKey ? { skillKey } : {}),
+    ...(parsedMetadata ?? {}),
     sourceKind: "local_path",
     ...(options?.metadata ?? {}),
   };
@@ -877,12 +898,11 @@ async function readLocalSkillImports(companyId: string, sourcePath: string): Pro
     const markdown = await fs.readFile(resolvedPath, "utf8");
     const parsed = parseFrontmatterMarkdown(markdown);
     const slug = deriveImportedSkillSlug(parsed.frontmatter, path.basename(path.dirname(resolvedPath)));
-    const skillKey = readCanonicalSkillKey(
-      parsed.frontmatter,
-      isPlainRecord(parsed.frontmatter.metadata) ? parsed.frontmatter.metadata : null,
-    );
+    const parsedMetadata = isPlainRecord(parsed.frontmatter.metadata) ? parsed.frontmatter.metadata : null;
+    const skillKey = readCanonicalSkillKey(parsed.frontmatter, parsedMetadata);
     const metadata = {
       ...(skillKey ? { skillKey } : {}),
+      ...(parsedMetadata ?? {}),
       sourceKind: "local_path",
     };
     const inventory: CompanySkillFileInventoryEntry[] = [

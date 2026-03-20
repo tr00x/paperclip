@@ -623,6 +623,63 @@ describe("company portability", () => {
     ]);
   });
 
+  it("treats no-separator auth and api key env names as secrets during export", async () => {
+    const portability = companyPortabilityService({} as any);
+
+    agentSvc.list.mockResolvedValue([
+      {
+        id: "agent-1",
+        name: "ClaudeCoder",
+        status: "idle",
+        role: "engineer",
+        title: "Software Engineer",
+        icon: "code",
+        reportsTo: null,
+        capabilities: "Writes code",
+        adapterType: "claude_local",
+        adapterConfig: {
+          promptTemplate: "You are ClaudeCoder.",
+          env: {
+            APIKEY: {
+              type: "plain",
+              value: "sk-plain-api",
+            },
+            GITHUBAUTH: {
+              type: "plain",
+              value: "gh-auth-token",
+            },
+            PRIVATEKEY: {
+              type: "plain",
+              value: "private-key-value",
+            },
+          },
+        },
+        runtimeConfig: {},
+        budgetMonthlyCents: 0,
+        permissions: {},
+        metadata: null,
+      },
+    ]);
+
+    const exported = await portability.exportBundle("company-1", {
+      include: {
+        company: true,
+        agents: true,
+        projects: false,
+        issues: false,
+      },
+    });
+
+    const extension = asTextFile(exported.files[".paperclip.yaml"]);
+    expect(extension).toContain("APIKEY:");
+    expect(extension).toContain("GITHUBAUTH:");
+    expect(extension).toContain("PRIVATEKEY:");
+    expect(extension).not.toContain("sk-plain-api");
+    expect(extension).not.toContain("gh-auth-token");
+    expect(extension).not.toContain("private-key-value");
+    expect(extension).toContain('kind: "secret"');
+  });
+
   it("imports packaged skills and restores desired skill refs on agents", async () => {
     const portability = companyPortabilityService({} as any);
 

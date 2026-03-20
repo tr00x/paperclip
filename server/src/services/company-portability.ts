@@ -351,10 +351,12 @@ function isSensitiveEnvKey(key: string) {
     normalized === "token" ||
     normalized.endsWith("_token") ||
     normalized.endsWith("-token") ||
+    normalized.includes("apikey") ||
     normalized.includes("api_key") ||
     normalized.includes("api-key") ||
     normalized.includes("access_token") ||
     normalized.includes("access-token") ||
+    normalized.includes("auth") ||
     normalized.includes("auth_token") ||
     normalized.includes("auth-token") ||
     normalized.includes("authorization") ||
@@ -364,6 +366,7 @@ function isSensitiveEnvKey(key: string) {
     normalized.includes("password") ||
     normalized.includes("credential") ||
     normalized.includes("jwt") ||
+    normalized.includes("privatekey") ||
     normalized.includes("private_key") ||
     normalized.includes("private-key") ||
     normalized.includes("cookie") ||

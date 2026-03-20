@@ -138,6 +138,45 @@ describe("project workspace skill discovery", () => {
     expect(imported.fileInventory.map((entry) => entry.kind)).toContain("script");
     expect(imported.metadata?.sourceKind).toBe("project_scan");
   });
+
+  it("parses inline object array items in skill frontmatter metadata", async () => {
+    const workspace = await makeTempDir("paperclip-inline-skill-yaml-");
+    await fs.mkdir(workspace, { recursive: true });
+    await fs.writeFile(
+      path.join(workspace, "SKILL.md"),
+      [
+        "---",
+        "name: Inline Metadata Skill",
+        "metadata:",
+        "  sources:",
+        "    - kind: github-dir",
+        "      repo: paperclipai/paperclip",
+        "      path: skills/paperclip",
+        "---",
+        "",
+        "# Inline Metadata Skill",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const imported = await readLocalSkillImportFromDirectory(
+      "33333333-3333-4333-8333-333333333333",
+      workspace,
+      { inventoryMode: "full" },
+    );
+
+    expect(imported.metadata).toMatchObject({
+      sourceKind: "local_path",
+      sources: [
+        {
+          kind: "github-dir",
+          repo: "paperclipai/paperclip",
+          path: "skills/paperclip",
+        },
+      ],
+    });
+  });
 });
 
 describe("missing local skill reconciliation", () => {

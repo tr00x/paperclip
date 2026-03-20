@@ -655,6 +655,9 @@ export function CompanyImport() {
     return ceo?.adapterType ?? "claude_local";
   }, [companyAgents]);
 
+  const localZipHelpText =
+    "Upload a .zip exported directly from Paperclip. Re-zipped archives created by Finder, Explorer, or other zip tools may not import correctly.";
+
   useEffect(() => {
     setBreadcrumbs([
       { label: "Org Chart", href: "/org" },
@@ -1093,7 +1096,7 @@ export function CompanyImport() {
             </div>
             {!localPackage && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Upload a `.zip` exported from Paperclip that contains COMPANY.md and the related package files.
+                {localZipHelpText}
               </p>
             )}
           </div>
