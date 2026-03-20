@@ -41,6 +41,7 @@ Operational fields:
 Notes:
 - Prompts are piped via stdin (Codex receives "-" prompt argument).
 - Paperclip injects desired local skills into the active workspace's ".agents/skills" directory at execution time so Codex can discover "$paperclip" and related skills without coupling them to the user's login home.
+- Unless explicitly overridden in adapter config, Paperclip runs Codex with a per-company managed CODEX_HOME under the active Paperclip instance and seeds auth/config from the shared Codex home (the CODEX_HOME env var, when set, or ~/.codex).
 - Some model/tool combinations reject certain effort levels (for example minimal with web search enabled).
 - When Paperclip realizes a workspace/runtime for a run, it injects PAPERCLIP_WORKSPACE_* and PAPERCLIP_RUNTIME_* env vars for agent-side tooling.
 `;

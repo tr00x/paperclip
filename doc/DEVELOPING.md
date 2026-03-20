@@ -130,6 +130,10 @@ When a local agent run has no resolved project/session workspace, Paperclip fall
 
 This path honors `PAPERCLIP_HOME` and `PAPERCLIP_INSTANCE_ID` in non-default setups.
 
+For `codex_local`, Paperclip also manages a per-company Codex home under the instance root and seeds it from the shared Codex login/config home (`$CODEX_HOME` or `~/.codex`):
+
+- `~/.paperclip/instances/default/companies/<company-id>/codex-home`
+
 ## Worktree-local Instances
 
 When developing from multiple git worktrees, do not point two Paperclip servers at the same embedded PostgreSQL data directory.
