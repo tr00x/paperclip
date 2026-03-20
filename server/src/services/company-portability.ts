@@ -1303,17 +1303,6 @@ async function withSkillSourceMetadata(skill: CompanySkill, markdown: string) {
   return buildMarkdown(frontmatter, parsed.body);
 }
 
-function renderCompanyAgentsSection(agentSummaries: Array<{ slug: string; name: string }>) {
-  const lines = ["# Agents", ""];
-  if (agentSummaries.length === 0) {
-    lines.push("- _none_");
-    return lines.join("\n");
-  }
-  for (const agent of agentSummaries) {
-    lines.push(`- ${agent.slug} - ${agent.name}`);
-  }
-  return lines.join("\n");
-}
 
 function parseYamlScalar(rawValue: string): unknown {
   const trimmed = rawValue.trim();
@@ -2210,19 +2199,6 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
     }
 
     const companyPath = "COMPANY.md";
-    const companyBodySections: string[] = [];
-    if (include.agents) {
-      const companyAgentSummaries = agentRows.map((agent) => ({
-        slug: idToSlug.get(agent.id) ?? "agent",
-        name: agent.name,
-      }));
-      companyBodySections.push(renderCompanyAgentsSection(companyAgentSummaries));
-    }
-    if (selectedProjectRows.length > 0) {
-      companyBodySections.push(
-        ["# Projects", "", ...selectedProjectRows.map((project) => `- ${projectSlugById.get(project.id) ?? project.id} - ${project.name}`)].join("\n"),
-      );
-    }
     files[companyPath] = buildMarkdown(
       {
         name: company.name,
@@ -2230,7 +2206,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
         schema: "agentcompanies/v1",
         slug: rootPath,
       },
-      companyBodySections.join("\n\n").trim(),
+      "",
     );
 
     if (include.company && company.logoAssetId) {
