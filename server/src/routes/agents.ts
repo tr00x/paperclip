@@ -47,6 +47,7 @@ import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { findServerAdapter, listAdapterModels } from "../adapters/index.js";
 import { redactEventPayload } from "../redaction.js";
 import { redactCurrentUserValue } from "../log-redaction.js";
+import { renderOrgChartSvg, renderOrgChartPng, type OrgNode } from "./org-chart-svg.js";
 import { runClaudeLogin } from "@paperclipai/adapter-claude-local/server";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
@@ -819,6 +820,28 @@ export function agentRoutes(db: Db) {
     const tree = await svc.orgForCompany(companyId);
     const leanTree = tree.map((node) => toLeanOrgNode(node as Record<string, unknown>));
     res.json(leanTree);
+  });
+
+  router.get("/companies/:companyId/org.svg", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const tree = await svc.orgForCompany(companyId);
+    const leanTree = tree.map((node) => toLeanOrgNode(node as Record<string, unknown>));
+    const svg = renderOrgChartSvg(leanTree as unknown as OrgNode[]);
+    res.setHeader("Content-Type", "image/svg+xml");
+    res.setHeader("Cache-Control", "no-cache");
+    res.send(svg);
+  });
+
+  router.get("/companies/:companyId/org.png", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const tree = await svc.orgForCompany(companyId);
+    const leanTree = tree.map((node) => toLeanOrgNode(node as Record<string, unknown>));
+    const png = await renderOrgChartPng(leanTree as unknown as OrgNode[]);
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "no-cache");
+    res.send(png);
   });
 
   router.get("/companies/:companyId/agent-configurations", async (req, res) => {

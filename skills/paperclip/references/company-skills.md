@@ -34,7 +34,42 @@ The canonical model is:
 
 ## Install A Skill Into The Company
 
-Import from GitHub, a local path, or a `skills.sh`-style source string:
+Import using a **skills.sh URL**, a key-style source string, a GitHub URL, or a local path.
+
+### Source types (in order of preference)
+
+| Source format | Example | When to use |
+|---|---|---|
+| **skills.sh URL** | `https://skills.sh/google-labs-code/stitch-skills/design-md` | When a user gives you a `skills.sh` link. This is the managed skill registry — **always prefer it when available**. |
+| **Key-style string** | `google-labs-code/stitch-skills/design-md` | Shorthand for the same skill — `org/repo/skill-name` format. Equivalent to the skills.sh URL. |
+| **GitHub URL** | `https://github.com/vercel-labs/agent-browser` | When the skill is in a GitHub repo but not on skills.sh. |
+| **Local path** | `/abs/path/to/skill-dir` | When the skill is on disk (dev/testing only). |
+
+**Critical:** If a user gives you a `https://skills.sh/...` URL, use that URL or its key-style equivalent (`org/repo/skill-name`) as the `source`. Do **not** convert it to a GitHub URL — skills.sh is the managed registry and the source of truth for versioning, discovery, and updates.
+
+### Example: skills.sh import (preferred)
+
+```sh
+curl -sS -X POST "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/skills/import" \
+  -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "https://skills.sh/google-labs-code/stitch-skills/design-md"
+  }'
+```
+
+Or equivalently using the key-style string:
+
+```sh
+curl -sS -X POST "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/skills/import" \
+  -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "google-labs-code/stitch-skills/design-md"
+  }'
+```
+
+### Example: GitHub import
 
 ```sh
 curl -sS -X POST "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/skills/import" \
@@ -44,11 +79,6 @@ curl -sS -X POST "$PAPERCLIP_API_URL/api/companies/$PAPERCLIP_COMPANY_ID/skills/
     "source": "https://github.com/vercel-labs/agent-browser"
   }'
 ```
-
-You can also use a source string such as:
-
-- `npx skills add https://github.com/vercel-labs/agent-browser --skill agent-browser`
-- `vercel-labs/agent-browser/agent-browser`
 
 If the task is to discover skills from the company project workspaces first:
 

@@ -42,10 +42,56 @@ import { agentService } from "./agents.js";
 import { agentInstructionsService } from "./agent-instructions.js";
 import { assetService } from "./assets.js";
 import { generateReadme } from "./company-export-readme.js";
+import { renderOrgChartPng, type OrgNode } from "../routes/org-chart-svg.js";
 import { companySkillService } from "./company-skills.js";
 import { companyService } from "./companies.js";
 import { issueService } from "./issues.js";
 import { projectService } from "./projects.js";
+
+/** Build OrgNode tree from manifest agent list (slug + reportsToSlug). */
+function buildOrgTreeFromManifest(agents: CompanyPortabilityManifest["agents"]): OrgNode[] {
+  const ROLE_LABELS: Record<string, string> = {
+    ceo: "Chief Executive", cto: "Technology", cmo: "Marketing",
+    cfo: "Finance", coo: "Operations", vp: "VP", manager: "Manager",
+    engineer: "Engineer", agent: "Agent",
+  };
+  const bySlug = new Map(agents.map((a) => [a.slug, a]));
+  const childrenOf = new Map<string | null, typeof agents>();
+  for (const a of agents) {
+    const parent = a.reportsToSlug ?? null;
+    const list = childrenOf.get(parent) ?? [];
+    list.push(a);
+    childrenOf.set(parent, list);
+  }
+  const build = (parentSlug: string | null): OrgNode[] => {
+    const members = childrenOf.get(parentSlug) ?? [];
+    return members.map((m) => ({
+      id: m.slug,
+      name: m.name,
+      role: ROLE_LABELS[m.role] ?? m.role,
+      status: "active",
+      reports: build(m.slug),
+    }));
+  };
+  // Find roots: agents whose reportsToSlug is null or points to a non-existent slug
+  const roots = agents.filter((a) => !a.reportsToSlug || !bySlug.has(a.reportsToSlug));
+  const rootSlugs = new Set(roots.map((r) => r.slug));
+  // Start from null parent, but also include orphans
+  const tree = build(null);
+  for (const root of roots) {
+    if (root.reportsToSlug && !bySlug.has(root.reportsToSlug)) {
+      // Orphan root (parent slug doesn't exist)
+      tree.push({
+        id: root.slug,
+        name: root.name,
+        role: ROLE_LABELS[root.role] ?? root.role,
+        status: "active",
+        reports: build(root.slug),
+      });
+    }
+  }
+  return tree;
+}
 
 const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
   company: true,
@@ -2421,6 +2467,17 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
     };
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
+
+    // Generate org chart PNG from manifest agents
+    if (resolved.manifest.agents.length > 0) {
+      try {
+        const orgNodes = buildOrgTreeFromManifest(resolved.manifest.agents);
+        const pngBuffer = await renderOrgChartPng(orgNodes);
+        finalFiles["images/org-chart.png"] = bufferToPortableBinaryFile(pngBuffer, "image/png");
+      } catch {
+        // Non-fatal: export still works without the org chart image
+      }
+    }
 
     if (!input.selectedFiles || input.selectedFiles.some((entry) => normalizePortablePath(entry) === "README.md")) {
       finalFiles["README.md"] = generateReadme(resolved.manifest, {

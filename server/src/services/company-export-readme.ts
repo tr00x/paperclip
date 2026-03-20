@@ -87,10 +87,9 @@ export function generateReadme(
     lines.push("");
   }
 
-  // Org chart as Mermaid diagram
-  const mermaid = generateOrgChartMermaid(manifest.agents);
-  if (mermaid) {
-    lines.push(mermaid);
+  // Org chart image (generated during export as images/org-chart.png)
+  if (manifest.agents.length > 0) {
+    lines.push("![Org Chart](images/org-chart.png)");
     lines.push("");
   }
 
