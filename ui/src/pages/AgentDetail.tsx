@@ -1456,10 +1456,16 @@ function ConfigurationTab({
                 {taskAssignHint}
               </p>
             </div>
-            <Button
-              variant={canAssignTasks ? "default" : "outline"}
-              size="sm"
-              className="h-7 px-2.5 text-xs"
+            <button
+              type="button"
+              role="switch"
+              aria-checked={canAssignTasks}
+              className={cn(
+                "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                canAssignTasks
+                  ? "bg-green-500 focus-visible:ring-green-500/70"
+                  : "bg-input/50 focus-visible:ring-ring",
+              )}
               onClick={() =>
                 updatePermissions.mutate({
                   canCreateAgents,
@@ -1468,8 +1474,13 @@ function ConfigurationTab({
               }
               disabled={updatePermissions.isPending || taskAssignLocked}
             >
-              {canAssignTasks ? "Enabled" : "Disabled"}
-            </Button>
+              <span
+                className={cn(
+                  "inline-block h-4 w-4 transform rounded-full bg-background transition-transform",
+                  canAssignTasks ? "translate-x-6" : "translate-x-1",
+                )}
+              />
+            </button>
           </div>
         </div>
       </div>
