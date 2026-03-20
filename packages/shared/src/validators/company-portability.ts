@@ -6,6 +6,7 @@ export const portabilityIncludeSchema = z
     agents: z.boolean().optional(),
     projects: z.boolean().optional(),
     issues: z.boolean().optional(),
+    skills: z.boolean().optional(),
   })
   .partial();
 
@@ -119,6 +120,7 @@ export const portabilityManifestSchema = z.object({
     agents: z.boolean(),
     projects: z.boolean(),
     issues: z.boolean(),
+    skills: z.boolean(),
   }),
   company: portabilityCompanyManifestEntrySchema.nullable(),
   agents: z.array(portabilityAgentManifestEntrySchema),

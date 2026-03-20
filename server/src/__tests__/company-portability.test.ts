@@ -666,7 +666,8 @@ describe("company portability", () => {
       collisionStrategy: "rename",
     }, "user-1");
 
-    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith("company-imported", exported.files, {
+    const textOnlyFiles = Object.fromEntries(Object.entries(exported.files).filter(([, v]) => typeof v === "string"));
+    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith("company-imported", textOnlyFiles, {
       onConflict: "replace",
     });
     expect(agentSvc.create).toHaveBeenCalledWith("company-imported", expect.objectContaining({
@@ -812,7 +813,8 @@ describe("company portability", () => {
     expect(accessSvc.listActiveUserMemberships).toHaveBeenCalledWith("company-1");
     expect(accessSvc.copyActiveUserMemberships).toHaveBeenCalledWith("company-1", "company-imported");
     expect(accessSvc.ensureMembership).not.toHaveBeenCalledWith("company-imported", "user", expect.anything(), "owner", "active");
-    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith("company-imported", exported.files, {
+    const textOnlyFiles = Object.fromEntries(Object.entries(exported.files).filter(([, v]) => typeof v === "string"));
+    expect(companySkillSvc.importPackageFiles).toHaveBeenCalledWith("company-imported", textOnlyFiles, {
       onConflict: "rename",
     });
   });

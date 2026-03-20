@@ -3,6 +3,7 @@ export interface CompanyPortabilityInclude {
   agents: boolean;
   projects: boolean;
   issues: boolean;
+  skills: boolean;
 }
 
 export interface CompanyPortabilityEnvInput {

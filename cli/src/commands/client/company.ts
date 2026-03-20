@@ -85,16 +85,17 @@ function normalizeSelector(input: string): string {
 }
 
 function parseInclude(input: string | undefined): CompanyPortabilityInclude {
-  if (!input || !input.trim()) return { company: true, agents: true, projects: false, issues: false };
+  if (!input || !input.trim()) return { company: true, agents: true, projects: false, issues: false, skills: false };
   const values = input.split(",").map((part) => part.trim().toLowerCase()).filter(Boolean);
   const include = {
     company: values.includes("company"),
     agents: values.includes("agents"),
     projects: values.includes("projects"),
-    issues: values.includes("issues"),
+    issues: values.includes("issues") || values.includes("tasks"),
+    skills: values.includes("skills"),
   };
-  if (!include.company && !include.agents && !include.projects && !include.issues) {
-    throw new Error("Invalid --include value. Use one or more of: company,agents,projects,issues");
+  if (!include.company && !include.agents && !include.projects && !include.issues && !include.skills) {
+    throw new Error("Invalid --include value. Use one or more of: company,agents,projects,issues,tasks,skills");
   }
   return include;
 }
@@ -337,7 +338,7 @@ export function registerCompanyCommands(program: Command): void {
       .description("Export a company into a portable markdown package")
       .argument("<companyId>", "Company ID")
       .requiredOption("--out <path>", "Output directory")
-      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues", "company,agents")
+      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills", "company,agents")
       .option("--skills <values>", "Comma-separated skill slugs/keys to export")
       .option("--projects <values>", "Comma-separated project shortnames/ids to export")
       .option("--issues <values>", "Comma-separated issue identifiers/ids to export")
@@ -390,7 +391,7 @@ export function registerCompanyCommands(program: Command): void {
       .command("import")
       .description("Import a portable markdown company package from local path, URL, or GitHub")
       .requiredOption("--from <pathOrUrl>", "Source path or URL")
-      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues", "company,agents")
+      .option("--include <values>", "Comma-separated include set: company,agents,projects,issues,tasks,skills", "company,agents")
       .option("--target <mode>", "Target mode: new | existing")
       .option("-C, --company-id <id>", "Existing target company ID")
       .option("--new-company-name <name>", "Name override for --target new")

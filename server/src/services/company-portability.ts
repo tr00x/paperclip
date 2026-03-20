@@ -98,6 +98,7 @@ const DEFAULT_INCLUDE: CompanyPortabilityInclude = {
   agents: true,
   projects: false,
   issues: false,
+  skills: false,
 };
 
 const DEFAULT_COLLISION_STRATEGY: CompanyPortabilityCollisionStrategy = "rename";
@@ -561,6 +562,7 @@ function normalizeInclude(input?: Partial<CompanyPortabilityInclude>): CompanyPo
     agents: input?.agents ?? DEFAULT_INCLUDE.agents,
     projects: input?.projects ?? DEFAULT_INCLUDE.projects,
     issues: input?.issues ?? DEFAULT_INCLUDE.issues,
+    skills: input?.skills ?? DEFAULT_INCLUDE.skills,
   };
 }
 
@@ -1193,6 +1195,7 @@ function applySelectedFilesToSource(source: ResolvedSource, selectedFiles?: stri
     agents: filtered.manifest.agents.length > 0,
     projects: filtered.manifest.projects.length > 0,
     issues: filtered.manifest.issues.length > 0,
+    skills: filtered.manifest.skills.length > 0,
   };
 
   return filtered;
@@ -1656,6 +1659,7 @@ function buildManifestFromPackageFiles(
       agents: true,
       projects: projectPaths.length > 0,
       issues: taskPaths.length > 0,
+      skills: skillPaths.length > 0,
     },
     company: {
       path: resolvedCompanyPath,
@@ -2051,6 +2055,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
         (input.issues && input.issues.length > 0) || (input.projectIssues && input.projectIssues.length > 0)
           ? true
           : input.include?.issues,
+      skills: input.skills && input.skills.length > 0 ? true : input.include?.skills,
     });
     const company = await companies.getById(companyId);
     if (!company) throw notFound("Company not found");
@@ -2063,7 +2068,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
 
     const allAgentRows = include.agents ? await agents.list(companyId, { includeTerminated: true }) : [];
     const liveAgentRows = allAgentRows.filter((agent) => agent.status !== "terminated");
-    const companySkillRows = await companySkills.listFull(companyId);
+    const companySkillRows = include.skills || include.agents ? await companySkills.listFull(companyId) : [];
     if (include.agents) {
       const skipped = allAgentRows.length - liveAgentRows.length;
       if (skipped > 0) {
@@ -2464,6 +2469,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       agents: resolved.manifest.agents.length > 0,
       projects: resolved.manifest.projects.length > 0,
       issues: resolved.manifest.issues.length > 0,
+      skills: resolved.manifest.skills.length > 0,
     };
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
@@ -2497,6 +2503,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       agents: resolved.manifest.agents.length > 0,
       projects: resolved.manifest.projects.length > 0,
       issues: resolved.manifest.issues.length > 0,
+      skills: resolved.manifest.skills.length > 0,
     };
     resolved.manifest.envInputs = dedupeEnvInputs(envInputs);
     resolved.warnings.unshift(...warnings);
@@ -2559,6 +2566,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       agents: requestedInclude.agents && manifest.agents.length > 0,
       projects: requestedInclude.projects && manifest.projects.length > 0,
       issues: requestedInclude.issues && manifest.issues.length > 0,
+      skills: requestedInclude.skills && manifest.skills.length > 0,
     };
     const collisionStrategy = input.collisionStrategy ?? DEFAULT_COLLISION_STRATEGY;
     if (mode === "agent_safe" && collisionStrategy === "replace") {
@@ -3019,9 +3027,11 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
       existingProjectSlugToId.set(existing.urlKey, existing.id);
     }
 
-    const importedSkills = await companySkills.importPackageFiles(targetCompany.id, pickTextFiles(plan.source.files), {
-      onConflict: resolveSkillConflictStrategy(mode, plan.collisionStrategy),
-    });
+    const importedSkills = include.skills || include.agents
+      ? await companySkills.importPackageFiles(targetCompany.id, pickTextFiles(plan.source.files), {
+          onConflict: resolveSkillConflictStrategy(mode, plan.collisionStrategy),
+        })
+      : [];
     const desiredSkillRefMap = new Map<string, string>();
     for (const importedSkill of importedSkills) {
       desiredSkillRefMap.set(importedSkill.originalKey, importedSkill.skill.key);
