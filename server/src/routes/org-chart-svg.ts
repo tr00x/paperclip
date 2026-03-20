@@ -50,58 +50,87 @@ interface StyleTheme {
   cardAccent: ((tag: string) => string) | null;
 }
 
-// ── Role icons (shared across styles) ────────────────────────────
+// ── Role config with Twemoji SVG inlines (viewBox 0 0 36 36) ─────
+//
+// Each `emojiSvg` contains the inner SVG paths from Twemoji (CC-BY 4.0).
+// These render as colorful emoji-style icons inside the avatar circle,
+// without needing a browser or emoji font.
 
 const ROLE_ICONS: Record<string, {
   bg: string;
   roleLabel: string;
-  iconColor: string;
-  iconPath: string;
   accentColor: string;
+  /** Twemoji inner SVG content (paths only, viewBox 0 0 36 36) */
+  emojiSvg: string;
+  /** Fallback monochrome icon path (16×16 viewBox) for minimal rendering */
+  iconPath: string;
+  iconColor: string;
 }> = {
   ceo: {
-    bg: "#fef3c7", roleLabel: "Chief Executive", iconColor: "#92400e", accentColor: "#f0883e",
+    bg: "#fef3c7", roleLabel: "Chief Executive", accentColor: "#f0883e", iconColor: "#92400e",
     iconPath: "M8 1l2.2 4.5L15 6.2l-3.5 3.4.8 4.9L8 12.2 3.7 14.5l.8-4.9L1 6.2l4.8-.7z",
+    // 👑 Crown
+    emojiSvg: `<path fill="#F4900C" d="M14.174 17.075L6.75 7.594l-3.722 9.481z"/><path fill="#F4900C" d="M17.938 5.534l-6.563 12.389H24.5z"/><path fill="#F4900C" d="M21.826 17.075l7.424-9.481 3.722 9.481z"/><path fill="#FFCC4D" d="M28.669 15.19L23.887 3.523l-5.88 11.668-.007.003-.007-.004-5.88-11.668L7.331 15.19C4.197 10.833 1.28 8.042 1.28 8.042S3 20.75 3 33h30c0-12.25 1.72-24.958 1.72-24.958s-2.917 2.791-6.051 7.148z"/><circle fill="#5C913B" cx="17.957" cy="22" r="3.688"/><circle fill="#981CEB" cx="26.463" cy="22" r="2.412"/><circle fill="#DD2E44" cx="32.852" cy="22" r="1.986"/><circle fill="#981CEB" cx="9.45" cy="22" r="2.412"/><circle fill="#DD2E44" cx="3.061" cy="22" r="1.986"/><path fill="#FFAC33" d="M33 34H3c-.552 0-1-.447-1-1s.448-1 1-1h30c.553 0 1 .447 1 1s-.447 1-1 1zm0-3.486H3c-.552 0-1-.447-1-1s.448-1 1-1h30c.553 0 1 .447 1 1s-.447 1-1 1z"/><circle fill="#FFCC4D" cx="1.447" cy="8.042" r="1.407"/><circle fill="#F4900C" cx="6.75" cy="7.594" r="1.192"/><circle fill="#FFCC4D" cx="12.113" cy="3.523" r="1.784"/><circle fill="#FFCC4D" cx="34.553" cy="8.042" r="1.407"/><circle fill="#F4900C" cx="29.25" cy="7.594" r="1.192"/><circle fill="#FFCC4D" cx="23.887" cy="3.523" r="1.784"/><circle fill="#F4900C" cx="17.938" cy="5.534" r="1.784"/>`,
   },
   cto: {
-    bg: "#dbeafe", roleLabel: "Technology", iconColor: "#1e40af", accentColor: "#58a6ff",
+    bg: "#dbeafe", roleLabel: "Technology", accentColor: "#58a6ff", iconColor: "#1e40af",
     iconPath: "M2 3l5 5-5 5M9 13h5",
+    // 💻 Laptop
+    emojiSvg: `<path fill="#CCD6DD" d="M34 29.096c-.417-.963-.896-2.008-2-2.008h-1c1.104 0 2-.899 2-2.008V8.008C33 6.899 32.104 6 31 6H5c-1.104 0-2 .899-2 2.008V25.08c0 1.109.896 2.008 2 2.008H4c-1.104 0-1.667 1.004-2 2.008l-2 4.895C0 35.101.896 36 2 36h32c1.104 0 2-.899 2-2.008l-2-4.896z"/><path fill="#9AAAB4" d="M.008 34.075l.006.057.17.692C.5 35.516 1.192 36 2 36h32c1.076 0 1.947-.855 1.992-1.925H.008z"/><path fill="#5DADEC" d="M31 24.075c0 .555-.447 1.004-1 1.004H6c-.552 0-1-.449-1-1.004V9.013c0-.555.448-1.004 1-1.004h24c.553 0 1 .45 1 1.004v15.062z"/><path fill="#AEBBC1" d="M32.906 31.042l-.76-2.175c-.239-.46-.635-.837-1.188-.837H5.11c-.552 0-.906.408-1.156 1.036l-.688 1.977c-.219.596.448 1.004 1 1.004h7.578s.937-.047 1.103-.608c.192-.648.415-1.624.463-1.796.074-.264.388-.531.856-.531h8.578c.5 0 .746.253.811.566.042.204.312 1.141.438 1.782.111.571 1.221.586 1.221.586h6.594c.551 0 1.217-.471.998-1.004z"/><path fill="#9AAAB4" d="M22.375 33.113h-7.781c-.375 0-.538-.343-.484-.675.054-.331.359-1.793.383-1.963.023-.171.274-.375.524-.375h7.015c.297 0 .49.163.55.489.059.327.302 1.641.321 1.941.019.301-.169.583-.528.583z"/>`,
   },
   cmo: {
-    bg: "#dcfce7", roleLabel: "Marketing", iconColor: "#166534", accentColor: "#3fb950",
+    bg: "#dcfce7", roleLabel: "Marketing", accentColor: "#3fb950", iconColor: "#166534",
     iconPath: "M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM1 8h14M8 1c-2 2-3 4.5-3 7s1 5 3 7c2-2 3-4.5 3-7s-1-5-3-7z",
+    // 🌐 Globe with meridians
+    emojiSvg: `<path fill="#3B88C3" d="M18 0C8.059 0 0 8.059 0 18s8.059 18 18 18 18-8.059 18-18S27.941 0 18 0zM2.05 19h3.983c.092 2.506.522 4.871 1.229 7H4.158c-1.207-2.083-1.95-4.459-2.108-7zM19 8V2.081c2.747.436 5.162 2.655 6.799 5.919H19zm7.651 2c.754 2.083 1.219 4.46 1.317 7H19v-7h7.651zM17 2.081V8h-6.799C11.837 4.736 14.253 2.517 17 2.081zM17 10v7H8.032c.098-2.54.563-4.917 1.317-7H17zM6.034 17H2.05c.158-2.54.901-4.917 2.107-7h3.104c-.705 2.129-1.135 4.495-1.227 7zm1.998 2H17v7H9.349c-.754-2.083-1.219-4.459-1.317-7zM17 28v5.919c-2.747-.437-5.163-2.655-6.799-5.919H17zm2 5.919V28h6.8c-1.637 3.264-4.053 5.482-6.8 5.919zM19 26v-7h8.969c-.099 2.541-.563 4.917-1.317 7H19zm10.967-7h3.982c-.157 2.541-.9 4.917-2.107 7h-3.104c.706-2.129 1.136-4.494 1.229-7zm0-2c-.093-2.505-.523-4.871-1.229-7h3.104c1.207 2.083 1.95 4.46 2.107 7h-3.982zm.512-9h-2.503c-.717-1.604-1.606-3.015-2.619-4.199C27.346 4.833 29.089 6.267 30.479 8zM10.643 3.801C9.629 4.985 8.74 6.396 8.023 8H5.521c1.39-1.733 3.133-3.166 5.122-4.199zM5.521 28h2.503c.716 1.604 1.605 3.015 2.619 4.198C8.654 31.166 6.911 29.733 5.521 28zm19.836 4.198c1.014-1.184 1.902-2.594 2.619-4.198h2.503c-1.39 1.733-3.133 3.166-5.122 4.198z"/>`,
   },
   cfo: {
-    bg: "#fef3c7", roleLabel: "Finance", iconColor: "#92400e", accentColor: "#f0883e",
+    bg: "#fef3c7", roleLabel: "Finance", accentColor: "#f0883e", iconColor: "#92400e",
     iconPath: "M8 1v14M5 4.5C5 3.1 6.3 2 8 2s3 1.1 3 2.5S9.7 7 8 7 5 8.1 5 9.5 6.3 12 8 12s3-1.1 3-2.5",
+    // 📊 Bar chart
+    emojiSvg: `<path fill="#CCD6DD" d="M31 2H5C3.343 2 2 3.343 2 5v26c0 1.657 1.343 3 3 3h26c1.657 0 3-1.343 3-3V5c0-1.657-1.343-3-3-3z"/><path fill="#E1E8ED" d="M31 1H5C2.791 1 1 2.791 1 5v26c0 2.209 1.791 4 4 4h26c2.209 0 4-1.791 4-4V5c0-2.209-1.791-4-4-4zm0 2c1.103 0 2 .897 2 2v4h-6V3h4zm-4 16h6v6h-6v-6zm0-2v-6h6v6h-6zM25 3v6h-6V3h6zm-6 8h6v6h-6v-6zm0 8h6v6h-6v-6zM17 3v6h-6V3h6zm-6 8h6v6h-6v-6zm0 8h6v6h-6v-6zM3 5c0-1.103.897-2 2-2h4v6H3V5zm0 6h6v6H3v-6zm0 8h6v6H3v-6zm2 14c-1.103 0-2-.897-2-2v-4h6v6H5zm6 0v-6h6v6h-6zm8 0v-6h6v6h-6zm12 0h-4v-6h6v4c0 1.103-.897 2-2 2z"/><path fill="#5C913B" d="M13 33H7V16c0-1.104.896-2 2-2h2c1.104 0 2 .896 2 2v17z"/><path fill="#3B94D9" d="M29 33h-6V9c0-1.104.896-2 2-2h2c1.104 0 2 .896 2 2v24z"/><path fill="#DD2E44" d="M21 33h-6V23c0-1.104.896-2 2-2h2c1.104 0 2 .896 2 2v10z"/>`,
   },
   coo: {
-    bg: "#e0f2fe", roleLabel: "Operations", iconColor: "#075985", accentColor: "#58a6ff",
-    iconPath: "M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM13 8a5 5 0 0 1-.1.9l1.5 1.2-1.5 2.5-1.7-.7a5 5 0 0 1-1.6.9L9.3 15H6.7l-.3-2.2a5 5 0 0 1-1.6-.9l-1.7.7L1.6 10l1.5-1.2A5 5 0 0 1 3 8c0-.3 0-.6.1-.9L1.6 6l1.5-2.5 1.7.7a5 5 0 0 1 1.6-.9L6.7 1h2.6l.3 2.2c.6.2 1.1.5 1.6.9l1.7-.7L14.4 6l-1.5 1.2c.1.2.1.5.1.8z",
+    bg: "#e0f2fe", roleLabel: "Operations", accentColor: "#58a6ff", iconColor: "#075985",
+    iconPath: "M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z",
+    // ⚙️ Gear
+    emojiSvg: `<path fill="#66757F" d="M34 15h-3.362c-.324-1.369-.864-2.651-1.582-3.814l2.379-2.379c.781-.781.781-2.048 0-2.829l-1.414-1.414c-.781-.781-2.047-.781-2.828 0l-2.379 2.379C23.65 6.225 22.369 5.686 21 5.362V2c0-1.104-.896-2-2-2h-2c-1.104 0-2 .896-2 2v3.362c-1.369.324-2.651.864-3.814 1.582L8.808 4.565c-.781-.781-2.048-.781-2.828 0L4.565 5.979c-.781.781-.781 2.048-.001 2.829l2.379 2.379C6.225 12.35 5.686 13.632 5.362 15H2c-1.104 0-2 .896-2 2v2c0 1.104.896 2 2 2h3.362c.324 1.368.864 2.65 1.582 3.813l-2.379 2.379c-.78.78-.78 2.048.001 2.829l1.414 1.414c.78.78 2.047.78 2.828 0l2.379-2.379c1.163.719 2.445 1.258 3.814 1.582V34c0 1.104.896 2 2 2h2c1.104 0 2-.896 2-2v-3.362c1.368-.324 2.65-.864 3.813-1.582l2.379 2.379c.781.781 2.047.781 2.828 0l1.414-1.414c.781-.781.781-2.048 0-2.829l-2.379-2.379c.719-1.163 1.258-2.445 1.582-3.814H34c1.104 0 2-.896 2-2v-2C36 15.896 35.104 15 34 15zM18 26c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8z"/>`,
   },
   engineer: {
-    bg: "#f3e8ff", roleLabel: "Engineering", iconColor: "#6b21a8", accentColor: "#bc8cff",
+    bg: "#f3e8ff", roleLabel: "Engineering", accentColor: "#bc8cff", iconColor: "#6b21a8",
     iconPath: "M5 3L1 8l4 5M11 3l4 5-4 5",
+    // ⌨️ Keyboard
+    emojiSvg: `<path fill="#99AAB5" d="M36 28c0 1.104-.896 2-2 2H2c-1.104 0-2-.896-2-2V12c0-1.104.896-2 2-2h32c1.104 0 2 .896 2 2v16z"/><path d="M5.5 19c0 .553-.448 1-1 1h-1c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h1c.552 0 1 .447 1 1v1zm4 0c0 .553-.448 1-1 1h-1c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h1c.552 0 1 .447 1 1v1zm4 0c0 .553-.448 1-1 1h-1c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h1c.552 0 1 .447 1 1v1zm4 0c0 .553-.448 1-1 1h-1c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h1c.552 0 1 .447 1 1v1zm4 0c0 .553-.447 1-1 1h-1c-.553 0-1-.447-1-1v-1c0-.553.447-1 1-1h1c.553 0 1 .447 1 1v1zm4 0c0 .553-.447 1-1 1h-1c-.553 0-1-.447-1-1v-1c0-.553.447-1 1-1h1c.553 0 1 .447 1 1v1zm4 0c0 .553-.447 1-1 1h-1c-.553 0-1-.447-1-1v-1c0-.553.447-1 1-1h1c.553 0 1 .447 1 1v1zm4 0c0 .553-.447 1-1 1h-1c-.553 0-1-.447-1-1v-1c0-.553.447-1 1-1h1c.553 0 1 .447 1 1v1zm-26 4c0 .553-.448 1-1 1h-1c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h1c.552 0 1 .447 1 1v1zm4 0c0 .553-.448 1-1 1h-1c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h1c.552 0 1 .447 1 1v1zm4 0c0 .553-.448 1-1 1h-1c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h1c.552 0 1 .447 1 1v1zm4 0c0 .553-.447 1-1 1h-1c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h1c.553 0 1 .447 1 1v1zm4 0c0 .553-.447 1-1 1h-1c-.553 0-1-.447-1-1v-1c0-.553.447-1 1-1h1c.553 0 1 .447 1 1v1zm4 0c0 .553-.447 1-1 1h-1c-.553 0-1-.447-1-1v-1c0-.553.447-1 1-1h1c.553 0 1 .447 1 1v1zm4 0c0 .553-.447 1-1 1h-1c-.553 0-1-.447-1-1v-1c0-.553.447-1 1-1h1c.553 0 1 .447 1 1v1zM10 27c0 .553-.448 1-1 1H7c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h2c.552 0 1 .447 1 1v1zm20 0c0 .553-.447 1-1 1h-2c-.553 0-1-.447-1-1v-1c0-.553.447-1 1-1h2c.553 0 1 .447 1 1v1zm-5 0c0 .553-.447 1-1 1H12c-.552 0-1-.447-1-1v-1c0-.553.448-1 1-1h12c.553 0 1 .447 1 1v1zM5.5 13.083c0 .552-.448 1-1 1h-1c-.552 0-1-.448-1-1s.448-1 1-1h1c.552 0 1 .448 1 1zm4 0c0 .552-.448 1-1 1h-1c-.552 0-1-.448-1-1s.448-1 1-1h1c.552 0 1 .448 1 1zm4 0c0 .552-.448 1-1 1h-1c-.552 0-1-.448-1-1s.448-1 1-1h1c.552 0 1 .448 1 1zm4 0c0 .552-.448 1-1 1h-1c-.552 0-1-.448-1-1s.448-1 1-1h1c.552 0 1 .448 1 1zm4 0c0 .552-.447 1-1 1h-1c-.553 0-1-.448-1-1s.447-1 1-1h1c.553 0 1 .448 1 1zm4 0c0 .552-.447 1-1 1h-1c-.553 0-1-.448-1-1s.447-1 1-1h1c.553 0 1 .448 1 1zm4 0c0 .552-.447 1-1 1h-1c-.553 0-1-.448-1-1s.447-1 1-1h1c.553 0 1 .448 1 1zm4 0c0 .552-.447 1-1 1h-1c-.553 0-1-.448-1-1s.447-1 1-1h1c.553 0 1 .448 1 1z" fill="#292F33"/>`,
   },
   quality: {
-    bg: "#ffe4e6", roleLabel: "Quality", iconColor: "#9f1239", accentColor: "#f778ba",
+    bg: "#ffe4e6", roleLabel: "Quality", accentColor: "#f778ba", iconColor: "#9f1239",
     iconPath: "M4 8l3 3 5-6M8 1L2 4v4c0 3.5 2.6 6.8 6 8 3.4-1.2 6-4.5 6-8V4z",
+    // 🔬 Microscope
+    emojiSvg: `<g fill="#66757F"><path d="M19.78 21.345l-6.341-6.342-.389 4.38 2.35 2.351z"/><path d="M15.4 22.233c-.132 0-.259-.053-.354-.146l-2.351-2.351c-.104-.104-.158-.25-.145-.397l.389-4.38c.017-.193.145-.359.327-.425.182-.067.388-.021.524.116l6.341 6.342c.138.138.183.342.116.524s-.232.31-.426.327l-4.379.389-.042.001zm-1.832-3.039l2.021 2.021 3.081-.273-4.828-4.828-.274 3.08z"/></g><path fill="#8899A6" d="M31 32h-3c0-3.314-2.63-6-5.875-6-3.244 0-5.875 2.686-5.875 6H8.73c0-1.104-.895-2-2-2-1.104 0-2 .896-2 2-1.104 0-2 .896-2 2s.896 2 2 2H31c1.104 0 2-.896 2-2s-.896-2-2-2z"/><path fill="#8899A6" d="M20 10v4c3.866 0 7 3.134 7 7s-3.134 7-7 7h-8.485c2.018 2.443 5.069 4 8.485 4 6.075 0 11-4.925 11-11s-4.925-11-11-11z"/><path fill="#67757F" d="M16.414 30.414c-.781.781-2.047.781-2.828 0l-9.899-9.9c-.781-.781-.781-2.047 0-2.828.781-.781 2.047-.781 2.829 0l9.899 9.9c.78.781.78 2.047-.001 2.828zm-7.225-1.786c.547-.077 1.052.304 1.129.851.077.547-.305 1.053-.851 1.129l-5.942.834c-.547.077-1.052-.305-1.129-.851-.077-.547.305-1.053.852-1.13l5.941-.833z"/><path fill="#66757F" d="M27.341 2.98l4.461 4.461-3.806 3.807-4.461-4.461z"/><path fill="#AAB8C2" d="M34.037 7.083c-.827.827-2.17.827-2.997 0l-3.339-3.34c-.827-.826-.827-2.169 0-2.996.827-.826 2.17-.826 2.995 0l3.342 3.34c.826.827.826 2.168-.001 2.996zm-14.56 15.026l-6.802-6.803c-.389-.389-.389-1.025 0-1.414l9.858-9.858c.389-.389 1.025-.389 1.414 0l6.801 6.803c.389.389.389 1.025 0 1.414l-9.858 9.858c-.388.389-1.024.389-1.413 0z"/><path fill="#E1E8ED" d="M13.766 12.8l1.638-1.637 8.216 8.216-1.638 1.637z"/>`,
   },
   design: {
-    bg: "#fce7f3", roleLabel: "Design", iconColor: "#9d174d", accentColor: "#79c0ff",
+    bg: "#fce7f3", roleLabel: "Design", accentColor: "#79c0ff", iconColor: "#9d174d",
     iconPath: "M12 2l2 2-9 9H3v-2zM9.5 4.5l2 2",
+    // 🪄 Magic wand
+    emojiSvg: `<path fill="#292F33" d="M3.651 29.852L29.926 3.576c.391-.391 2.888 2.107 2.497 2.497L6.148 32.349c-.39.391-2.888-2.107-2.497-2.497z"/><path fill="#66757F" d="M30.442 4.051L4.146 30.347l.883.883L31.325 4.934z"/><path fill="#E1E8ED" d="M34.546 2.537l-.412-.412-.671-.671c-.075-.075-.165-.123-.255-.169-.376-.194-.844-.146-1.159.169l-2.102 2.102.495.495.883.883 1.119 1.119 2.102-2.102c.391-.391.391-1.024 0-1.414zM5.029 31.23l-.883-.883-.495-.495-2.209 2.208c-.315.315-.363.783-.169 1.159.046.09.094.18.169.255l.671.671.412.412c.391.391 1.024.391 1.414 0l2.208-2.208-1.118-1.119z"/><path fill="#F5F8FA" d="M31.325 4.934l2.809-2.809-.671-.671c-.075-.075-.165-.123-.255-.169l-2.767 2.767.884.882zM4.146 30.347L1.273 33.22c.046.09.094.18.169.255l.671.671 2.916-2.916-.883-.883z"/><path d="M28.897 14.913l1.542-.571.6-2.2c.079-.29.343-.491.644-.491.3 0 .564.201.643.491l.6 2.2 1.542.571c.262.096.435.346.435.625s-.173.529-.435.625l-1.534.568-.605 2.415c-.074.296-.341.505-.646.505-.306 0-.573-.209-.647-.505l-.605-2.415-1.534-.568c-.262-.096-.435-.346-.435-.625 0-.278.173-.528.435-.625M11.961 5.285l2.61-.966.966-2.61c.16-.433.573-.72 1.035-.72.461 0 .874.287 1.035.72l.966 2.61 2.609.966c.434.161.721.573.721 1.035 0 .462-.287.874-.721 1.035l-2.609.966-.966 2.61c-.161.433-.574.72-1.035.72-.462 0-.875-.287-1.035-.72l-.966-2.61-2.61-.966c-.433-.161-.72-.573-.72-1.035.001-.462.288-.874.72-1.035M24.13 20.772l1.383-.512.512-1.382c.085-.229.304-.381.548-.381.244 0 .463.152.548.381l.512 1.382 1.382.512c.23.085.382.304.382.548 0 .245-.152.463-.382.548l-1.382.512-.512 1.382c-.085.229-.304.381-.548.381-.245 0-.463-.152-.548-.381l-.512-1.382-1.383-.512c-.229-.085-.381-.304-.381-.548 0-.245.152-.463.381-.548" fill="#FFAC33"/>`,
   },
   finance: {
-    bg: "#fef3c7", roleLabel: "Finance", iconColor: "#92400e", accentColor: "#f0883e",
+    bg: "#fef3c7", roleLabel: "Finance", accentColor: "#f0883e", iconColor: "#92400e",
     iconPath: "M8 1v14M5 4.5C5 3.1 6.3 2 8 2s3 1.1 3 2.5S9.7 7 8 7 5 8.1 5 9.5 6.3 12 8 12s3-1.1 3-2.5",
+    // 📊 Bar chart (same as CFO)
+    emojiSvg: `<path fill="#CCD6DD" d="M31 2H5C3.343 2 2 3.343 2 5v26c0 1.657 1.343 3 3 3h26c1.657 0 3-1.343 3-3V5c0-1.657-1.343-3-3-3z"/><path fill="#E1E8ED" d="M31 1H5C2.791 1 1 2.791 1 5v26c0 2.209 1.791 4 4 4h26c2.209 0 4-1.791 4-4V5c0-2.209-1.791-4-4-4zm0 2c1.103 0 2 .897 2 2v4h-6V3h4zm-4 16h6v6h-6v-6zm0-2v-6h6v6h-6zM25 3v6h-6V3h6zm-6 8h6v6h-6v-6zm0 8h6v6h-6v-6zM17 3v6h-6V3h6zm-6 8h6v6h-6v-6zm0 8h6v6h-6v-6zM3 5c0-1.103.897-2 2-2h4v6H3V5zm0 6h6v6H3v-6zm0 8h6v6H3v-6zm2 14c-1.103 0-2-.897-2-2v-4h6v6H5zm6 0v-6h6v6h-6zm8 0v-6h6v6h-6zm12 0h-4v-6h6v4c0 1.103-.897 2-2 2z"/><path fill="#5C913B" d="M13 33H7V16c0-1.104.896-2 2-2h2c1.104 0 2 .896 2 2v17z"/><path fill="#3B94D9" d="M29 33h-6V9c0-1.104.896-2 2-2h2c1.104 0 2 .896 2 2v24z"/><path fill="#DD2E44" d="M21 33h-6V23c0-1.104.896-2 2-2h2c1.104 0 2 .896 2 2v10z"/>`,
   },
   operations: {
-    bg: "#e0f2fe", roleLabel: "Operations", iconColor: "#075985", accentColor: "#58a6ff",
-    iconPath: "M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM13 8a5 5 0 0 1-.1.9l1.5 1.2-1.5 2.5-1.7-.7a5 5 0 0 1-1.6.9L9.3 15H6.7l-.3-2.2a5 5 0 0 1-1.6-.9l-1.7.7L1.6 10l1.5-1.2A5 5 0 0 1 3 8c0-.3 0-.6.1-.9L1.6 6l1.5-2.5 1.7.7a5 5 0 0 1 1.6-.9L6.7 1h2.6l.3 2.2c.6.2 1.1.5 1.6.9l1.7-.7L14.4 6l-1.5 1.2c.1.2.1.5.1.8z",
+    bg: "#e0f2fe", roleLabel: "Operations", accentColor: "#58a6ff", iconColor: "#075985",
+    iconPath: "M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z",
+    // ⚙️ Gear (same as COO)
+    emojiSvg: `<path fill="#66757F" d="M34 15h-3.362c-.324-1.369-.864-2.651-1.582-3.814l2.379-2.379c.781-.781.781-2.048 0-2.829l-1.414-1.414c-.781-.781-2.047-.781-2.828 0l-2.379 2.379C23.65 6.225 22.369 5.686 21 5.362V2c0-1.104-.896-2-2-2h-2c-1.104 0-2 .896-2 2v3.362c-1.369.324-2.651.864-3.814 1.582L8.808 4.565c-.781-.781-2.048-.781-2.828 0L4.565 5.979c-.781.781-.781 2.048-.001 2.829l2.379 2.379C6.225 12.35 5.686 13.632 5.362 15H2c-1.104 0-2 .896-2 2v2c0 1.104.896 2 2 2h3.362c.324 1.368.864 2.65 1.582 3.813l-2.379 2.379c-.78.78-.78 2.048.001 2.829l1.414 1.414c.78.78 2.047.78 2.828 0l2.379-2.379c1.163.719 2.445 1.258 3.814 1.582V34c0 1.104.896 2 2 2h2c1.104 0 2-.896 2-2v-3.362c1.368-.324 2.65-.864 3.813-1.582l2.379 2.379c.781.781 2.047.781 2.828 0l1.414-1.414c.781-.781.781-2.048 0-2.829l-2.379-2.379c.719-1.163 1.258-2.445 1.582-3.814H34c1.104 0 2-.896 2-2v-2C36 15.896 35.104 15 34 15zM18 26c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8z"/>`,
   },
   default: {
-    bg: "#f3e8ff", roleLabel: "Agent", iconColor: "#6b21a8", accentColor: "#bc8cff",
+    bg: "#f3e8ff", roleLabel: "Agent", accentColor: "#bc8cff", iconColor: "#6b21a8",
     iconPath: "M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 14c0-3.3 2.7-4 6-4s6 .7 6 4",
+    // 👤 Person silhouette
+    emojiSvg: `<path fill="#269" d="M24 26.799v-2.566c2-1.348 4.08-3.779 4.703-6.896.186.103.206.17.413.17.991 0 1.709-1.287 1.709-2.873 0-1.562-.823-2.827-1.794-2.865.187-.674.293-1.577.293-2.735C29.324 5.168 26 .527 18.541.527c-6.629 0-10.777 4.641-10.777 8.507 0 1.123.069 2.043.188 2.755-.911.137-1.629 1.352-1.629 2.845 0 1.587.804 2.873 1.796 2.873.206 0 .025-.067.209-.17C8.952 20.453 11 22.885 13 24.232v2.414c-5 .645-12 3.437-12 6.23v1.061C1 35 2.076 35 3.137 35h29.725C33.924 35 35 35 35 33.938v-1.061c0-2.615-6-5.225-11-6.078z"/>`,
   },
 };
 
@@ -199,7 +228,7 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
     defs: () => "",
     bgExtras: () => "",
     renderCard: (ln: LayoutNode, theme: StyleTheme) => {
-      const { tag, roleLabel, iconPath, iconColor } = getRoleInfo(ln.node);
+      const { tag, roleLabel, emojiSvg } = getRoleInfo(ln.node);
       const cx = ln.x + ln.width / 2;
       const isCeo = tag === "ceo";
       const borderColor = isCeo ? "rgba(168,85,247,0.35)" : theme.cardBorder;
@@ -208,15 +237,10 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       const avatarCY = ln.y + 24;
       const nameY = ln.y + 52;
       const roleY = ln.y + 68;
-      const iconScale = 0.7;
-      const iconOffset = (34 * iconScale) / 2;
 
       return `<g>
         <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="${theme.cardRadius}" fill="${bgColor}" stroke="${borderColor}" stroke-width="1"/>
-        <circle cx="${cx}" cy="${avatarCY}" r="17" fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.15)" stroke-width="1"/>
-        <g transform="translate(${cx - iconOffset}, ${avatarCY - iconOffset}) scale(${iconScale})">
-          <path d="${iconPath}" fill="none" stroke="${iconColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
+        ${renderEmojiAvatar(cx, avatarCY, 17, "rgba(99,102,241,0.08)", emojiSvg, "rgba(99,102,241,0.15)")}
         <text x="${cx}" y="${nameY}" text-anchor="middle" font-family="${theme.font}" font-size="13" font-weight="600" fill="${theme.nameColor}" letter-spacing="-0.005em">${escapeXml(ln.node.name)}</text>
         <text x="${cx}" y="${roleY}" text-anchor="middle" font-family="${theme.font}" font-size="10" font-weight="500" fill="${theme.roleColor}" letter-spacing="0.07em">${escapeXml(roleLabel).toUpperCase()}</text>
       </g>`;
@@ -262,7 +286,7 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       </pattern>`,
     bgExtras: (w, h) => `<rect width="${w}" height="${h}" fill="url(#grid)"/>`,
     renderCard: (ln: LayoutNode, theme: StyleTheme) => {
-      const { tag, accentColor, iconPath, iconColor } = getRoleInfo(ln.node);
+      const { tag, accentColor, emojiSvg } = getRoleInfo(ln.node);
       const cx = ln.x + ln.width / 2;
 
       // Schematic uses monospace role labels
@@ -277,16 +301,11 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       const avatarCY = ln.y + 24;
       const nameY = ln.y + 52;
       const roleY = ln.y + 68;
-      const iconScale = 0.7;
-      const iconOffset = (34 * iconScale) / 2;
 
       return `<g>
         <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="${theme.cardRadius}" fill="${theme.cardBg}" stroke="${theme.cardBorder}" stroke-width="1"/>
         <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="2" rx="${theme.cardRadius} ${theme.cardRadius} 0 0" fill="${accentColor}"/>
-        <circle cx="${cx}" cy="${avatarCY}" r="17" fill="rgba(48,54,61,0.3)" stroke="${theme.cardBorder}" stroke-width="1"/>
-        <g transform="translate(${cx - iconOffset}, ${avatarCY - iconOffset}) scale(${iconScale})">
-          <path d="${iconPath}" fill="none" stroke="${iconColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
+        ${renderEmojiAvatar(cx, avatarCY, 17, "rgba(48,54,61,0.3)", emojiSvg, theme.cardBorder)}
         <text x="${cx}" y="${nameY}" text-anchor="middle" font-family="${theme.font}" font-size="12" font-weight="600" fill="${theme.nameColor}">${escapeXml(ln.node.name)}</text>
         <text x="${cx}" y="${roleY}" text-anchor="middle" font-family="${theme.font}" font-size="10" fill="${theme.roleColor}" letter-spacing="0.02em">${escapeXml(roleText)}</text>
       </g>`;
@@ -365,18 +384,23 @@ function escapeXml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/** Render a colorful Twemoji inside a circle at (cx, cy) with given radius */
+function renderEmojiAvatar(cx: number, cy: number, radius: number, bgFill: string, emojiSvg: string, bgStroke?: string): string {
+  const emojiSize = radius * 1.3; // emoji fills most of the circle
+  const emojiX = cx - emojiSize / 2;
+  const emojiY = cy - emojiSize / 2;
+  const stroke = bgStroke ? `stroke="${bgStroke}" stroke-width="1"` : "";
+  return `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${bgFill}" ${stroke}/>
+    <svg x="${emojiX}" y="${emojiY}" width="${emojiSize}" height="${emojiSize}" viewBox="0 0 36 36">${emojiSvg}</svg>`;
+}
+
 function defaultRenderCard(ln: LayoutNode, theme: StyleTheme): string {
-  const { roleLabel, bg, iconColor, iconPath } = getRoleInfo(ln.node);
+  const { roleLabel, bg, emojiSvg } = getRoleInfo(ln.node);
   const cx = ln.x + ln.width / 2;
 
   const avatarCY = ln.y + 24;
   const nameY = ln.y + 52;
   const roleY = ln.y + 68;
-
-  const iconScale = 0.7;
-  const iconOffset = (AVATAR_SIZE * iconScale) / 2;
-  const iconX = cx - iconOffset;
-  const iconY = avatarCY - iconOffset;
 
   const filterId = `shadow-${ln.node.id}`;
   const shadowFilter = theme.cardShadow
@@ -392,15 +416,12 @@ function defaultRenderCard(ln: LayoutNode, theme: StyleTheme): string {
   // For dark themes without avatars, use a subtle circle
   const isLight = theme.bgColor === "#fafaf9" || theme.bgColor === "#ffffff";
   const avatarBg = isLight ? bg : "rgba(255,255,255,0.06)";
-  const avatarStroke = isLight ? "" : `stroke="rgba(255,255,255,0.08)" stroke-width="1"`;
+  const avatarStroke = isLight ? undefined : "rgba(255,255,255,0.08)";
 
   return `<g>
     ${shadowDef}
     <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="${theme.cardRadius}" fill="${theme.cardBg}" stroke="${theme.cardBorder}" stroke-width="1" ${shadowFilter}/>
-    <circle cx="${cx}" cy="${avatarCY}" r="${AVATAR_SIZE / 2}" fill="${avatarBg}" ${avatarStroke}/>
-    <g transform="translate(${iconX}, ${iconY}) scale(${iconScale})">
-      <path d="${iconPath}" fill="none" stroke="${iconColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </g>
+    ${renderEmojiAvatar(cx, avatarCY, AVATAR_SIZE / 2, avatarBg, emojiSvg, avatarStroke)}
     <text x="${cx}" y="${nameY}" text-anchor="middle" font-family="${theme.font}" font-size="14" font-weight="600" fill="${theme.nameColor}">${escapeXml(ln.node.name)}</text>
     <text x="${cx}" y="${roleY}" text-anchor="middle" font-family="${theme.font}" font-size="11" font-weight="500" fill="${theme.roleColor}">${escapeXml(roleLabel)}</text>
   </g>`;
