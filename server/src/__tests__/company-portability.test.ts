@@ -18,6 +18,7 @@ const accessSvc = {
   ensureMembership: vi.fn(),
   listActiveUserMemberships: vi.fn(),
   copyActiveUserMemberships: vi.fn(),
+  setPrincipalPermission: vi.fn(),
 };
 
 const projectSvc = {
