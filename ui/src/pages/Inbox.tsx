@@ -497,6 +497,8 @@ export function Inbox() {
     },
   });
 
+  const [retryingRunIds, setRetryingRunIds] = useState<Set<string>>(new Set());
+
   const retryRunMutation = useMutation({
     mutationFn: async (run: HeartbeatRun) => {
       const payload: Record<string, unknown> = {};
@@ -517,10 +519,21 @@ export function Inbox() {
       }
       return { newRun: result, originalRun: run };
     },
+    onMutate: (run) => {
+      setRetryingRunIds((prev) => new Set(prev).add(run.id));
+    },
     onSuccess: ({ newRun, originalRun }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.heartbeats(originalRun.companyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.heartbeats(originalRun.companyId, originalRun.agentId) });
       navigate(`/agents/${originalRun.agentId}/runs/${newRun.id}`);
+    },
+    onSettled: (_data, _error, run) => {
+      if (!run) return;
+      setRetryingRunIds((prev) => {
+        const next = new Set(prev);
+        next.delete(run.id);
+        return next;
+      });
     },
   });
 
@@ -739,7 +752,7 @@ export function Inbox() {
                       issueLinkState={issueLinkState}
                       onDismiss={() => dismiss(`run:${item.run.id}`)}
                       onRetry={() => retryRunMutation.mutate(item.run)}
-                      isRetrying={retryRunMutation.isPending}
+                      isRetrying={retryingRunIds.has(item.run.id)}
                     />
                   );
                 }

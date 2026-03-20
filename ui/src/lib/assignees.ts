@@ -29,11 +29,14 @@ export function suggestedCommentAssigneeValue(
   issue: CommentAssigneeSuggestionInput,
   comments: CommentAssigneeSuggestionComment[] | null | undefined,
   currentUserId: string | null | undefined,
+  currentAgentId?: string | null | undefined,
 ): string {
-  if (comments && comments.length > 0 && currentUserId) {
+  if (comments && comments.length > 0 && (currentUserId || currentAgentId)) {
     for (let i = comments.length - 1; i >= 0; i--) {
       const comment = comments[i];
-      if (comment.authorAgentId) return assigneeValueFromSelection({ assigneeAgentId: comment.authorAgentId });
+      if (comment.authorAgentId && comment.authorAgentId !== currentAgentId) {
+        return assigneeValueFromSelection({ assigneeAgentId: comment.authorAgentId });
+      }
       if (comment.authorUserId && comment.authorUserId !== currentUserId) {
         return assigneeValueFromSelection({ assigneeUserId: comment.authorUserId });
       }

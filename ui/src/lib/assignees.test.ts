@@ -74,4 +74,19 @@ describe("assignee selection helpers", () => {
       ),
     ).toBe("user:board-user");
   });
+
+  it("skips the current agent when choosing a suggested commenter assignee", () => {
+    expect(
+      suggestedCommentAssigneeValue(
+        { assigneeUserId: "board-user" },
+        [
+          { authorUserId: "board-user" },
+          { authorAgentId: "agent-self" },
+          { authorAgentId: "agent-123" },
+        ],
+        null,
+        "agent-self",
+      ),
+    ).toBe("agent:agent-123");
+  });
 });
