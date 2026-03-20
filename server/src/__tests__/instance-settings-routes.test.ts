@@ -38,6 +38,7 @@ describe("instance settings routes", () => {
     });
     mockInstanceSettingsService.getExperimental.mockResolvedValue({
       enableIsolatedWorkspaces: false,
+      autoRestartDevServerWhenIdle: false,
     });
     mockInstanceSettingsService.updateGeneral.mockResolvedValue({
       id: "instance-settings-1",
@@ -49,6 +50,7 @@ describe("instance settings routes", () => {
       id: "instance-settings-1",
       experimental: {
         enableIsolatedWorkspaces: true,
+        autoRestartDevServerWhenIdle: false,
       },
     });
     mockInstanceSettingsService.listCompanyIds.mockResolvedValue(["company-1", "company-2"]);
@@ -64,7 +66,10 @@ describe("instance settings routes", () => {
 
     const getRes = await request(app).get("/api/instance/settings/experimental");
     expect(getRes.status).toBe(200);
-    expect(getRes.body).toEqual({ enableIsolatedWorkspaces: false });
+    expect(getRes.body).toEqual({
+      enableIsolatedWorkspaces: false,
+      autoRestartDevServerWhenIdle: false,
+    });
 
     const patchRes = await request(app)
       .patch("/api/instance/settings/experimental")
@@ -75,6 +80,24 @@ describe("instance settings routes", () => {
       enableIsolatedWorkspaces: true,
     });
     expect(mockLogActivity).toHaveBeenCalledTimes(2);
+  });
+
+  it("allows local board users to update guarded dev-server auto-restart", async () => {
+    const app = createApp({
+      type: "board",
+      userId: "local-board",
+      source: "local_implicit",
+      isInstanceAdmin: true,
+    });
+
+    await request(app)
+      .patch("/api/instance/settings/experimental")
+      .send({ autoRestartDevServerWhenIdle: true })
+      .expect(200);
+
+    expect(mockInstanceSettingsService.updateExperimental).toHaveBeenCalledWith({
+      autoRestartDevServerWhenIdle: true,
+    });
   });
 
   it("allows local board users to read and update general settings", async () => {

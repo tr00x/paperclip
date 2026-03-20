@@ -30,10 +30,12 @@ function normalizeExperimentalSettings(raw: unknown): InstanceExperimentalSettin
   if (parsed.success) {
     return {
       enableIsolatedWorkspaces: parsed.data.enableIsolatedWorkspaces ?? false,
+      autoRestartDevServerWhenIdle: parsed.data.autoRestartDevServerWhenIdle ?? false,
     };
   }
   return {
     enableIsolatedWorkspaces: false,
+    autoRestartDevServerWhenIdle: false,
   };
 }
 
