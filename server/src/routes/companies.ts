@@ -7,7 +7,6 @@ import {
   createCompanySchema,
   updateCompanyBrandingSchema,
   updateCompanySchema,
-  updateCompanyBrandingSchema,
 } from "@paperclipai/shared";
 import { forbidden } from "../errors.js";
 import { validate } from "../middleware/validate.js";
