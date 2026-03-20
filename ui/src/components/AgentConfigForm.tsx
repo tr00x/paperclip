@@ -44,6 +44,7 @@ import { ClaudeLocalAdvancedFields } from "../adapters/claude-local/config-field
 import { MarkdownEditor } from "./MarkdownEditor";
 import { ChoosePathButton } from "./PathInstructionsModal";
 import { OpenCodeLogoIcon } from "./OpenCodeLogoIcon";
+import { shouldShowLegacyWorkingDirectoryField } from "../lib/legacy-agent-config";
 
 /* ---- Create mode values ---- */
 
@@ -297,6 +298,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     adapterType === "opencode_local" ||
     adapterType === "pi_local" ||
     adapterType === "cursor";
+  const showLegacyWorkingDirectoryField =
+    isLocal && shouldShowLegacyWorkingDirectoryField({ isCreate, adapterConfig: config });
   const uiAdapter = useMemo(() => getUIAdapter(adapterType), [adapterType]);
 
   // Fetch adapter models for the effective adapter type
@@ -590,8 +593,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           )}
 
           {/* Working directory */}
-          {isLocal && (
-            <Field label="Working directory" hint={help.cwd}>
+          {showLegacyWorkingDirectoryField && (
+            <Field label="Working directory (deprecated)" hint={help.cwd}>
               <div className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5">
                 <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <DraftInput
