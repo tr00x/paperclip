@@ -3,7 +3,6 @@
  * Supports 5 visual styles: monochrome, nebula, circuit, warmth, schematic.
  * Pure SVG output — no browser/Playwright needed. PNG via sharp.
  */
-import sharp from "sharp";
 
 export interface OrgNode {
   id: string;
@@ -546,6 +545,8 @@ export function renderOrgChartSvg(orgTree: OrgNode[], style: OrgChartStyle = "wa
 
 export async function renderOrgChartPng(orgTree: OrgNode[], style: OrgChartStyle = "warmth"): Promise<Buffer> {
   const svg = renderOrgChartSvg(orgTree, style);
+  const sharpModule = await import("sharp");
+  const sharp = sharpModule.default;
   // Render at 2x density for retina quality, resize to exact target dimensions
   return sharp(Buffer.from(svg), { density: 144 })
     .resize(TARGET_W, TARGET_H)

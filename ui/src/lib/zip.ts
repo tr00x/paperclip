@@ -136,10 +136,24 @@ function portableFileEntryToBytes(entry: CompanyPortabilityFileEntry): Uint8Arra
   return base64ToBytes(entry.data);
 }
 
-export function readZipArchive(source: ArrayBuffer | Uint8Array): {
+async function inflateZipEntry(compressionMethod: number, bytes: Uint8Array) {
+  if (compressionMethod === 0) return bytes;
+  if (compressionMethod !== 8) {
+    throw new Error("Unsupported zip archive: only STORE and DEFLATE entries are supported.");
+  }
+  if (typeof DecompressionStream !== "function") {
+    throw new Error("Unsupported zip archive: this browser cannot read compressed zip entries.");
+  }
+  const body = new Uint8Array(bytes.byteLength);
+  body.set(bytes);
+  const stream = new Blob([body]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+export async function readZipArchive(source: ArrayBuffer | Uint8Array): Promise<{
   rootPath: string | null;
   files: Record<string, CompanyPortabilityFileEntry>;
-} {
+}> {
   const bytes = source instanceof Uint8Array ? source : new Uint8Array(source);
   const entries: Array<{ path: string; body: CompanyPortabilityFileEntry }> = [];
   let offset = 0;
@@ -164,9 +178,6 @@ export function readZipArchive(source: ArrayBuffer | Uint8Array): {
     if ((generalPurposeFlag & 0x0008) !== 0) {
       throw new Error("Unsupported zip archive: data descriptors are not supported.");
     }
-    if (compressionMethod !== 0) {
-      throw new Error("Unsupported zip archive: only uncompressed entries are supported.");
-    }
 
     const nameOffset = offset + 30;
     const bodyOffset = nameOffset + fileNameLength + extraFieldLength;
@@ -179,9 +190,10 @@ export function readZipArchive(source: ArrayBuffer | Uint8Array): {
       textDecoder.decode(bytes.slice(nameOffset, nameOffset + fileNameLength)),
     );
     if (archivePath && !archivePath.endsWith("/")) {
+      const entryBytes = await inflateZipEntry(compressionMethod, bytes.slice(bodyOffset, bodyEnd));
       entries.push({
         path: archivePath,
-        body: bytesToPortableFileEntry(archivePath, bytes.slice(bodyOffset, bodyEnd)),
+        body: bytesToPortableFileEntry(archivePath, entryBytes),
       });
     }
 

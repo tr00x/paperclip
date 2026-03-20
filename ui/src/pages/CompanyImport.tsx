@@ -588,7 +588,7 @@ async function readLocalPackageZip(file: File): Promise<{
   if (!/\.zip$/i.test(file.name)) {
     throw new Error("Select a .zip company package.");
   }
-  const archive = readZipArchive(await file.arrayBuffer());
+  const archive = await readZipArchive(await file.arrayBuffer());
   if (Object.keys(archive.files).length === 0) {
     throw new Error("No package files were found in the selected zip archive.");
   }
