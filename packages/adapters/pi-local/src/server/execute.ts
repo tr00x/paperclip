@@ -27,6 +27,7 @@ import { ensurePiModelConfiguredAndAvailable } from "./models.js";
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 const PAPERCLIP_SESSIONS_DIR = path.join(os.homedir(), ".pi", "paperclips");
+const PI_AGENT_SKILLS_DIR = path.join(os.homedir(), ".pi", "agent", "skills");
 
 function firstNonEmptyLine(text: string): string {
   return (
@@ -59,33 +60,32 @@ async function ensurePiSkillsInjected(
   const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.key));
   const selectedEntries = skillsEntries.filter((entry) => desiredSet.has(entry.key));
   if (selectedEntries.length === 0) return;
-  const piSkillsHome = path.join(os.homedir(), ".pi", "agent", "skills");
-  await fs.mkdir(piSkillsHome, { recursive: true });
+  await fs.mkdir(PI_AGENT_SKILLS_DIR, { recursive: true });
   const removedSkills = await removeMaintainerOnlySkillSymlinks(
-    piSkillsHome,
+    PI_AGENT_SKILLS_DIR,
     selectedEntries.map((entry) => entry.runtimeName),
   );
   for (const skillName of removedSkills) {
     await onLog(
       "stderr",
-      `[paperclip] Removed maintainer-only Pi skill "${skillName}" from ${piSkillsHome}\n`,
+      `[paperclip] Removed maintainer-only Pi skill "${skillName}" from ${PI_AGENT_SKILLS_DIR}\n`,
     );
   }
 
   for (const entry of selectedEntries) {
-    const target = path.join(piSkillsHome, entry.runtimeName);
+    const target = path.join(PI_AGENT_SKILLS_DIR, entry.runtimeName);
 
     try {
       const result = await ensurePaperclipSkillSymlink(entry.source, target);
       if (result === "skipped") continue;
       await onLog(
         "stderr",
-        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Pi skill "${entry.key}" into ${piSkillsHome}\n`,
+        `[paperclip] ${result === "repaired" ? "Repaired" : "Injected"} Pi skill "${entry.runtimeName}" into ${PI_AGENT_SKILLS_DIR}\n`,
       );
     } catch (err) {
       await onLog(
         "stderr",
-        `[paperclip] Failed to inject Pi skill "${entry.key}" into ${piSkillsHome}: ${err instanceof Error ? err.message : String(err)}\n`,
+        `[paperclip] Failed to inject Pi skill "${entry.runtimeName}" into ${PI_AGENT_SKILLS_DIR}: ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   }
@@ -342,6 +342,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     
     args.push("--tools", "read,bash,edit,write,grep,find,ls");
     args.push("--session", sessionFile);
+    
+    // Add Paperclip skills directory so Pi can load the paperclip skill
+    args.push("--skill", PI_AGENT_SKILLS_DIR);
     
     if (extraArgs.length > 0) args.push(...extraArgs);
     
