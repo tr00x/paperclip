@@ -235,8 +235,8 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       const bgColor = isCeo ? "rgba(168,85,247,0.06)" : theme.cardBg;
 
       const avatarCY = ln.y + 24;
-      const nameY = ln.y + 58;
-      const roleY = ln.y + 74;
+      const nameY = ln.y + 66;
+      const roleY = ln.y + 82;
 
       return `<g>
         <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="${theme.cardRadius}" fill="${bgColor}" stroke="${borderColor}" stroke-width="1"/>
@@ -299,8 +299,8 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       const roleText = schemaRoles[tag] || schemaRoles.default;
 
       const avatarCY = ln.y + 24;
-      const nameY = ln.y + 58;
-      const roleY = ln.y + 74;
+      const nameY = ln.y + 66;
+      const roleY = ln.y + 82;
 
       return `<g>
         <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="${theme.cardRadius}" fill="${theme.cardBg}" stroke="${theme.cardBorder}" stroke-width="1"/>
