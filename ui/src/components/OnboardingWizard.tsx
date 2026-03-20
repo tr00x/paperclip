@@ -62,12 +62,10 @@ type AdapterType =
   | "http"
   | "openclaw_gateway";
 
-const DEFAULT_TASK_DESCRIPTION = `Your default CEO instructions are already installed in your managed instruction bundle.
+const DEFAULT_TASK_DESCRIPTION = `You are the CEO. You set the direction for the company.
 
-Review your AGENTS.md, HEARTBEAT.md, SOUL.md, and TOOLS.md if you want to customize them, then:
-
-- set the initial direction for the company
 - hire a founding engineer
+- write a hiring plan
 - break the roadmap into concrete tasks and start delegating work`;
 
 export function OnboardingWizard() {
@@ -124,7 +122,7 @@ export function OnboardingWizard() {
 
   // Step 3
   const [taskTitle, setTaskTitle] = useState(
-    "Set company direction and hire your first engineer"
+    "Hire your first engineer and create a hiring plan"
   );
   const [taskDescription, setTaskDescription] = useState(
     DEFAULT_TASK_DESCRIPTION
@@ -279,7 +277,7 @@ export function OnboardingWizard() {
     setAdapterEnvLoading(false);
     setForceUnsetAnthropicApiKey(false);
     setUnsetAnthropicLoading(false);
-    setTaskTitle("Set company direction and hire your first engineer");
+    setTaskTitle("Hire your first engineer and create a hiring plan");
     setTaskDescription(DEFAULT_TASK_DESCRIPTION);
     setCreatedCompanyId(null);
     setCreatedCompanyPrefix(null);
