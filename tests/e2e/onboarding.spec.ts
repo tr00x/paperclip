@@ -55,14 +55,7 @@ test.describe("Onboarding wizard", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "More Agent Adapter Types" }).click();
-    await page.getByRole("button", { name: "Process" }).click();
-
-    const commandInput = page.locator('input[placeholder="e.g. node, python"]');
-    await commandInput.fill("echo");
-    const argsInput = page.locator(
-      'input[placeholder="e.g. script.js, --flag"]'
-    );
-    await argsInput.fill("hello");
+    await expect(page.getByRole("button", { name: "Process" })).toHaveCount(0);
 
     await page.getByRole("button", { name: "Next" }).click();
 
@@ -110,7 +103,7 @@ test.describe("Onboarding wizard", () => {
     );
     expect(ceoAgent).toBeTruthy();
     expect(ceoAgent.role).toBe("ceo");
-    expect(ceoAgent.adapterType).toBe("process");
+    expect(ceoAgent.adapterType).not.toBe("process");
 
     const issuesRes = await page.request.get(
       `${baseUrl}/api/companies/${company.id}/issues`
