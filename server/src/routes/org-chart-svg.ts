@@ -399,8 +399,8 @@ function defaultRenderCard(ln: LayoutNode, theme: StyleTheme): string {
   const cx = ln.x + ln.width / 2;
 
   const avatarCY = ln.y + 24;
-  const nameY = ln.y + 52;
-  const roleY = ln.y + 68;
+  const nameY = ln.y + 66;
+  const roleY = ln.y + 82;
 
   const filterId = `shadow-${ln.node.id}`;
   const shadowFilter = theme.cardShadow
