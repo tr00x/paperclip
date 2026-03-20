@@ -21,7 +21,7 @@ import {
   runChildProcess,
 } from "@paperclipai/adapter-utils/server-utils";
 import { parseCodexJsonl, isCodexUnknownSessionError } from "./parse.js";
-import { pathExists, prepareWorktreeCodexHome, resolveCodexHomeDir } from "./codex-home.js";
+import { pathExists, prepareManagedCodexHome, resolveManagedCodexHomeDir } from "./codex-home.js";
 import { resolveCodexDesiredSkillNames } from "./skills.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -268,10 +268,11 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const codexSkillEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
   const desiredSkillNames = resolveCodexDesiredSkillNames(config, codexSkillEntries);
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
-  const preparedWorktreeCodexHome =
-    configuredCodexHome ? null : await prepareWorktreeCodexHome(process.env, onLog, agent.companyId);
-  const defaultCodexHome = resolveCodexHomeDir(process.env, agent.companyId);
-  const effectiveCodexHome = configuredCodexHome ?? preparedWorktreeCodexHome ?? defaultCodexHome;
+  const preparedManagedCodexHome =
+    configuredCodexHome ? null : await prepareManagedCodexHome(process.env, onLog, agent.companyId);
+  const defaultCodexHome = resolveManagedCodexHomeDir(process.env, agent.companyId);
+  const effectiveCodexHome = configuredCodexHome ?? preparedManagedCodexHome ?? defaultCodexHome;
+  await fs.mkdir(effectiveCodexHome, { recursive: true });
   const codexWorkspaceSkillsDir = resolveCodexWorkspaceSkillsDir(cwd);
   await ensureCodexSkillsInjected(
     onLog,

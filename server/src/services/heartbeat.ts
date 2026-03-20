@@ -2146,7 +2146,11 @@ export function heartbeatService(db: Db) {
       repoRef: executionWorkspace.repoRef,
       branchName: executionWorkspace.branchName,
       worktreePath: executionWorkspace.worktreePath,
-      agentHome: resolveDefaultAgentWorkspaceDir(agent.id),
+      agentHome: await (async () => {
+        const home = resolveDefaultAgentWorkspaceDir(agent.id);
+        await fs.mkdir(home, { recursive: true });
+        return home;
+      })(),
     };
     context.paperclipWorkspaces = resolvedWorkspace.workspaceHints;
     const runtimeServiceIntents = (() => {

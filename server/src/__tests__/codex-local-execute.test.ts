@@ -41,6 +41,104 @@ type LogEntry = {
 };
 
 describe("codex execute", () => {
+  it("uses a Paperclip-managed CODEX_HOME outside worktree mode while preserving shared auth and config", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-codex-execute-default-"));
+    const workspace = path.join(root, "workspace");
+    const commandPath = path.join(root, "codex");
+    const capturePath = path.join(root, "capture.json");
+    const sharedCodexHome = path.join(root, "shared-codex-home");
+    const paperclipHome = path.join(root, "paperclip-home");
+    const managedCodexHome = path.join(
+      paperclipHome,
+      "instances",
+      "default",
+      "companies",
+      "company-1",
+      "codex-home",
+    );
+    await fs.mkdir(workspace, { recursive: true });
+    await fs.mkdir(sharedCodexHome, { recursive: true });
+    await fs.writeFile(path.join(sharedCodexHome, "auth.json"), '{"token":"shared"}\n', "utf8");
+    await fs.writeFile(path.join(sharedCodexHome, "config.toml"), 'model = "codex-mini-latest"\n', "utf8");
+    await writeFakeCodexCommand(commandPath);
+
+    const previousHome = process.env.HOME;
+    const previousPaperclipHome = process.env.PAPERCLIP_HOME;
+    const previousPaperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID;
+    const previousPaperclipInWorktree = process.env.PAPERCLIP_IN_WORKTREE;
+    const previousCodexHome = process.env.CODEX_HOME;
+    process.env.HOME = root;
+    process.env.PAPERCLIP_HOME = paperclipHome;
+    delete process.env.PAPERCLIP_INSTANCE_ID;
+    delete process.env.PAPERCLIP_IN_WORKTREE;
+    process.env.CODEX_HOME = sharedCodexHome;
+
+    try {
+      const logs: LogEntry[] = [];
+      const result = await execute({
+        runId: "run-default",
+        agent: {
+          id: "agent-1",
+          companyId: "company-1",
+          name: "Codex Coder",
+          adapterType: "codex_local",
+          adapterConfig: {},
+        },
+        runtime: {
+          sessionId: null,
+          sessionParams: null,
+          sessionDisplayId: null,
+          taskKey: null,
+        },
+        config: {
+          command: commandPath,
+          cwd: workspace,
+          env: {
+            PAPERCLIP_TEST_CAPTURE_PATH: capturePath,
+          },
+          promptTemplate: "Follow the paperclip heartbeat.",
+        },
+        context: {},
+        authToken: "run-jwt-token",
+        onLog: async (stream, chunk) => {
+          logs.push({ stream, chunk });
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.errorMessage).toBeNull();
+
+      const capture = JSON.parse(await fs.readFile(capturePath, "utf8")) as CapturePayload;
+      expect(capture.codexHome).toBe(managedCodexHome);
+
+      const managedAuth = path.join(managedCodexHome, "auth.json");
+      const managedConfig = path.join(managedCodexHome, "config.toml");
+      expect((await fs.lstat(managedAuth)).isSymbolicLink()).toBe(true);
+      expect(await fs.realpath(managedAuth)).toBe(await fs.realpath(path.join(sharedCodexHome, "auth.json")));
+      expect((await fs.lstat(managedConfig)).isFile()).toBe(true);
+      expect(await fs.readFile(managedConfig, "utf8")).toBe('model = "codex-mini-latest"\n');
+      await expect(fs.lstat(path.join(sharedCodexHome, "companies", "company-1"))).rejects.toThrow();
+      expect(logs).toContainEqual(
+        expect.objectContaining({
+          stream: "stdout",
+          chunk: expect.stringContaining("Using Paperclip-managed Codex home"),
+        }),
+      );
+    } finally {
+      if (previousHome === undefined) delete process.env.HOME;
+      else process.env.HOME = previousHome;
+      if (previousPaperclipHome === undefined) delete process.env.PAPERCLIP_HOME;
+      else process.env.PAPERCLIP_HOME = previousPaperclipHome;
+      if (previousPaperclipInstanceId === undefined) delete process.env.PAPERCLIP_INSTANCE_ID;
+      else process.env.PAPERCLIP_INSTANCE_ID = previousPaperclipInstanceId;
+      if (previousPaperclipInWorktree === undefined) delete process.env.PAPERCLIP_IN_WORKTREE;
+      else process.env.PAPERCLIP_IN_WORKTREE = previousPaperclipInWorktree;
+      if (previousCodexHome === undefined) delete process.env.CODEX_HOME;
+      else process.env.CODEX_HOME = previousCodexHome;
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("uses a worktree-isolated CODEX_HOME while preserving shared auth and config", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-codex-execute-"));
     const workspace = path.join(root, "workspace");
