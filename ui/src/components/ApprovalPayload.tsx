@@ -34,6 +34,31 @@ function PayloadField({ label, value }: { label: string; value: unknown }) {
   );
 }
 
+function SkillList({ values }: { values: unknown }) {
+  if (!Array.isArray(values)) return null;
+  const items = values
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-muted-foreground w-20 sm:w-24 shrink-0 text-xs pt-0.5">Skills</span>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((item) => (
+          <span
+            key={item}
+            className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function HireAgentPayload({ payload }: { payload: Record<string, unknown> }) {
   return (
     <div className="mt-3 space-y-1.5 text-sm">
@@ -58,6 +83,7 @@ export function HireAgentPayload({ payload }: { payload: Record<string, unknown>
           </span>
         </div>
       )}
+      <SkillList values={payload.desiredSkills} />
     </div>
   );
 }

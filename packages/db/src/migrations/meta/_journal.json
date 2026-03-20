@@ -281,6 +281,13 @@
       "when": 1774011294562,
       "tag": "0039_curly_maria_hill",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1774031825634,
+      "tag": "0040_spotty_the_renegades",
+      "breakpoints": true
     }
   ]
 }

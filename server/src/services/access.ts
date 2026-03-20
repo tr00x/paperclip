@@ -83,6 +83,20 @@ export function accessService(db: Db) {
       .orderBy(sql`${companyMemberships.createdAt} desc`);
   }
 
+  async function listActiveUserMemberships(companyId: string) {
+    return db
+      .select()
+      .from(companyMemberships)
+      .where(
+        and(
+          eq(companyMemberships.companyId, companyId),
+          eq(companyMemberships.principalType, "user"),
+          eq(companyMemberships.status, "active"),
+        ),
+      )
+      .orderBy(sql`${companyMemberships.createdAt} asc`);
+  }
+
   async function setMemberPermissions(
     companyId: string,
     memberId: string,
@@ -251,6 +265,20 @@ export function accessService(db: Db) {
     });
   }
 
+  async function copyActiveUserMemberships(sourceCompanyId: string, targetCompanyId: string) {
+    const sourceMemberships = await listActiveUserMemberships(sourceCompanyId);
+    for (const membership of sourceMemberships) {
+      await ensureMembership(
+        targetCompanyId,
+        "user",
+        membership.principalId,
+        membership.membershipRole,
+        "active",
+      );
+    }
+    return sourceMemberships;
+  }
+
   async function listPrincipalGrants(
     companyId: string,
     principalType: PrincipalType,
@@ -338,6 +366,8 @@ export function accessService(db: Db) {
     getMembership,
     ensureMembership,
     listMembers,
+    listActiveUserMemberships,
+    copyActiveUserMemberships,
     setMemberPermissions,
     promoteInstanceAdmin,
     demoteInstanceAdmin,

@@ -1,5 +1,8 @@
 import type {
   Agent,
+  AgentInstructionsBundle,
+  AgentInstructionsFileDetail,
+  AgentSkillSnapshot,
   AgentDetail,
   AdapterEnvironmentTestResult,
   AgentKeyCreated,
@@ -108,11 +111,40 @@ export const agentsApi = {
     api.patch<Agent>(agentPath(id, companyId), data),
   updatePermissions: (id: string, data: AgentPermissionUpdate, companyId?: string) =>
     api.patch<AgentDetail>(agentPath(id, companyId, "/permissions"), data),
+  instructionsBundle: (id: string, companyId?: string) =>
+    api.get<AgentInstructionsBundle>(agentPath(id, companyId, "/instructions-bundle")),
+  updateInstructionsBundle: (
+    id: string,
+    data: {
+      mode?: "managed" | "external";
+      rootPath?: string | null;
+      entryFile?: string;
+      clearLegacyPromptTemplate?: boolean;
+    },
+    companyId?: string,
+  ) => api.patch<AgentInstructionsBundle>(agentPath(id, companyId, "/instructions-bundle"), data),
+  instructionsFile: (id: string, relativePath: string, companyId?: string) =>
+    api.get<AgentInstructionsFileDetail>(
+      agentPath(id, companyId, `/instructions-bundle/file?path=${encodeURIComponent(relativePath)}`),
+    ),
+  saveInstructionsFile: (
+    id: string,
+    data: { path: string; content: string; clearLegacyPromptTemplate?: boolean },
+    companyId?: string,
+  ) => api.put<AgentInstructionsFileDetail>(agentPath(id, companyId, "/instructions-bundle/file"), data),
+  deleteInstructionsFile: (id: string, relativePath: string, companyId?: string) =>
+    api.delete<AgentInstructionsBundle>(
+      agentPath(id, companyId, `/instructions-bundle/file?path=${encodeURIComponent(relativePath)}`),
+    ),
   pause: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/pause"), {}),
   resume: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/resume"), {}),
   terminate: (id: string, companyId?: string) => api.post<Agent>(agentPath(id, companyId, "/terminate"), {}),
   remove: (id: string, companyId?: string) => api.delete<{ ok: true }>(agentPath(id, companyId)),
   listKeys: (id: string, companyId?: string) => api.get<AgentKey[]>(agentPath(id, companyId, "/keys")),
+  skills: (id: string, companyId?: string) =>
+    api.get<AgentSkillSnapshot>(agentPath(id, companyId, "/skills")),
+  syncSkills: (id: string, desiredSkills: string[], companyId?: string) =>
+    api.post<AgentSkillSnapshot>(agentPath(id, companyId, "/skills/sync"), { desiredSkills }),
   createKey: (id: string, name: string, companyId?: string) =>
     api.post<AgentKeyCreated>(agentPath(id, companyId, "/keys"), { name }),
   revokeKey: (agentId: string, keyId: string, companyId?: string) =>
