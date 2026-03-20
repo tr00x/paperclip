@@ -83,15 +83,15 @@ export function InstanceExperimentalSettings() {
             aria-label="Toggle isolated workspaces experimental setting"
             disabled={toggleMutation.isPending}
             className={cn(
-              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+              "relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60",
               enableIsolatedWorkspaces ? "bg-green-600" : "bg-muted",
             )}
             onClick={() => toggleMutation.mutate(!enableIsolatedWorkspaces)}
           >
             <span
               className={cn(
-                "inline-block h-4.5 w-4.5 rounded-full bg-white transition-transform",
-                enableIsolatedWorkspaces ? "translate-x-6" : "translate-x-0.5",
+                "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                enableIsolatedWorkspaces ? "translate-x-4.5" : "translate-x-0.5",
               )}
             />
           </button>

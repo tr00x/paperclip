@@ -29,7 +29,7 @@ export function buildTranscript(
 ): TranscriptEntry[] {
   const entries: TranscriptEntry[] = [];
   let stdoutBuffer = "";
-  const redactionOptions = { enabled: opts?.censorUsernameInLogs ?? true };
+  const redactionOptions = { enabled: opts?.censorUsernameInLogs ?? false };
 
   for (const chunk of chunks) {
     if (chunk.stream === "stderr") {
