@@ -272,6 +272,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     configuredCodexHome ? null : await prepareWorktreeCodexHome(process.env, onLog, agent.companyId);
   const defaultCodexHome = resolveCodexHomeDir(process.env, agent.companyId);
   const effectiveCodexHome = configuredCodexHome ?? preparedWorktreeCodexHome ?? defaultCodexHome;
+  await fs.mkdir(effectiveCodexHome, { recursive: true });
   const codexWorkspaceSkillsDir = resolveCodexWorkspaceSkillsDir(cwd);
   await ensureCodexSkillsInjected(
     onLog,
