@@ -493,6 +493,10 @@ const PAPERCLIP_LOGO_SVG = `<g>
 
 // ── Public API ───────────────────────────────────────────────────
 
+// GitHub recommended social media preview dimensions
+const TARGET_W = 1280;
+const TARGET_H = 640;
+
 export function renderOrgChartSvg(orgTree: OrgNode[], style: OrgChartStyle = "warmth"): string {
   const theme = THEMES[style] || THEMES.warmth;
 
@@ -512,26 +516,39 @@ export function renderOrgChartSvg(orgTree: OrgNode[], style: OrgChartStyle = "wa
   const layout = layoutTree(root, PADDING, PADDING + 24);
   const bounds = treeBounds(layout);
 
-  const svgW = bounds.maxX + PADDING;
-  const svgH = bounds.maxY + PADDING;
+  const contentW = bounds.maxX + PADDING;
+  const contentH = bounds.maxY + PADDING;
 
-  const logoX = svgW - 110 - LOGO_PADDING;
+  // Scale content to fit within the fixed target dimensions
+  const scale = Math.min(TARGET_W / contentW, TARGET_H / contentH, 1);
+  const scaledW = contentW * scale;
+  const scaledH = contentH * scale;
+  // Center the scaled content within the target frame
+  const offsetX = (TARGET_W - scaledW) / 2;
+  const offsetY = (TARGET_H - scaledH) / 2;
+
+  const logoX = TARGET_W - 110 - LOGO_PADDING;
   const logoY = LOGO_PADDING;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
-  <defs>${theme.defs(svgW, svgH)}</defs>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${TARGET_W}" height="${TARGET_H}" viewBox="0 0 ${TARGET_W} ${TARGET_H}">
+  <defs>${theme.defs(TARGET_W, TARGET_H)}</defs>
   <rect width="100%" height="100%" fill="${theme.bgColor}" rx="6"/>
-  ${theme.bgExtras(svgW, svgH)}
+  ${theme.bgExtras(TARGET_W, TARGET_H)}
   <g transform="translate(${logoX}, ${logoY})" color="${theme.watermarkColor}">
     ${PAPERCLIP_LOGO_SVG}
   </g>
-  ${renderConnectors(layout, theme)}
-  ${renderCards(layout, theme)}
+  <g transform="translate(${offsetX}, ${offsetY}) scale(${scale})">
+    ${renderConnectors(layout, theme)}
+    ${renderCards(layout, theme)}
+  </g>
 </svg>`;
 }
 
 export async function renderOrgChartPng(orgTree: OrgNode[], style: OrgChartStyle = "warmth"): Promise<Buffer> {
   const svg = renderOrgChartSvg(orgTree, style);
-  // Render at 2x density for retina-quality output
-  return sharp(Buffer.from(svg), { density: 144 }).png().toBuffer();
+  // Render at 2x density for retina quality, resize to exact target dimensions
+  return sharp(Buffer.from(svg), { density: 144 })
+    .resize(TARGET_W, TARGET_H)
+    .png()
+    .toBuffer();
 }
