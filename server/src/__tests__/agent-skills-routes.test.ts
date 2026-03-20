@@ -342,6 +342,33 @@ describe("agent skill routes", () => {
     });
   });
 
+  it("materializes the bundled CEO instruction set for default CEO agents", async () => {
+    const res = await request(createApp())
+      .post("/api/companies/company-1/agents")
+      .send({
+        name: "CEO",
+        role: "ceo",
+        adapterType: "claude_local",
+        adapterConfig: {},
+      });
+
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(mockAgentInstructionsService.materializeManagedBundle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "11111111-1111-4111-8111-111111111111",
+        role: "ceo",
+        adapterType: "claude_local",
+      }),
+      expect.objectContaining({
+        "AGENTS.md": expect.stringContaining("You are the CEO."),
+        "HEARTBEAT.md": expect.stringContaining("CEO Heartbeat Checklist"),
+        "SOUL.md": expect.stringContaining("CEO Persona"),
+        "TOOLS.md": expect.stringContaining("# Tools"),
+      }),
+      { entryFile: "AGENTS.md", replaceExisting: false },
+    );
+  });
+
   it("includes canonical desired skills in hire approvals", async () => {
     const db = createDb(true);
 

@@ -105,6 +105,15 @@ test.describe("Onboarding wizard", () => {
     expect(ceoAgent.role).toBe("ceo");
     expect(ceoAgent.adapterType).not.toBe("process");
 
+    const instructionsBundleRes = await page.request.get(
+      `${baseUrl}/api/agents/${ceoAgent.id}/instructions-bundle?companyId=${company.id}`
+    );
+    expect(instructionsBundleRes.ok()).toBe(true);
+    const instructionsBundle = await instructionsBundleRes.json();
+    expect(
+      instructionsBundle.files.map((file: { path: string }) => file.path).sort()
+    ).toEqual(["AGENTS.md", "HEARTBEAT.md", "SOUL.md", "TOOLS.md"]);
+
     const issuesRes = await page.request.get(
       `${baseUrl}/api/companies/${company.id}/issues`
     );
@@ -115,6 +124,10 @@ test.describe("Onboarding wizard", () => {
     );
     expect(task).toBeTruthy();
     expect(task.assigneeAgentId).toBe(ceoAgent.id);
+    expect(task.description).toContain(
+      "Your default CEO instructions are already installed"
+    );
+    expect(task.description).not.toContain("github.com/paperclipai/companies");
 
     if (!SKIP_LLM) {
       await expect(async () => {

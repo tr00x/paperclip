@@ -56,6 +56,7 @@ import {
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@paperclipai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@paperclipai/adapter-gemini-local";
 import { ensureOpenCodeModelConfiguredAndAvailable } from "@paperclipai/adapter-opencode-local/server";
+import { loadDefaultAgentInstructionsBundle } from "../services/default-agent-instructions.js";
 
 export function agentRoutes(db: Db) {
   const DEFAULT_INSTRUCTIONS_PATH_KEYS: Record<string, string> = {
@@ -409,6 +410,7 @@ export function agentRoutes(db: Db) {
     id: string;
     companyId: string;
     name: string;
+    role: string;
     adapterType: string;
     adapterConfig: unknown;
   }>(agent: T): Promise<T> {
@@ -430,9 +432,12 @@ export function agentRoutes(db: Db) {
     const promptTemplate = typeof adapterConfig.promptTemplate === "string"
       ? adapterConfig.promptTemplate
       : "";
+    const files = agent.role === "ceo" && promptTemplate.trim().length === 0
+      ? await loadDefaultAgentInstructionsBundle("ceo")
+      : { "AGENTS.md": promptTemplate };
     const materialized = await instructions.materializeManagedBundle(
       agent,
-      { "AGENTS.md": promptTemplate },
+      files,
       { entryFile: "AGENTS.md", replaceExisting: false },
     );
     const nextAdapterConfig = { ...materialized.adapterConfig };
