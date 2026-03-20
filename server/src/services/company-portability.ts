@@ -3152,6 +3152,15 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
         } catch (err) {
           warnings.push(`Failed to materialize instructions bundle for ${manifestAgent.slug}: ${err instanceof Error ? err.message : String(err)}`);
         }
+        await access.ensureMembership(targetCompany.id, "agent", created.id, "member", "active");
+        await access.setPrincipalPermission(
+          targetCompany.id,
+          "agent",
+          created.id,
+          "tasks:assign",
+          true,
+          actorUserId ?? null,
+        );
         importedSlugToAgentId.set(planAgent.slug, created.id);
         existingSlugToAgentId.set(normalizeAgentUrlKey(created.name) ?? created.id, created.id);
         resultAgents.push({

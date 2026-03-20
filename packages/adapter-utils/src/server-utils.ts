@@ -12,6 +12,8 @@ export interface RunProcessResult {
   timedOut: boolean;
   stdout: string;
   stderr: string;
+  pid: number | null;
+  startedAt: string | null;
 }
 
 interface RunningProcess {
@@ -724,6 +726,7 @@ export async function runChildProcess(
     graceSec: number;
     onLog: (stream: "stdout" | "stderr", chunk: string) => Promise<void>;
     onLogError?: (err: unknown, runId: string, message: string) => void;
+    onSpawn?: (meta: { pid: number; startedAt: string }) => Promise<void>;
     stdin?: string;
   },
 ): Promise<RunProcessResult> {
@@ -756,10 +759,17 @@ export async function runChildProcess(
           shell: false,
           stdio: [opts.stdin != null ? "pipe" : "ignore", "pipe", "pipe"],
         }) as ChildProcessWithEvents;
+        const startedAt = new Date().toISOString();
 
         if (opts.stdin != null && child.stdin) {
           child.stdin.write(opts.stdin);
           child.stdin.end();
+        }
+
+        if (typeof child.pid === "number" && child.pid > 0 && opts.onSpawn) {
+          void opts.onSpawn({ pid: child.pid, startedAt }).catch((err) => {
+            onLogError(err, runId, "failed to record child process metadata");
+          });
         }
 
         runningProcesses.set(runId, { child, graceSec: opts.graceSec });
@@ -820,6 +830,8 @@ export async function runChildProcess(
               timedOut,
               stdout,
               stderr,
+              pid: child.pid ?? null,
+              startedAt,
             });
           });
         });

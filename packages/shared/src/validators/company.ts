@@ -26,12 +26,18 @@ export type UpdateCompany = z.infer<typeof updateCompanySchema>;
 
 export const updateCompanyBrandingSchema = z
   .object({
+    name: z.string().min(1).optional(),
+    description: z.string().nullable().optional(),
     brandColor: brandColorSchema,
     logoAssetId: logoAssetIdSchema,
   })
   .strict()
   .refine(
-    (value) => value.brandColor !== undefined || value.logoAssetId !== undefined,
+    (value) =>
+      value.name !== undefined
+      || value.description !== undefined
+      || value.brandColor !== undefined
+      || value.logoAssetId !== undefined,
     "At least one branding field must be provided",
   );
 
