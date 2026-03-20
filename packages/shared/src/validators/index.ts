@@ -1,4 +1,8 @@
 export {
+  instanceGeneralSettingsSchema,
+  patchInstanceGeneralSettingsSchema,
+  type InstanceGeneralSettings,
+  type PatchInstanceGeneralSettings,
   instanceExperimentalSettingsSchema,
   patchInstanceExperimentalSettingsSchema,
   type InstanceExperimentalSettings,
