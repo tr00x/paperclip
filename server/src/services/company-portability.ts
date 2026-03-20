@@ -877,6 +877,7 @@ function extractPortableEnvInputs(
 
     if (isPlainRecord(binding) && binding.type === "plain") {
       const defaultValue = asString(binding.value);
+      const isSensitive = isSensitiveEnvKey(key);
       const portability = defaultValue && isAbsoluteCommand(defaultValue)
         ? "system_dependent"
         : "portable";
@@ -887,9 +888,9 @@ function extractPortableEnvInputs(
         key,
         description: `Optional default for ${key} on agent ${agentSlug}`,
         agentSlug,
-        kind: "plain",
+        kind: isSensitive ? "secret" : "plain",
         requirement: "optional",
-        defaultValue: defaultValue ?? "",
+        defaultValue: isSensitive ? "" : defaultValue ?? "",
         portability,
       });
       continue;
