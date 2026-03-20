@@ -235,8 +235,8 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       const bgColor = isCeo ? "rgba(168,85,247,0.06)" : theme.cardBg;
 
       const avatarCY = ln.y + 24;
-      const nameY = ln.y + 52;
-      const roleY = ln.y + 68;
+      const nameY = ln.y + 58;
+      const roleY = ln.y + 74;
 
       return `<g>
         <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="${theme.cardRadius}" fill="${bgColor}" stroke="${borderColor}" stroke-width="1"/>
@@ -299,8 +299,8 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
       const roleText = schemaRoles[tag] || schemaRoles.default;
 
       const avatarCY = ln.y + 24;
-      const nameY = ln.y + 52;
-      const roleY = ln.y + 68;
+      const nameY = ln.y + 58;
+      const roleY = ln.y + 74;
 
       return `<g>
         <rect x="${ln.x}" y="${ln.y}" width="${ln.width}" height="${ln.height}" rx="${theme.cardRadius}" fill="${theme.cardBg}" stroke="${theme.cardBorder}" stroke-width="1"/>
@@ -316,7 +316,7 @@ const THEMES: Record<OrgChartStyle, StyleTheme> = {
 
 // ── Layout constants ─────────────────────────────────────────────
 
-const CARD_H = 88;
+const CARD_H = 96;
 const CARD_MIN_W = 150;
 const CARD_PAD_X = 22;
 const AVATAR_SIZE = 34;
@@ -483,9 +483,10 @@ function treeBounds(ln: LayoutNode): { minX: number; minY: number; maxX: number;
   return { minX, minY, maxX, maxY };
 }
 
+// Paperclip logo: 24×24 icon + wordmark, vertically centered
 const PAPERCLIP_LOGO_SVG = `<g>
   <path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" d="m18 4-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>
-  <text x="26" y="17" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="currentColor">Paperclip</text>
+  <text x="28" y="14.5" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="currentColor">Paperclip</text>
 </g>`;
 
 // ── Public API ───────────────────────────────────────────────────
@@ -529,5 +530,6 @@ export function renderOrgChartSvg(orgTree: OrgNode[], style: OrgChartStyle = "wa
 
 export async function renderOrgChartPng(orgTree: OrgNode[], style: OrgChartStyle = "warmth"): Promise<Buffer> {
   const svg = renderOrgChartSvg(orgTree, style);
-  return sharp(Buffer.from(svg)).png().toBuffer();
+  // Render at 2x density for retina-quality output
+  return sharp(Buffer.from(svg), { density: 144 }).png().toBuffer();
 }
