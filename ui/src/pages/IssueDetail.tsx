@@ -11,6 +11,7 @@ import { useCompany } from "../context/CompanyContext";
 import { usePanel } from "../context/PanelContext";
 import { useToast } from "../context/ToastContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { assigneeValueFromSelection, suggestedCommentAssigneeValue } from "../lib/assignees";
 import { queryKeys } from "../lib/queryKeys";
 import { readIssueDetailBreadcrumb } from "../lib/issueDetailBreadcrumb";
 import { useProjectOrder } from "../hooks/useProjectOrder";
@@ -374,21 +375,15 @@ export function IssueDetail() {
     return options;
   }, [agents, currentUserId]);
 
-  const currentAssigneeValue = useMemo(() => {
-    // Default to the last commenter who is not "me" so the user doesn't
-    // accidentally reassign to themselves when commenting on their own issue.
-    if (comments && comments.length > 0 && currentUserId) {
-      for (let i = comments.length - 1; i >= 0; i--) {
-        const c = comments[i];
-        if (c.authorAgentId) return `agent:${c.authorAgentId}`;
-        if (c.authorUserId && c.authorUserId !== currentUserId)
-          return `user:${c.authorUserId}`;
-      }
-    }
-    if (issue?.assigneeAgentId) return `agent:${issue.assigneeAgentId}`;
-    if (issue?.assigneeUserId) return `user:${issue.assigneeUserId}`;
-    return "";
-  }, [issue?.assigneeAgentId, issue?.assigneeUserId, comments, currentUserId]);
+  const actualAssigneeValue = useMemo(
+    () => assigneeValueFromSelection(issue ?? {}),
+    [issue],
+  );
+
+  const suggestedAssigneeValue = useMemo(
+    () => suggestedCommentAssigneeValue(issue ?? {}, comments, currentUserId),
+    [issue, comments, currentUserId],
+  );
 
   const commentsWithRunMeta = useMemo(() => {
     const runMetaByCommentId = new Map<string, { runId: string; runAgentId: string | null }>();
@@ -1011,7 +1006,8 @@ export function IssueDetail() {
             draftKey={`paperclip:issue-comment-draft:${issue.id}`}
             enableReassign
             reassignOptions={commentReassignOptions}
-            currentAssigneeValue={currentAssigneeValue}
+            currentAssigneeValue={actualAssigneeValue}
+            suggestedAssigneeValue={suggestedAssigneeValue}
             mentions={mentionOptions}
             onAdd={async (body, reopen, reassignment) => {
               if (reassignment) {
