@@ -79,7 +79,7 @@ export function DevRestartBanner({ devServer }: { devServer?: DevServerHealthSta
           ) : (
             <div className="inline-flex items-center gap-2 rounded-full bg-amber-900/10 px-3 py-1.5 dark:bg-amber-100/10">
               <RotateCcw className="h-3.5 w-3.5" />
-              <span>Restart `pnpm dev:once` after the active work is safe to interrupt</span>
+              <span>Restart <code>pnpm dev:once</code> after the active work is safe to interrupt</span>
             </div>
           )}
         </div>

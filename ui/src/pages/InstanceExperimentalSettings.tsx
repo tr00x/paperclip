@@ -76,7 +76,7 @@ export function InstanceExperimentalSettings() {
       <section className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1.5">
-            <h2 className="text-sm font-semibold">Enabled Isolated Workspaces</h2>
+            <h2 className="text-sm font-semibold">Enable Isolated Workspaces</h2>
             <p className="max-w-2xl text-sm text-muted-foreground">
               Show execution workspace controls in project configuration and allow isolated workspace behavior for new
               and existing issue runs.

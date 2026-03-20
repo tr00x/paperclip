@@ -488,19 +488,26 @@ async function maybeAutoRestartChild() {
   if (mode !== "dev" || restartInFlight || !child) return;
   if (dirtyPaths.size === 0 && pendingMigrations.length === 0) return;
 
+  restartInFlight = true;
   let health;
   try {
     health = await getDevHealthPayload();
   } catch {
+    restartInFlight = false;
     return;
   }
 
   const devServer = health?.devServer;
-  if (!devServer?.enabled || devServer.autoRestartEnabled !== true) return;
-  if ((devServer.activeRunCount ?? 0) > 0) return;
+  if (!devServer?.enabled || devServer.autoRestartEnabled !== true) {
+    restartInFlight = false;
+    return;
+  }
+  if ((devServer.activeRunCount ?? 0) > 0) {
+    restartInFlight = false;
+    return;
+  }
 
   try {
-    restartInFlight = true;
     await maybePreflightMigrations({
       autoApply: true,
       interactive: false,

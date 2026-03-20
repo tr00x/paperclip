@@ -74,7 +74,9 @@ export function InstanceGeneralSettings() {
           <div className="space-y-1.5">
             <h2 className="text-sm font-semibold">Censor username in logs</h2>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Hide the username segment in home-directory paths and similar log output. This is off by default.
+              Hide the username segment in home-directory paths and similar operator-visible log output. Standalone
+              username mentions outside of paths are not yet masked in the live transcript view. This is off by
+              default.
             </p>
           </div>
           <button
