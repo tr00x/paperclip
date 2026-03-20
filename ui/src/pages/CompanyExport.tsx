@@ -609,10 +609,12 @@ export function CompanyExport() {
         const ancestors = expandAncestors(urlFile);
         setExpandedDirs(new Set([...topDirs, ...ancestors]));
       } else {
-        // Select first file and update URL
-        const firstFile = Object.keys(result.files)[0];
-        if (firstFile) {
-          selectFile(firstFile, true);
+        // Default to README.md if present, otherwise fall back to first file
+        const defaultFile = "README.md" in result.files
+          ? "README.md"
+          : Object.keys(result.files)[0];
+        if (defaultFile) {
+          selectFile(defaultFile, true);
         }
         setExpandedDirs(topDirs);
       }
