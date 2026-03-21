@@ -55,7 +55,7 @@ Plans:
 **Plans:** 2 plans
 Plans:
 - [x] 02-01-PLAN.md — Install pandoc, Twenty CRM MCP, Office-Word-MCP, mcp-pandoc (no credentials needed)
-- [ ] 02-02-PLAN.md — Configure Telegram bot MCP + Email MCP (requires user credentials)
+- [x] 02-02-PLAN.md — Configure Telegram bot MCP + Email MCP (requires user credentials)
 **Tasks:**
 - Install pandoc binary via Homebrew
 - Install + register Twenty CRM MCP server
