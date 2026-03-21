@@ -1,0 +1,169 @@
+schema: paperclip/v1
+company:
+  brandColor: "#0066CC"
+  requireBoardApprovalForNewAgents: true
+
+agents:
+  ceo:
+    role: ceo
+    title: Chief AI Officer
+    icon: crown
+    capabilities: "Координация штаба, приоритизация, еженедельные отчёты, Telegram эскалации"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 1800
+        wakeOnAssignment: true
+        wakeOnOnDemand: true
+        timeoutSec: 900
+    permissions:
+      canCreateAgents: true
+    budgetMonthlyCents: 0
+
+  hunter:
+    role: researcher
+    title: Client Hunter
+    icon: search
+    capabilities: "Поиск лидов с сигналами плохого IT, ICP scoring, досье, CRM"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 21600
+        wakeOnOnDemand: true
+        timeoutSec: 1200
+    budgetMonthlyCents: 0
+
+  sdr:
+    role: general
+    title: Sales Development Representative
+    icon: mail
+    capabilities: "Персонализированные HTML-письма, follow-up D3/D7, CRM обновления"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 7200
+        wakeOnAssignment: true
+        timeoutSec: 900
+    budgetMonthlyCents: 0
+
+  closer:
+    role: general
+    title: Sales Closer
+    icon: phone
+    capabilities: "Брифинг для Berik, deep research компании, competitive intel, objection handling"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 0
+        wakeOnAssignment: true
+        wakeOnOnDemand: true
+        timeoutSec: 900
+    budgetMonthlyCents: 0
+
+  gov-scout:
+    role: researcher
+    title: Government Contracts Scout
+    icon: landmark
+    capabilities: "Мониторинг тендеров SAM.gov, NJ/NY порталов, NAICS scoring"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 86400
+        wakeOnOnDemand: true
+        timeoutSec: 1200
+    budgetMonthlyCents: 0
+
+  proposal-writer:
+    role: general
+    title: Proposal Writer
+    icon: file-text
+    capabilities: "MSA, capability statements, proposals, PDF/DOCX генерация"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 0
+        wakeOnAssignment: true
+        timeoutSec: 1800
+    budgetMonthlyCents: 0
+
+  contract-manager:
+    role: general
+    title: Contract Manager
+    icon: clipboard-check
+    capabilities: "Трекинг контрактов, renewals за 30 дней, upsell, дедлайны"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 86400
+        wakeOnAssignment: true
+        timeoutSec: 900
+    budgetMonthlyCents: 0
+
+  finance-tracker:
+    role: general
+    title: Finance Tracker
+    icon: dollar-sign
+    capabilities: "Инвойсы, MRR трекинг, просрочки D7/D14, еженедельный отчёт"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 604800
+        wakeOnAssignment: true
+        timeoutSec: 900
+    budgetMonthlyCents: 0
+
+  legal-assistant:
+    role: general
+    title: Legal Assistant
+    icon: scale
+    capabilities: "MSA/NDA/SLA генерация, compliance проверки, NY/NJ law"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 0
+        wakeOnAssignment: true
+        timeoutSec: 1200
+    budgetMonthlyCents: 0
+
+  onboarding-agent:
+    role: general
+    title: Onboarding Specialist
+    icon: user-plus
+    capabilities: "Welcome HTML-пакет, ScreenConnect, аудит чеклист по нише"
+    adapter:
+      type: claude_local
+      config:
+        model: claude-sonnet-4-6
+    runtime:
+      heartbeat:
+        intervalSec: 0
+        wakeOnAssignment: true
+        timeoutSec: 900
+    budgetMonthlyCents: 0
