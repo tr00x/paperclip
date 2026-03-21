@@ -67,5 +67,6 @@ export function errorHandler(
     rootError,
   );
 
+  console.error("UNHANDLED 500:", rootError);
   res.status(500).json({ error: "Internal server error" });
 }

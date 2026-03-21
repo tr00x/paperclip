@@ -78,6 +78,7 @@ export async function createApp(
   const app = express();
 
   app.use(express.json({
+    limit: "50mb",
     verify: (req, _res, buf) => {
       (req as unknown as { rawBody: Buffer }).rawBody = buf;
     },

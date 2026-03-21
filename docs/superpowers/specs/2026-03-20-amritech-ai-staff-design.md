@@ -1049,14 +1049,113 @@ Proposal Writer → обновлённое предложение
 
 ---
 
-## 18. Future Integrations (после найма агентов)
+## 18. Инфра-карта: Агенты x MCP серверы x Навыки
 
-- **Gmail MCP** — SDR отправляет письма, Onboarding отправляет welcome пакеты
-- **Telegram MCP** — CEO эскалирует в общий бот с @упоминаниями
-- **Twilio MCP** — Closer может оставлять voicemail
-- **Web search MCP** — Hunter скрапит Google Maps, LinkedIn, SAM.gov
-- **CRM интеграция** — агенты синхронизируют лидов с CRM
-- **Reputation Manager** (настроить позже) — мониторинг отзывов
+### CRM — Twenty (open-source, self-hosted)
+
+- **Что:** Twenty CRM — modern open-source альтернатива HubSpot/Salesforce
+- **Где:** Docker на Mac (потом VPS)
+- **API:** GraphQL
+- **Сайт:** https://twenty.com/
+- **GitHub:** https://github.com/twentyhq/twenty
+
+### MCP серверы (готовые с GitHub)
+
+| MCP сервер | GitHub | Агенты | Что делает |
+|---|---|---|---|
+| **Telegram** | [telegram-mcp](https://github.com/chigwell/telegram-mcp) | CEO (единственный) | Отправка сообщений в бот с @упоминаниями |
+| **Gmail/Email** | [email-mcp](https://github.com/modelcontextprotocol/servers) (IMAP/SMTP) | SDR, Onboarding | HTML-письма клиентам |
+| **Twenty CRM** | [twenty-mcp](https://github.com/jezweb/twenty-mcp) (29 тулов) | Hunter, SDR, Closer, Gov Scout, Contract Mgr, Finance, Onboarding | CRUD лидов, контактов, тендеров, контрактов, инвойсов |
+| **Docs (DOCX/PDF)** | [Office-Word-MCP](https://github.com/GongRzhe/Office-Word-MCP-Server) + [mcp-pandoc](https://github.com/vivekVells/mcp-pandoc) | Proposal Writer, Legal | Генерация proposals, MSA, capability statements |
+| **Web Search** | Встроенный в Claude Code | Hunter, SDR, Closer, Gov Scout, Legal | Research, скрапинг, мониторинг порталов |
+
+### Инфра по агентам
+
+| Агент | Paperclip | Telegram | Gmail | Web Search | Twenty CRM | Docs MCP |
+|---|---|---|---|---|---|---|
+| **CEO** | ✅ | ✅ (единственный) | — | — | — | — |
+| **Hunter** | ✅ | — | — | ✅ | ✅ | — |
+| **SDR** | ✅ | — | ✅ (HTML-письма) | ✅ | ✅ | — |
+| **Closer** | ✅ | — | — | ✅ | ✅ | — |
+| **Gov Scout** | ✅ | — | — | ✅ | ✅ | — |
+| **Proposal Writer** | ✅ | — | — | — | — | ✅ |
+| **Contract Manager** | ✅ | — | — | — | ✅ | — |
+| **Finance Tracker** | ✅ | — | — | — | ✅ | — |
+| **Legal Assistant** | ✅ | — | — | ✅ | — | ✅ |
+| **Onboarding** | ✅ | — | ✅ (HTML welcome) | — | ✅ | — |
+
+### Скилы — готовые (Paperclip ecosystem)
+
+| Скил | Кому | Зачем |
+|---|---|---|
+| `paperclip` | Все 9 агентов | Работа с задачами, комментарии, делегация, checkout |
+| `para-memory-files` | CEO | Память между сессиями (стратегия, KPI, история решений) |
+
+### Скилы — готовые (tech-leads-club/agent-skills registry)
+
+| Скил | Кому | Зачем |
+|---|---|---|
+| `ai-cold-outreach` | SDR | Cold email система: ICP, персонализация, deliverability, sequences, follow-up |
+| `ai-sdr` | SDR | AI SDR стратегия: квалификация, multi-channel, handoff, CRM-логика |
+| `lead-enrichment` | Hunter | ICP scoring (firmographic + technographic + intent), waterfall enrichment, верификация |
+| `expansion-retention` | Contract Manager | Churn prevention, NRR оптимизация, upsell триггеры, health scoring |
+| `social-selling` | Hunter | LinkedIn prospecting, profile optimization, DM sequences, engagement tactics |
+| `gtm-metrics` | CEO | Pipeline metrics, CAC/LTV, NRR, weekly review cadence, dashboard design |
+| `gtm-engineering` | CEO | GTM автоматизация, workflow architecture, agent orchestration |
+| `positioning-icp` | Hunter, CEO | ICP definition, messaging architecture, competitive positioning |
+
+### Скилы — кастомные (создаём для AmriTech — 2 штуки)
+
+| Скил | Кому | Зачем |
+|---|---|---|
+| `amritech-html-email` | SDR, Onboarding | HTML-шаблоны с брендингом AmriTech (header, типографика, responsive, подпись) |
+| `amritech-tender-scoring` | Gov Scout | Оценка гос. тендеров: NAICS match, размер $, дедлайн, set-aside, past performance fit |
+
+### Распределение скилов по агентам
+
+| Агент | Скилы |
+|---|---|
+| **CEO** | paperclip, para-memory-files, gtm-metrics, gtm-engineering |
+| **Hunter** | paperclip, lead-enrichment, social-selling, positioning-icp |
+| **SDR** | paperclip, ai-cold-outreach, ai-sdr, amritech-html-email |
+| **Closer** | paperclip |
+| **Gov Scout** | paperclip, amritech-tender-scoring |
+| **Proposal Writer** | paperclip |
+| **Contract Manager** | paperclip, expansion-retention |
+| **Finance Tracker** | paperclip |
+| **Legal Assistant** | paperclip |
+| **Onboarding** | paperclip, amritech-html-email |
+
+### Telegram — правила доступа
+
+**Только CEO пишет в Telegram.** Все остальные агенты передают информацию CEO через задачи/комментарии в Paperclip, CEO решает что и когда отправить в бот.
+
+Типы сообщений CEO в Telegram:
+- Горячий лид: "@Berik горячий лид — {Company}. Звони ASAP."
+- Тендер: "@Berik тендер ${сумма}k, дедлайн {дата}. Апрувишь?"
+- Онбординг: "@Ula онбординг {Client} запущен."
+- Документы готовы: "@Berik proposal/MSA для {Client} готов — проверь в задаче {ссылка}"
+- Просрочка: "@Berik инвойс {Client} ${amount} просрочен {N} дней"
+- Еженедельный отчёт: "@Berik @Ula @Timur отчёт: {summary}"
+
+### Gmail — HTML-письма
+
+SDR и Onboarding отправляют **красивые HTML-письма** с дизайном AmriTech:
+- Брендированный header с логотипом
+- Чистая типографика, профессиональный layout
+- Responsive (мобильные устройства)
+- Подпись: имя + AmriTech + контакты + соцсети
+- SDR: cold outreach, follow-up (5-7 предложений, цепляющие)
+- Onboarding: welcome письмо, инструкции ScreenConnect, credentials форма
+
+---
+
+## 19. Future Integrations
+
+- **Twilio MCP** ([twilio-labs/mcp](https://github.com/twilio-labs/mcp)) — Closer оставляет voicemail
+- **Google Calendar MCP** — Contract Manager ставит renewal напоминания
+- **Reputation Manager** (настроить позже) — мониторинг отзывов Google/Yelp/BBB
+- **QuickBooks интеграция** — Finance Tracker синхронизирует инвойсы с бухгалтерией
 
 ---
 
