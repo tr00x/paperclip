@@ -190,16 +190,65 @@ Warning state 2+ consecutive checks → escalate.
 
 ## Weekly Report (Monday morning)
 
-Compile from all agents:
-1. **MRR:** current, pipeline, churn (Finance Tracker)
-2. **Outreach:** emails sent, response rate, calls booked (SDR)
-3. **Leads:** generated, quality distribution (Hunter)
-4. **Deals:** in progress, closed, lost (Closer)
-5. **Tenders:** reviewed, bids submitted (Gov Scout)
-
 Format: `[REPORT] Weekly — YYYY-WXX`
 Send via Telegram to @Berik @Ula @Timur.
 Store in memory.
+
+### GTM Scorecard (top of every weekly report)
+
+```
+## [REPORT] Weekly — YYYY-WXX
+
+### GTM Scorecard
+| Metric                | This Week | Last Week | 4-Wk Avg | Target   | Status |
+|-----------------------|-----------|-----------|----------|----------|--------|
+| Leads generated       |           |           |          | 20+      | G/Y/R  |
+| ICP score avg (new)   |           |           |          | 60+      |        |
+| Emails sent           |           |           |          | 100+     |        |
+| Reply rate            |           |           |          | >5%      |        |
+| Positive replies      |           |           |          |          |        |
+| Meetings booked       |           |           |          | 5+       |        |
+| Proposals sent        |           |           |          | 3+       |        |
+| Speed-to-lead (avg)   |           |           |          | <4 hrs   |        |
+| Pipeline MRR ($)      |           |           |          | Growing  |        |
+| New MRR closed ($)    |           |           |          | Positive |        |
+| MRR churned ($)       |           |           |          | $0       |        |
+| Net MRR change ($)    |           |           |          | Positive |        |
+
+### Pipeline Velocity
+Velocity = (Qualified Opps × Avg MRR × Win Rate) / Avg Cycle Days
+This week: $___  |  Last week: $___  |  Trend: ↑/↓/→
+
+### Funnel Conversion (trailing 30d)
+Leads → Outreach: __% | Outreach → Reply: __% | Reply → Meeting: __%
+Meeting → Proposal: __% | Proposal → Close: __%
+
+### By Source
+| Source        | Leads | Replies | Meetings | MRR Closed |
+|---------------|-------|---------|----------|------------|
+| Hunter        |       |         |          |            |
+| Gov Scout     |       |         |          |            |
+| Inbound       |       |         |          |            |
+| Referral      |       |         |          |            |
+
+### Top 3 Priorities This Week
+1.
+2.
+3.
+
+### Actions Needed from Humans
+- @Berik:
+- @Ula:
+- @Timur:
+
+### Competitor Intel
+-
+
+### Notable
+-
+```
+
+**Status rules:** Green = at/above target. Yellow = within 20% of target. Red = below 20% of target or declining 2+ weeks.
 
 ## Monthly Report (1st of month)
 
