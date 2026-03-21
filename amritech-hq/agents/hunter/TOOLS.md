@@ -1,38 +1,83 @@
 # TOOLS.md -- Hunter Tools
 
-## Web Search (Built-in MCP)
+## Search Tools (3 MCP servers)
 
-Your primary research tool. Use for all prospecting and signal validation.
+You have THREE search tools. Use them strategically — each has strengths.
 
-### Usage Patterns
+### 1. DuckDuckGo Search (`ddg-search` MCP)
+**Best for:** Quick prospect discovery, broad searches, privacy (no tracking).
+
+Use the `ddg_web_search` tool for queries. Also has `extract_webpage_content` to pull full page text.
 
 **Prospect discovery:**
-- `"law firm" "NJ" site:google.com/maps` -- find businesses by niche and region
-- `"auto dealer" "New Jersey"` -- broad niche search
-- `site:linkedin.com/company "dental practice" "New York"` -- LinkedIn company search
-- `site:indeed.com "IT support" "NJ"` -- job posting search
-- `site:glassdoor.com "{company name}" reviews` -- employee reviews
+- `law firm NJ Brooklyn` — find businesses by niche and region
+- `auto dealer New Jersey` — broad niche search
+- `dental practice New York IT support` — niche + IT pain
+- `"{company name}" reviews` — reputation check
+
+**Content extraction:**
+- Use `extract_webpage_content` with prospect's website URL to check: SSL, CMS version, tech stack, last update, contact info.
+
+### 2. Multi-Provider Search (`web-search` MCP)
+**Best for:** Deep research, when DDG misses results. Searches DDG + Bing + SearXNG (Google results via meta-search) with automatic fallback.
+
+Use `web_search` tool. Also has `extract_content` for URL scraping.
 
 **Signal validation:**
-- `site:{prospect-domain}` -- check web presence, indexing issues
-- `"{company name}" "data breach" OR "security incident"` -- breach history
-- `"{company name}" BBB complaints` -- service quality signals
-- `"{company name}" reviews technology OR computer OR IT` -- tech-related complaints
+- `"{company name}" "data breach" OR "security incident"` — breach history
+- `"{company name}" BBB complaints` — service quality
+- `"{company name}" reviews technology computer IT problems` — tech complaints
+- `site:glassdoor.com "{company name}"` — employee reviews about IT
 
 **Decision maker discovery:**
-- `site:linkedin.com/in "{company name}" "office manager" OR "operations" OR "managing partner"` -- find contacts
-- `"{company name}" "{city}" email` -- public email search
-- `"{company name}" team OR about` -- about pages with staff listings
+- `site:linkedin.com/in "{company name}" "office manager" OR "managing partner"` — find contacts
+- `"{company name}" team about staff` — about pages
+
+### 3. Built-in WebSearch
+**Best for:** Fallback when MCP tools are unavailable. Standard Claude web search.
+
+### Search Strategy (per prospect)
+
+```
+Step 1: DDG quick search → find company, verify it exists
+Step 2: extract_webpage_content → scrape their website for tech signals
+Step 3: web_search → deep research (reviews, breaches, job postings, LinkedIn)
+Step 4: extract_content → pull full page from interesting results
+```
+
+### Search Queries by Goal
+
+**Find new prospects:**
+| Goal | Query |
+|------|-------|
+| Law firms NJ | `law firm attorney NJ Bergen County` |
+| Medical NYC | `medical practice doctor office Manhattan Brooklyn` |
+| Dental | `dental practice dentist office NJ NY` |
+| Auto dealers | `car dealer auto dealership New Jersey` |
+| CRE | `commercial real estate property management NYC NJ` |
+| Accounting | `accounting firm CPA NJ New York` |
+
+**Validate IT pain signals:**
+| Signal | How to check |
+|--------|-------------|
+| SSL expired | `extract_webpage_content` on their site → check for certificate warnings |
+| Old website | `extract_webpage_content` → look for WordPress version, old jQuery, copyright year |
+| IT job posting | `web_search "{company}" IT support helpdesk site:indeed.com` |
+| Employee complaints | `web_search "{company}" glassdoor reviews computer slow crash` |
+| Data breach history | `web_search "{company}" data breach security incident` |
+| No DMARC/SPF | `web_search "{domain}" DMARC SPF record check` |
+| Existing MSP | `web_search "{company}" managed services OR IT provider OR MSP` |
 
 **Hands & Feet specific:**
-- `site:indeed.com "desktop support" OR "IT technician" "NJ" OR "New Jersey"` -- local IT jobs
-- `site:linkedin.com "{company name}" "offshore" OR "remote IT" OR "NOC"` -- offshore IT teams
+- `web_search "desktop support" OR "IT technician" NJ NYC site:indeed.com`
+- `web_search "{company}" offshore remote IT NOC site:linkedin.com`
 
 ### Rate Limiting
 
+- Max 30 searches per heartbeat cycle across all tools
 - Space searches by at least 2 seconds
-- Do not run more than 30 searches per heartbeat cycle
-- If a search returns no useful results, refine the query before retrying
+- If a search returns nothing useful, refine query before retrying
+- Prefer DDG for quick checks, web-search for deep dives
 
 ---
 
