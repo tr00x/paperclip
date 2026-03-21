@@ -40,6 +40,41 @@ tmp/
 /.idea/
 /.agents/
 
+# Agent-specific skill directories (created by skills installer)
+/.adal/
+/.agent/
+/.augment/
+/.codebuddy/
+/.commandcode/
+/.continue/
+/.cortex/
+/.crush/
+/.factory/
+/.goose/
+/.iflow/
+/.junie/
+/.kilocode/
+/.kiro/
+/.kode/
+/.mcpjam/
+/.mux/
+/.neovate/
+/.openhands/
+/.pi/
+/.pochi/
+/.qoder/
+/.qwen/
+/.roo/
+/.trae/
+/.vibe/
+/.windsurf/
+/.zencoder/
+/.zed/
+/.cline/
+/.codex/
+/.cursor/
+/.gemini/
+
 # Doc maintenance cursor
 .doc-review-cursor
 
