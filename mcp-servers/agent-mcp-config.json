@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "twenty-crm": {
+      "command": "npx",
+      "args": ["twenty-mcp-server", "start"],
+      "env": {
+        "TWENTY_API_KEY": "YOUR_TWENTY_API_KEY",
+        "TWENTY_BASE_URL": "http://localhost:5555"
+      }
+    },
+    "telegram": {
+      "command": "npx",
+      "args": ["@parthj/telegram-notify-mcp"],
+      "env": {
+        "TELEGRAM_BOT_TOKEN": "YOUR_TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID": "YOUR_TELEGRAM_CHAT_ID",
+        "TELEGRAM_USERNAME": "Amritechbot"
+      }
+    },
+    "email": {
+      "command": "npx",
+      "args": ["@codefuturist/email-mcp", "stdio"],
+      "env": {
+        "MCP_EMAIL_ADDRESS": "agents@amritech.local",
+        "MCP_EMAIL_PASSWORD": "anything",
+        "MCP_EMAIL_IMAP_HOST": "localhost",
+        "MCP_EMAIL_IMAP_PORT": "1143",
+        "MCP_EMAIL_SMTP_HOST": "localhost",
+        "MCP_EMAIL_SMTP_PORT": "1025"
+      }
+    },
+    "ddg-search": {
+      "command": "npx",
+      "args": ["-y", "@oevortex/ddg_search@latest"]
+    },
+    "web-search": {
+      "command": "npx",
+      "args": ["-y", "@zhafron/mcp-web-search"]
+    }
+  }
+}
