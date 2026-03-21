@@ -1,0 +1,9 @@
+{
+  "name": "amritech-telegram-webhook-bridge",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Bridges Telegram group messages to Paperclip CEO wakeup",
+  "scripts": {
+    "start": "node index.js"
+  }
+}
