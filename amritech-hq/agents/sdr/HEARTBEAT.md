@@ -47,7 +47,7 @@ For each new lead:
    - Include the hands-and-feet positioning
    - One CTA: 15-minute call
 
-4. **Send via Gmail MCP** as HTML email
+4. **Send via Email MCP** (Mailpit local SMTP — all emails visible at http://localhost:8025)
 
 5. **Log in Twenty CRM:**
    - Activity: email sent, subject, date
@@ -68,7 +68,7 @@ Query Twenty CRM for leads with follow-up dates due today or overdue.
 
 1. Find the original email thread
 2. Write Follow-up #1 (3-4 sentences, new angle, same thread)
-3. Send via Gmail MCP as reply
+3. Send via Email MCP as reply
 4. Log in Twenty CRM: activity + update follow-up to Day 7
 5. Comment on Paperclip task: "Follow-up #1 sent to [Name]."
 
@@ -76,7 +76,7 @@ Query Twenty CRM for leads with follow-up dates due today or overdue.
 
 1. Find the original email thread
 2. Write Follow-up #2 (2-3 sentences, final, respectful close)
-3. Send via Gmail MCP as reply
+3. Send via Email MCP as reply
 4. Log in Twenty CRM: activity + mark sequence complete
 5. If no reply after this: mark lead as "cold" in CRM
 6. Comment on Paperclip task: "Final follow-up sent. No response — marking cold."
@@ -123,7 +123,7 @@ Check for tasks from Contract Manager or Finance Tracker requesting outreach.
 - Use warmer existing-client tone
 - HTML template with AmriTech branding
 - Reference the relationship and what's been working
-- Send via Gmail MCP
+- Send via Email MCP
 - Log in CRM
 
 **Invoice reminders:**
@@ -168,7 +168,7 @@ If time is limited within the 15-minute window, prioritize in this order:
 
 ## Error Handling
 
-- **Gmail MCP unavailable:** Log the issue, mark task as `blocked`, notify CEO. Do NOT skip emails silently.
-- **Twenty CRM unavailable:** Send emails anyway (Gmail is priority), but create a task to backfill CRM entries on next heartbeat.
-- **Web Search unavailable:** Use whatever data Hunter provided. Send a slightly more generic (but still personalized) email rather than waiting.
+- **Email MCP unavailable:** Log the issue, mark task as `blocked`, notify CEO. Do NOT skip emails silently.
+- **Twenty CRM unavailable:** Send emails anyway (email is priority), but create a task to backfill CRM entries on next heartbeat.
+- **Search MCPs unavailable:** Use whatever data Hunter provided. Send a slightly more generic (but still personalized) email rather than waiting.
 - **Lead data incomplete:** If missing email address or company name, comment on the task asking Hunter for clarification. Set to `blocked`.
