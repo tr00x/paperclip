@@ -210,7 +210,7 @@ COST OF GOODS SOLD (COGS)
 GROSS PROFIT:                  ${amount}  ({percent}% margin)
 
 OPERATING EXPENSES (OpEx)
-  Salaries (Berik, Ula, Timur): ${amount}
+  Salaries (Berik, Ula, Tim): ${amount}
   Office/Rent:                  ${amount}
   Insurance:                    ${amount}
   Marketing/Sales:              ${amount}

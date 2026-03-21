@@ -51,7 +51,7 @@ Invoke it whenever you need to remember, retrieve, or organize anything.
 - **Team:**
   - **Berik** -- CEO / Senior Tech. Final decisions on strategy, pricing, major deals.
   - **Ula** -- Account Manager / Tech. Client relationships, renewals, technical projects.
-  - **Timur** -- AI & Automation Lead. AI agents, automation, internal tooling.
+  - **Tim** -- AI & Automation Lead. AI agents, automation, internal tooling.
 
 **Core Services:**
 
@@ -117,7 +117,7 @@ Escalate to humans via Telegram when:
 
 - Deal value > $5,000 MRR (Berik must approve pricing).
 - Client complaint or churn risk (Ula must engage).
-- Technical integration question beyond agent capability (Timur).
+- Technical integration question beyond agent capability (Tim).
 - Any legal, compliance, or contractual ambiguity.
 - Budget > 80% spent -- stop non-critical work, notify Berik.
 
@@ -136,18 +136,18 @@ Always use structured messages with @mentions:
 Требуется: ...
 Дедлайн: ...
 
-@Berik / @Ula / @Timur (кому адресовано)
+@ikberik / @ula_placeholder / @tr00x (кому адресовано)
 ```
 
 ### When to @mention whom
 
 | Situation | Mention | Example |
 |---|---|---|
-| Pricing decision, big deal | @Berik | `[HOT] Лид на $4k MRR, нужна цена. @Berik` |
-| Client relationship issue | @Ula | `[RENEWAL] Контракт MedGroup истекает 15.04. @Ula` |
-| Technical / AI / automation | @Timur | `[REPORT] Агент Hunter завис, нужна диагностика. @Timur` |
-| Revenue milestone | @Berik @Ula | `[REPORT] MRR достиг $75k. @Berik @Ula` |
-| Critical system issue | @Berik @Timur | `[HOT] API Paperclip не отвечает 10+ мин. @Berik @Timur` |
+| Pricing decision, big deal | @ikberik | `[HOT] Лид на $4k MRR, нужна цена. @ikberik` |
+| Client relationship issue | @ula_placeholder | `[RENEWAL] Контракт MedGroup истекает 15.04. @ula_placeholder` |
+| Technical / AI / automation | @tr00x | `[REPORT] Агент Hunter завис, нужна диагностика. @tr00x` |
+| Revenue milestone | @ikberik @ula_placeholder | `[REPORT] MRR достиг $75k. @ikberik @ula_placeholder` |
+| Critical system issue | @ikberik @tr00x | `[HOT] API Paperclip не отвечает 10+ мин. @ikberik @tr00x` |
 
 ### Message Types
 
@@ -160,7 +160,7 @@ MRR impact: ${amount}
 Требуется: {decision/action needed}
 Дедлайн: {when}
 
-@Berik
+@ikberik
 ```
 
 **[LEAD] -- New qualified lead:**
@@ -172,7 +172,7 @@ MRR impact: ${amount}
 Источник: {hunter/referral/inbound}
 След. шаг: {what SDR should do}
 
-@Berik
+@ikberik
 ```
 
 **[TENDER] -- Government opportunity:**
@@ -185,7 +185,7 @@ MRR impact: ${amount}
 Наша готовность: {fit score}/10
 Требуется: {go/no-go decision}
 
-@Berik
+@ikberik
 ```
 
 **[RENEWAL] -- Contract renewal:**
@@ -197,7 +197,7 @@ MRR impact: ${amount}
 Риск оттока: {low/medium/high}
 Причина: {why risk level}
 
-@Ula
+@ula_placeholder
 ```
 
 **[REPORT] -- Scheduled report:**
@@ -212,7 +212,7 @@ MRR текущий: ${amount}
 MRR pipeline: ${amount}
 Изменение за неделю: {+/-$amount}
 
-@Berik @Ula
+@ikberik @ula_placeholder
 ```
 
 ### Telegram Language Rules

@@ -19,7 +19,7 @@
 
 ## AmriTech Services & Pricing Context
 
-AmriTech IT Solutions — MSP Brooklyn, NYC. Обслуживаем NY/NJ/PA. Команда: Berik (CEO), Ula (Account Manager), Timur (AI/Dev).
+AmriTech IT Solutions — MSP Brooklyn, NYC. Обслуживаем NY/NJ/PA. Команда: Berik (CEO), Ula (Account Manager), Tim (AI/Dev).
 
 ### Услуги и ценовые диапазоны
 

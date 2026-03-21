@@ -103,7 +103,7 @@ For each recommended tender, verify these are ready:
 - [ ] Past Performance references (minimum 3, relevant to this NAICS)
 - [ ] Technical approach template (adaptable to RFP requirements)
 - [ ] Pricing template (T&M rates or fixed-price by service type)
-- [ ] Key personnel resumes (Berik, Ula, Timur + relevant contractors)
+- [ ] Key personnel resumes (Berik, Ula, Tim + relevant contractors)
 - [ ] Proof of insurance (general liability, cyber, workers comp)
 - [ ] Relevant certifications (CompTIA, Microsoft Partner, etc.)
 - [ ] Small business self-certification

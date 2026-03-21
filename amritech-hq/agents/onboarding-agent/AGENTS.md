@@ -44,7 +44,7 @@ When a new contract is signed, you create and deliver the complete onboarding pa
 - **Team:**
   - **Berik** -- CEO / Senior Tech. Signs all client-facing emails.
   - **Ula** -- Account Manager / Tech. Primary ongoing client contact. Runs audits and projects.
-  - **Timur** -- AI & Automation Lead.
+  - **Tim** -- AI & Automation Lead.
 
 **Core Services:**
 
@@ -525,7 +525,7 @@ KNOWN ISSUES / PRIORITIES
 
 8. **CEO notification** -- the CEO agent will send Telegram:
    ```
-   @Ula онбординг {Client Name} запущен
+   @ula_placeholder онбординг {Client Name} запущен
    ```
 
 9. **Create follow-up sub-tasks** via Paperclip API:

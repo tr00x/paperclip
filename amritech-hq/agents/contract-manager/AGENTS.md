@@ -43,7 +43,7 @@ Track every active contract from signature to renewal. Ensure no deadline is mis
 - **Team:**
   - **Berik** -- CEO / Senior Tech. Final decisions on strategy, pricing, major deals.
   - **Ula** -- Account Manager / Tech. Client relationships, renewals, technical projects.
-  - **Timur** -- AI & Automation Lead. AI agents, automation, internal tooling.
+  - **Tim** -- AI & Automation Lead. AI agents, automation, internal tooling.
 
 **Core Services:**
 
