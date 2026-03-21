@@ -344,12 +344,34 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   // When instructionsFilePath is configured, create a combined temp file that
   // includes both the file content and the path directive, so we only need
   // --append-system-prompt-file (Claude CLI forbids using both flags together).
+  // Also includes all sibling .md files from the same directory (SOUL.md,
+  // HEARTBEAT.md, TOOLS.md, etc.) so agents get the full instruction bundle.
   let effectiveInstructionsFilePath = instructionsFilePath;
   if (instructionsFilePath) {
     const instructionsContent = await fs.readFile(instructionsFilePath, "utf-8");
+    const instructionsDir = path.dirname(instructionsFilePath);
+    const entryFileName = path.basename(instructionsFilePath);
+
+    // Read all sibling .md files (excluding the entry file itself)
+    let siblingContent = "";
+    try {
+      const dirEntries = await fs.readdir(instructionsDir);
+      const siblingFiles = dirEntries
+        .filter((f) => f.endsWith(".md") && f !== entryFileName)
+        .sort();
+      for (const siblingFile of siblingFiles) {
+        const content = await fs.readFile(path.join(instructionsDir, siblingFile), "utf-8");
+        if (content.trim()) {
+          siblingContent += `\n\n---\n\n<!-- ${siblingFile} -->\n\n${content}`;
+        }
+      }
+    } catch {
+      // Directory read failed — proceed with entry file only
+    }
+
     const pathDirective = `\nThe above agent instructions were loaded from ${instructionsFilePath}. Resolve any relative file references from ${instructionsFileDir}.`;
     const combinedPath = path.join(skillsDir, "agent-instructions.md");
-    await fs.writeFile(combinedPath, instructionsContent + pathDirective, "utf-8");
+    await fs.writeFile(combinedPath, instructionsContent + siblingContent + pathDirective, "utf-8");
     effectiveInstructionsFilePath = combinedPath;
   }
 
