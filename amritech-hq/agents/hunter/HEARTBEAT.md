@@ -109,15 +109,16 @@ When researching a prospect, look for signs of existing IT provider:
 
 **Lead brief format (in task description):**
 ```markdown
-## {Company Name} — {Niche} — Score: {XX}/100
+## {Company Name} — {Niche} — ICP Score: {XX}/100
 
+**Fit Score:** {XX}/100 | **Intent Score:** {XX}/100
 **Estimated MRR:** ${X,XXX}/мес
 **Employees:** ~{N} (source: LinkedIn/website)
 **Location:** {City, State}
 **Website:** {URL}
 **Current IT:** {Competitor or "Unknown"}
 
-### Signals
+### Signals (minimum 2, aim for 3+)
 1. {Signal} — {Evidence + source URL}
 2. {Signal} — {Evidence + source URL}
 3. {Signal} — {Evidence + source URL}
@@ -127,10 +128,26 @@ When researching a prospect, look for signs of existing IT provider:
 - **Title:** {Title}
 - **LinkedIn:** {URL}
 - **Email:** {email if public}
-- **Confidence:** Verified / Likely / Unverified
+- **Confidence:** Verified (>85%) / Likely (70-85%) / Unverified (<70%)
+- **LinkedIn active:** Yes (posted in last 30d) / No
+- **Changed roles recently:** Yes (last 90d) / No
+
+### Enrichment Data (for SDR personalization)
+- **Recent company news:** {funding, new office, award, hire — for first-line hook}
+- **Tech signals:** {SSL status, DMARC, website tech, security headers grade}
+- **Hiring signals:** {IT-related job postings, growth indicators}
+- **Review mentions:** {Glassdoor/Google reviews mentioning IT pain}
+
+### Competitor Battlecard
+- **Current provider:** {Name} ({Type: Large MSP / Break-fix / Offshore / In-house})
+- **Known weakness:** {specific to this competitor type}
+- **Evidence:** {review quote, job posting text, website mention}
+- **Recommended angle:** {one sentence — what SDR should lead with}
+- **Landmine question:** {question for the meeting to steer evaluation}
 
 ### Recommended Angle
-{Why this company needs AmriTech, what to lead with in outreach}
+{Why this company needs AmriTech right now. Connect the signal to their pain to our value. Use this formula:}
+{[Signal observation] + [Relevance to their role/industry] + [Bridge to AmriTech value]}
 ```
 
 ## 9. Hands & Feet Scan
