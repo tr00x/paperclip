@@ -9,12 +9,11 @@
       }
     },
     "telegram": {
-      "command": "npx",
-      "args": ["@parthj/telegram-notify-mcp"],
+      "command": "node",
+      "args": ["/Users/timur/paperclip/mcp-servers/telegram-send/index.js"],
       "env": {
         "TELEGRAM_BOT_TOKEN": "YOUR_TELEGRAM_BOT_TOKEN",
-        "TELEGRAM_CHAT_ID": "YOUR_TELEGRAM_CHAT_ID",
-        "TELEGRAM_USERNAME": "Amritechbot"
+        "TELEGRAM_CHAT_ID": "YOUR_TELEGRAM_CHAT_ID"
       }
     },
     "email": {
