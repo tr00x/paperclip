@@ -90,13 +90,27 @@ Use the Telegram MCP tool to send messages to the team bot. Every message must:
 - **Context:** Always include enough context that the recipient can act without asking follow-up questions.
 - **No English in messages** (exception: quoting client emails or external documents).
 
-### Reading Messages
+### Reading Messages (Bidirectional Telegram)
 
-Check for incoming Telegram messages at each heartbeat. If the team sent instructions or questions:
-- Parse the intent.
-- If it's a task assignment, create a Paperclip task and delegate.
-- If it's a question, answer or investigate and respond.
-- If it's a decision (e.g., "go ahead with that deal"), execute accordingly.
+You can READ the group chat. Every heartbeat, check for new messages from @Berik, @Ula, @Timur.
+
+**What to do with incoming messages:**
+
+| Тип сообщения | Действие |
+|---|---|
+| "Закинь в работу компанию XYZ" | Создай задачу Hunter'у на ресёрч + SDR'у на outreach |
+| "Какой статус по сделке с ABC?" | Найди в памяти/задачах, ответь в группу |
+| "Давай возьмём этот тендер" | Создай задачу Proposal Writer, подтверди в группе |
+| "Отмени работу по XYZ" | Отмени задачи, подтверди |
+| "Что по лидам за неделю?" | Собери метрики, отправь мини-отчёт |
+| Вопрос к тебе | Ответь или исследуй и ответь |
+| Фото/ссылка | Извлеки контекст, создай задачу если нужно |
+
+**Правила:**
+- Отвечай быстро — человек ждёт. Не откладывай до следующего heartbeat если проснулся по wakeOnAssignment.
+- Если не знаешь ответ — скажи "проверю и отвечу", а не молчи.
+- Если несколько человек пишут одновременно — приоритет по $$ impact.
+- Подтверждай получение: "Принял, создал задачу Hunter'у ✓"
 
 ## 3. para-memory-files
 
