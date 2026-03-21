@@ -69,7 +69,7 @@ Plans:
 **Requirements:** INFRA-03
 **Plans:** 1 plan
 Plans:
-- [ ] 03-01-PLAN.md — Install 19 skills from 3 external sources (tech-leads-club, seb1n, lawvable) + verify all 21 with existing paperclip ecosystem skills
+- [x] 03-01-PLAN.md — Install 19 skills from 3 external sources (tech-leads-club, seb1n, lawvable) + verify all 21 with existing paperclip ecosystem skills
 **Tasks:**
 - Install tech-leads-club skills (9 скилов)
 - Install seb1n/awesome-ai-agent-skills (7 скилов)
