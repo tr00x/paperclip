@@ -67,12 +67,15 @@ Plans:
 ### Phase 3: Registry Skills Install
 **Goal:** 21 скил из 4 источников установлен
 **Requirements:** INFRA-03
+**Plans:** 1 plan
+Plans:
+- [ ] 03-01-PLAN.md — Install 19 skills from 3 external sources (tech-leads-club, seb1n, lawvable) + verify all 21 with existing paperclip ecosystem skills
 **Tasks:**
 - Install tech-leads-club skills (9 скилов)
-- Clone + install seb1n/awesome-ai-agent-skills (7 скилов)
-- Clone + install lawvable/awesome-legal-skills (3 скила)
-- Install paperclip + para-memory-files (2 скила)
-- Verify all skills via `npx skills list`
+- Install seb1n/awesome-ai-agent-skills (7 скилов)
+- Install lawvable/awesome-legal-skills (3 скила)
+- Verify paperclip + para-memory-files already installed (2 скила)
+- Verify all 21 skills via `npx skills list`
 
 ### Phase 4: Company Package Scaffold
 **Goal:** amritech-hq/ структура готова для агентов
@@ -279,4 +282,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-21 after phase 2 planning*
+*Last updated: 2026-03-21 after phase 3 planning*
