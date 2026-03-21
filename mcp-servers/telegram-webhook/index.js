@@ -38,6 +38,22 @@ if (!TELEGRAM_BOT_TOKEN || !COMPANY_ID) {
 
 const chatId = TELEGRAM_CHAT_ID ? Number(TELEGRAM_CHAT_ID) : null;
 
+// Team member mapping: TG username → real name + role
+const TEAM_MEMBERS = {
+  "tr00x": { name: "Tim", role: "AI/Automation & Dev", handle: "@tr00x" },
+  "ikberik": { name: "Berik", role: "CEO", handle: "@ikberik" },
+  "ula_placeholder": { name: "Ula", role: "Account Manager", handle: "@ula_placeholder" },
+};
+
+function resolveTeamMember(tgMessage) {
+  const username = tgMessage.from?.username;
+  if (username && TEAM_MEMBERS[username]) {
+    return TEAM_MEMBERS[username];
+  }
+  // Fallback: use first_name but warn
+  return { name: tgMessage.from?.first_name || "Unknown", role: "team", handle: `@${username || "unknown"}` };
+}
+
 // Dedup: track processed message IDs (last 500)
 const processedMessages = new Set();
 const MAX_DEDUP = 500;
@@ -95,7 +111,7 @@ function parseCommand(text) {
   return { slug: "ceo", message: text, cmd: COMMANDS["/ceo"] };
 }
 
-async function createTaskAndWake(agentSlug, cmd, from, text) {
+async function createTaskAndWake(agentSlug, cmd, from, text, member) {
   const agentId = agentMap[agentSlug];
   if (!agentId) {
     await sendTelegram(`❌ Агент "${agentSlug}" не найден`);
@@ -139,7 +155,7 @@ async function createTaskAndWake(agentSlug, cmd, from, text) {
     const data = await res.json();
 
     if (res.ok) {
-      await sendTelegram(`${cmd.emoji} <b>${cmd.name}</b> принял задачу\n\n<i>${text.slice(0, 200)}</i>`);
+      await sendTelegram(`${cmd.emoji} <b>${cmd.name}</b> принял задачу от <b>${member.name}</b>\n\n<i>${text.slice(0, 200)}</i>`);
     } else {
       await sendTelegram(`⚠️ ${cmd.name}: ${data.error || "ошибка"}`);
     }
@@ -199,14 +215,15 @@ const server = http.createServer(async (req, res) => {
         if (isDuplicate(message.message_id)) { res.writeHead(200).end("ok"); return; }
 
         const text = message.text || "";
-        const from = message.from?.first_name || "Unknown";
+        const member = resolveTeamMember(message);
+        const from = `${member.name} (${member.role}, ${member.handle})`;
 
         if (text.toLowerCase().startsWith("/help") || text.toLowerCase().startsWith("/start")) {
           await handleHelp();
         } else {
           const { slug, message: agentMsg, cmd } = parseCommand(text);
           if (agentMsg) {
-            await createTaskAndWake(slug, cmd, from, agentMsg);
+            await createTaskAndWake(slug, cmd, from, agentMsg, member);
           } else {
             await sendTelegram(`${cmd.emoji} Напиши сообщение после команды.\nПример: <code>${Object.keys(COMMANDS).find(k => COMMANDS[k].agent === slug)} текст задачи</code>`);
           }
