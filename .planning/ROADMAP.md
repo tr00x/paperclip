@@ -54,7 +54,7 @@ Plans:
 **Requirements:** INFRA-02
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — Install pandoc, Twenty CRM MCP, Office-Word-MCP, mcp-pandoc (no credentials needed)
+- [x] 02-01-PLAN.md — Install pandoc, Twenty CRM MCP, Office-Word-MCP, mcp-pandoc (no credentials needed)
 - [ ] 02-02-PLAN.md — Configure Telegram bot MCP + Email MCP (requires user credentials)
 **Tasks:**
 - Install pandoc binary via Homebrew

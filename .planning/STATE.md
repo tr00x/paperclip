@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-21T18:40:10.361Z"
+last_updated: "2026-03-21T19:13:50.832Z"
 progress:
   total_phases: 25
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 2
 ---
 
 # Project State: AmriTech AI HQ v2
@@ -18,20 +18,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Автоматизировать весь цикл от поиска клиента до получения денег
-**Current focus:** Phase 01 — twenty-crm-setup
+**Current focus:** Phase 02 — mcp-servers-setup
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (mcp-servers-setup) — EXECUTING
+Plan: 2 of 2
 
 ## Recent Activity
 
 - 2026-03-21: Project initialized
 - 2026-03-21: Requirements defined (60 requirements)
 - 2026-03-21: Roadmap created (25 phases)
+- 2026-03-21: Phase 01 complete (Twenty CRM setup)
+- 2026-03-21: Phase 02 Plan 01 complete — 3 MCP servers registered (twenty-crm, word-docs, pandoc), pandoc installed
+
+## Decisions
+
+- MCP config pattern: each server gets mcp-servers/<name>/.env, registered via `claude mcp add`
+- Python MCP servers use uvx (no global install), Node MCP servers use npm -g or npx
 
 ## Session Continuity
 
-Last session ended at: Project initialization complete
-Next action: `/gsd:plan-phase 1`
+Last session ended at: Completed 02-01-PLAN.md
+Next action: Execute 02-02-PLAN.md (credential-requiring MCP servers)

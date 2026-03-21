@@ -8,7 +8,7 @@
 ### Infrastructure (INFRA)
 
 - [ ] **INFRA-01**: Twenty CRM развёрнут (Docker), 4 pipelines настроены (Leads, Tenders, Clients, Invoices)
-- [ ] **INFRA-02**: MCP серверы установлены и работают (Telegram, Gmail, Twenty CRM, Docs)
+- [x] **INFRA-02**: MCP серверы установлены и работают (Telegram, Gmail, Twenty CRM, Docs)
 - [ ] **INFRA-03**: Registry skills установлены (21 скил из 4 источников)
 - [ ] **INFRA-04**: Company Package scaffold создан (COMPANY.md, TEAM.md, .paperclip.yaml)
 
@@ -129,7 +129,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 2 | Pending |
+| INFRA-02 | Phase 2 | Complete |
 | INFRA-03 | Phase 3 | Pending |
 | INFRA-04 | Phase 4 | Pending |
 | SKILL-01 | Phase 13 | Pending |
