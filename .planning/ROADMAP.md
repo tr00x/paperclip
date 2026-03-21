@@ -40,6 +40,9 @@
 ### Phase 1: Twenty CRM Setup
 **Goal:** Twenty CRM работает локально с 4 pipelines
 **Requirements:** INFRA-01
+**Plans:** 1 plan
+Plans:
+- [ ] 01-01-PLAN.md — Deploy Twenty CRM via Docker, create workspace, configure 4 pipelines, get API key
 **Tasks:**
 - Docker pull + start Twenty
 - Create workspace
@@ -272,4 +275,4 @@
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-21 after initial creation*
+*Last updated: 2026-03-21 after phase 1 planning*
