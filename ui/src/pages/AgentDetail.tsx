@@ -2206,7 +2206,11 @@ function PromptsTab({
             <MarkdownEditor
               key={selectedOrEntryFile}
               value={displayValue}
-              onChange={(value) => setDraft(value ?? "")}
+              onChange={(value) => {
+                // Ignore empty onChange from MDXEditor initialization — prevents wiping real content
+                if (value === "" && currentContent !== "") return;
+                setDraft(value ?? "");
+              }}
               placeholder="# Agent instructions"
               contentClassName="min-h-[420px] text-sm font-mono"
               imageUploadHandler={async (file) => {
