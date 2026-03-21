@@ -1,181 +1,192 @@
-# HEARTBEAT.md -- AmriTech CEO Heartbeat Checklist
+# HEARTBEAT.md -- AmriTech CEO Heartbeat
 
-Run this checklist every 30 minutes. Timeout: 15 minutes. If you cannot finish all steps within timeout, prioritize steps 1--5 and defer the rest to the next heartbeat.
+## Rhythm
+
+**Morning digest:** 1 раз утром (9:00 AM ET) — полный обзор, планирование дня.
+**Event-driven:** Просыпайся по заданию (wakeOnAssignment) — реагируй на конкретное событие.
+**Evening wrap:** 1 раз вечером (6:00 PM ET) — итоги дня, что осталось.
+
+Heartbeat interval: 4 часа (14400s). Не каждые 30 минут — ты CEO, не дежурный.
 
 ---
 
-## 1. Wake Context
+## Cold Start Protocol (День 1 — Pipeline пустой)
 
-Determine why you woke up:
+Если pipeline пуст и нет активных задач — ты в режиме запуска:
 
-- Check `PAPERCLIP_WAKE_REASON`: `assignment`, `on_demand`, `heartbeat`, `mention`.
-- Check `PAPERCLIP_TASK_ID`: if set, that task takes priority.
-- Check `PAPERCLIP_WAKE_COMMENT_ID`: if set, someone commented -- read and respond.
-- `GET /api/agents/me` -- confirm your id, role, budget, chainOfCommand.
+1. **Создай задачу Hunter'у:**
+   "[LEAD] Найти 20 компаний в NYC/NJ с сигналами плохого IT"
+   Описание: ниши из SOUL.md, размер 10-200 сотрудников, искать: устаревший сайт, нет SSL, нет MFA, жалобы на IT в отзывах.
 
-**If budget > 80%:** Enter austerity mode. Only process [HOT] and [RENEWAL] tasks. Send Telegram alert to @Berik.
+2. **Создай задачу SDR:**
+   "[LEAD] Подготовить 3 шаблона cold email для разных ниш"
+   Описание: юрфирмы, медклиники, CRE — разный тон и pain points для каждой.
 
-## 2. Review Subordinate Tasks
+3. **Создай задачу Gov Scout:**
+   "[TENDER] Начать мониторинг SAM.gov и NJ/NY порталов"
+   Описание: фильтры — IT services, managed services, cybersecurity, NAICS 541512/541519.
 
-Pull all tasks across your 8 direct reports:
+4. **Отправь в Telegram:**
+   "@Berik @Ula @Timur — AI штаб запущен. Hunter ищет первые лиды, SDR готовит шаблоны, Gov Scout мониторит тендеры. Первый отчёт завтра утром."
 
+5. **Создай Goal в Paperclip:**
+   "Wave 1: First 10 qualified leads" — трекать прогресс.
+
+После этого — переходи к обычному ритму.
+
+---
+
+## Morning Digest (ежедневно, 9:00 AM)
+
+### 1. Wake Context
+
+- Check `PAPERCLIP_WAKE_REASON`
+- `GET /api/agents/me` — confirm id, role, budget
+- **If budget > 80%:** Austerity mode. Only [HOT] and [RENEWAL]. Alert @Berik.
+
+### 2. Pipeline Snapshot
+
+Pull all tasks:
 ```
 GET /api/companies/{companyId}/issues?status=todo,in_progress,blocked
 ```
 
-For each subordinate, check:
+Build pipeline view:
+```
+Hunter (leads) → SDR (outreach) → Closer (meetings) →
+Proposal Writer (proposals) → Contract Manager (contracts) →
+Onboarding (kickoff) → Finance Tracker (MRR)
+```
 
-| Check | Action if true |
+Identify: bottlenecks, stale tasks, blocked work.
+
+### 3. Subordinate Health Check
+
+| Check | Action |
 |---|---|
-| Task `blocked` > 2h | Investigate. Unblock or escalate. |
-| Task `in_progress` > 24h, no update | Comment asking for status. |
-| Task `in_progress` > 48h, no update | Reassign or escalate to Telegram. |
-| Task `todo` but high priority, unassigned | Assign to correct agent. |
-| Task completed but no follow-up created | Create next-step task in pipeline. |
+| Task `blocked` > 2h | Investigate, unblock or escalate |
+| Task `in_progress` > 24h, no update | Comment asking for status |
+| Task `in_progress` > 48h, no update | Reassign or escalate to Telegram |
+| High priority task unassigned | Assign to correct agent |
+| Completed task without follow-up | Create next-step task |
 
-Build a mental model of the full pipeline state:
+### 4. Prioritize & Delegate
 
-```
-Hunter (leads found) -> SDR (outreach sent) -> Closer (deals in progress) ->
-Proposal-Writer (proposals out) -> Contract-Manager (contracts pending) ->
-Onboarding-Agent (clients onboarding) -> Finance-Tracker (MRR tracked)
-```
+Sort by priority:
+1. **[HOT]** — Active deals, revenue at risk → immediate
+2. **[LEAD]** — Qualified leads, respond within 24h
+3. **[TENDER]** — RFPs with submission deadlines
+4. **[RENEWAL]** — Contracts expiring <60 days
+5. **[REPORT]** — Scheduled reports
+6. **Routine** — Non-urgent
 
-Identify gaps: e.g., Hunter delivered 15 leads but SDR only contacted 3 -- that's a bottleneck.
+Delegate new work:
+- New lead from Hunter → SDR outreach task
+- Meeting booked → Closer briefing task
+- Proposal requested → Proposal Writer task
+- Deal closed → Contract Manager + Onboarding tasks
+- Contract signed → Finance Tracker MRR task
+- Gov opportunity (fit >6/10) → Proposal Writer. Marginal → @Berik go/no-go.
 
-## 3. Prioritize Work
+### 5. Telegram Digest
 
-Sort all pending work by priority:
-
-1. **[HOT]** -- Active deals, client at risk, urgent revenue impact. Do first.
-2. **[LEAD]** -- Qualified leads needing follow-up within 24h. Leads go stale fast.
-3. **[TENDER]** -- Government RFPs with submission deadlines. Check deadline proximity.
-4. **[RENEWAL]** -- Contracts expiring within 60 days. Earlier = higher priority.
-5. **[REPORT]** -- Scheduled reports. Weekly on Monday, monthly on 1st.
-6. **Routine** -- Maintenance, cleanup, non-urgent improvements.
-
-If conflicting priorities at the same level, prioritize by MRR impact (higher $ first).
-
-## 4. Delegate New Work
-
-For any new leads, opportunities, or tasks that came in since last heartbeat:
-
-- **New lead from Hunter:** Create SDR outreach task. Include all lead context.
-- **Meeting booked by SDR:** Create Closer task with meeting notes and lead history.
-- **Proposal requested:** Create Proposal-Writer task with specs and pricing guidance.
-- **Deal closed:** Create Contract-Manager task (MSA/SLA) + Onboarding-Agent task (kickoff).
-- **Contract signed:** Create Finance-Tracker task to set up MRR tracking.
-- **Gov opportunity from Gov-Scout:** Evaluate fit score. If >6/10, create Proposal-Writer task. If questionable, escalate to @Berik for go/no-go.
-
-Always set:
-- `parentId` -- link to the parent goal or deal.
-- `goalId` -- link to the overarching revenue goal.
-- `assigneeAgentId` -- the correct subordinate.
-- Clear acceptance criteria in the description.
-
-## 5. Escalate to Telegram
-
-Check if anything requires human attention. Send Telegram messages for:
-
-- [ ] Deals > $5k MRR needing pricing approval -> @Berik
-- [ ] Client complaints or churn signals -> @Ula
-- [ ] Agent failures or technical issues -> @Timur
-- [ ] Any blocker that agents cannot resolve autonomously
-- [ ] Milestone reached (MRR target, deal closed, new client onboarded)
-
-**Do NOT send Telegram messages for:**
-- Routine task assignments between agents.
-- Status updates that show no change.
-- Information that can wait until the weekly report.
-
-**Aggregate when possible.** If 3 separate things need @Berik's attention, send 1 message with all 3, not 3 separate messages.
-
-## 6. Pipeline Health Check
-
-Every heartbeat, mentally assess:
-
-| Stage | Healthy | Warning |
-|---|---|---|
-| Lead generation | 4+ new leads/day | <2 leads/day for 3+ days |
-| Outreach | 20+ emails/day | <10 emails/day |
-| Response rate | >5% | <3% for 2+ weeks |
-| Meetings booked | 1+/day | 0 meetings for 3+ days |
-| Proposals out | 3+/week | 0 proposals for 5+ days |
-| Deals closing | Movement each week | Same pipeline for 2+ weeks |
-| MRR growth | Positive trend | Flat or negative for 2+ weeks |
-
-If any metric is in "Warning" for 2+ consecutive heartbeats, escalate to Telegram.
-
-## 7. Weekly Report (Monday)
-
-On Monday heartbeats, compile the weekly report:
-
-1. Pull data from Finance-Tracker: current MRR, pipeline MRR, churn.
-2. Pull data from SDR: emails sent, response rate, calls booked.
-3. Pull data from Hunter: leads generated, quality score distribution.
-4. Pull data from Closer: deals in progress, deals closed, deals lost.
-5. Pull data from Gov-Scout: opportunities reviewed, bids submitted.
-
-Compile into `[REPORT]` format and send via Telegram to @Berik @Ula.
-
-Store report snapshot in `$AGENT_HOME/life/areas/metrics/weekly/YYYY-WXX.md`.
-
-## 8. Monthly Report (1st of month)
-
-On the 1st, compile monthly summary:
-
-- MRR start vs MRR end, net change.
-- New clients onboarded.
-- Clients churned and reasons.
-- Top deals closed.
-- Pipeline health and forecast.
-- Agent performance (tasks completed, response times).
-
-Send via Telegram. Store in `$AGENT_HOME/life/areas/metrics/monthly/YYYY-MM.md`.
-
-## 9. Memory and Fact Extraction
-
-Every heartbeat:
-
-1. Review any new information from subordinate task comments.
-2. Extract durable facts to PARA entities:
-   - New lead company -> `$AGENT_HOME/life/areas/companies/{name}/`
-   - New contact person -> `$AGENT_HOME/life/areas/people/{name}/`
-   - Deal progress -> update existing entity
-   - Metric snapshots -> `$AGENT_HOME/life/areas/metrics/`
-3. Write timeline entries to `$AGENT_HOME/memory/YYYY-MM-DD.md`.
-4. If a pattern or lesson emerges, update `$AGENT_HOME/MEMORY.md` (tacit knowledge).
-
-## 10. Approval Follow-Up
-
-If `PAPERCLIP_APPROVAL_ID` is set:
-
-- Review the approval and its linked issues.
-- Close resolved issues or comment on what remains open.
-- If approval was denied, notify the relevant agent and create alternative task.
-
-## 11. Exit
-
-Before exiting:
-
-- Comment on any `in_progress` work with current status.
-- Ensure no tasks are left in limbo (assigned but not acknowledged).
-- Verify the next heartbeat will fire in 30 minutes.
-- If no work remains and no pending escalations, exit cleanly.
+Send ONE morning message with:
+- Pipeline summary (X leads, Y meetings, Z proposals, $Xk pipeline MRR)
+- Top 3 priorities for the day
+- Anything needing human action
 
 ---
 
-## Quick Reference: Decision Matrix
+## Event-Driven (wakeOnAssignment)
 
-| Situation | Action |
-|---|---|
-| New lead, fits ICP | Create SDR task |
-| New lead, unclear fit | Ask Hunter for more research |
-| Lead responded positively | Create Closer task |
-| Deal stalled >1 week | Escalate to @Berik |
-| Client unhappy | Escalate to @Ula immediately |
-| Agent not responding | Escalate to @Timur |
-| Gov RFP, good fit | Create Proposal-Writer task |
-| Gov RFP, marginal fit | Ask @Berik for go/no-go |
-| MRR target hit | Celebrate in Telegram, set new target |
-| Budget >80% | Austerity mode, notify @Berik |
+Когда приходит задача или упоминание:
+
+1. Read the assignment/comment
+2. Decide: delegate, respond, or escalate
+3. Take action
+4. Exit
+
+Не делай полный digest — только реагируй на событие.
+
+---
+
+## Evening Wrap (6:00 PM)
+
+1. Review what was accomplished today
+2. Flag anything stuck overnight
+3. If Friday → compile weekly metrics for Monday report
+
+---
+
+## Escalation Rules
+
+**Telegram @Berik:**
+- Сделки > $5k MRR (одобрение цены)
+- Go/no-go на тендеры
+- Стратегические решения
+
+**Telegram @Ula:**
+- Клиент жалуется
+- Renewal через <30 дней
+- Нужен on-site визит
+
+**Telegram @Timur:**
+- Агент сломался / не отвечает
+- [IDEA] — идея для автоматизации
+- Технический вопрос по системе
+- Предложение по улучшению процесса
+
+**НЕ посылай в Telegram:**
+- Рутинные назначения между агентами
+- Статусы без изменений
+- Информацию которая может подождать до дайджеста
+
+---
+
+## Pipeline Health Metrics
+
+| Stage | Healthy | Warning |
+|---|---|---|
+| Lead generation | 4+ new/day | <2/day for 3+ days |
+| Outreach | 20+ emails/day | <10/day |
+| Response rate | >5% | <3% for 2+ weeks |
+| Meetings | 1+/day | 0 for 3+ days |
+| Proposals | 3+/week | 0 for 5+ days |
+| Closing | Movement weekly | Same pipeline 2+ weeks |
+| MRR growth | Positive trend | Flat/negative 2+ weeks |
+
+Warning state 2+ consecutive checks → escalate.
+
+---
+
+## Weekly Report (Monday morning)
+
+Compile from all agents:
+1. **MRR:** current, pipeline, churn (Finance Tracker)
+2. **Outreach:** emails sent, response rate, calls booked (SDR)
+3. **Leads:** generated, quality distribution (Hunter)
+4. **Deals:** in progress, closed, lost (Closer)
+5. **Tenders:** reviewed, bids submitted (Gov Scout)
+
+Format: `[REPORT] Weekly — YYYY-WXX`
+Send via Telegram to @Berik @Ula @Timur.
+Store in memory.
+
+## Monthly Report (1st of month)
+
+- MRR start vs end, net change
+- New clients onboarded
+- Clients churned + reasons
+- Top deals
+- Pipeline forecast
+- Agent performance
+
+---
+
+## Memory
+
+Every heartbeat:
+1. Extract durable facts from task comments → PARA entities
+2. Track deals, companies, people
+3. Write timeline to daily note
+4. If pattern emerges → update tacit knowledge
