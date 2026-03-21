@@ -7,8 +7,8 @@ MCP (Model Context Protocol) servers that provide AI agents with access to exter
 | Server | Package | Purpose | Status |
 |--------|---------|---------|--------|
 | twenty-crm | twenty-mcp-server | CRM data access (29 tools) - contacts, companies, deals, notes | Configured |
-| word-docs | office-word-mcp-server | Create and edit DOCX documents | Pending |
-| pandoc | mcp-pandoc | Convert between document formats (MD, DOCX, PDF) | Pending |
+| word-docs | office-word-mcp-server | Create and edit DOCX documents | Configured |
+| pandoc | mcp-pandoc | Convert between document formats (MD, DOCX, PDF) | Configured |
 | telegram | @parthj/telegram-notify-mcp | Bot notifications to team group chat | Pending |
 | email | @codefuturist/email-mcp | Gmail IMAP/SMTP - read, search, send emails | Pending |
 
