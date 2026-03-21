@@ -578,9 +578,11 @@ export const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>
         ref={ref}
         markdown={value}
         placeholder={placeholder}
-        onChange={(next) => {
+        onChange={(next, initialNormalize) => {
           latestValueRef.current = next;
-          onChange(next);
+          if (!initialNormalize) {
+            onChange(next);
+          }
         }}
         onBlur={() => onBlur?.()}
         className={cn("paperclip-mdxeditor", !bordered && "paperclip-mdxeditor--borderless")}
