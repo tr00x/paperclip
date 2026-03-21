@@ -9,8 +9,8 @@ MCP (Model Context Protocol) servers that provide AI agents with access to exter
 | twenty-crm | twenty-mcp-server | CRM data access (29 tools) - contacts, companies, deals, notes | Configured |
 | word-docs | office-word-mcp-server | Create and edit DOCX documents | Configured |
 | pandoc | mcp-pandoc | Convert between document formats (MD, DOCX, PDF) | Configured |
-| telegram | @parthj/telegram-notify-mcp | Bot notifications to team group chat | Pending |
-| email | @codefuturist/email-mcp | Gmail IMAP/SMTP - read, search, send emails | Pending |
+| telegram | @parthj/telegram-notify-mcp | Bot notifications to team group chat | Configured |
+| email | @codefuturist/email-mcp | Local Mailpit SMTP/IMAP - send and read emails | Configured |
 
 ## Prerequisites
 
@@ -50,14 +50,25 @@ Requires: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_USERNAME` or `TELEGRAM_CHAT_ID`
 ```bash
 npx @codefuturist/email-mcp stdio
 ```
-Requires: `MCP_EMAIL_ADDRESS`, `MCP_EMAIL_PASSWORD` (Gmail App Password), IMAP/SMTP hosts.
+Requires: `MCP_EMAIL_ADDRESS`, `MCP_EMAIL_PASSWORD`, IMAP/SMTP hosts.
+Currently uses local Mailpit (no auth needed). Switch to real SMTP by changing host/port in `.env`.
+
+### Mailpit (Local Email Server)
+```bash
+cd mcp-servers/mailpit && docker compose up -d
+```
+- **Web UI:** http://localhost:8025 (see all agent emails)
+- **SMTP:** localhost:1025 (agents send here)
+- **IMAP:** localhost:1143 (agents read here)
+
+To switch to real email later, change `MCP_EMAIL_SMTP_HOST` and `MCP_EMAIL_SMTP_PORT` in `email/.env`.
 
 ## Configuration
 
 Environment files are stored in each server's subdirectory:
 - `twenty-crm/.env` - Twenty CRM API key and base URL
-- `telegram/.env` - Telegram bot token and chat ID (pending)
-- `email/.env` - Gmail credentials (pending)
+- `telegram/.env` - Telegram bot token and chat ID
+- `email/.env` - Mailpit SMTP/IMAP config (local)
 - `docs/.env` - Pandoc path notes (stateless, no secrets)
 
 **Security:** All `.env` files in `mcp-servers/` are gitignored. Never commit API keys or tokens.
