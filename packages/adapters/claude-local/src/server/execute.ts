@@ -342,15 +342,43 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const skillsDir = await buildSkillsDir(config);
 
   // When instructionsFilePath is configured, create a combined temp file that
-  // includes both the file content and the path directive, so we only need
+  // includes both the entry file content, any sibling .md files in the same
+  // directory, and the path directive — so we only need a single
   // --append-system-prompt-file (Claude CLI forbids using both flags together).
+  //
+  // Sibling files (SOUL.md, HEARTBEAT.md, TOOLS.md, etc.) are appended after
+  // the entry file so that managed instruction bundles work correctly without
+  // requiring all content to be duplicated into AGENTS.md.
   let effectiveInstructionsFilePath: string | undefined = instructionsFilePath;
   if (instructionsFilePath) {
     try {
       const instructionsContent = await fs.readFile(instructionsFilePath, "utf-8");
+      const instructionsDir = path.dirname(instructionsFilePath);
+      const entryFileName = path.basename(instructionsFilePath);
+
+      // Collect sibling .md files from the same directory
+      let siblingContent = "";
+      try {
+        const dirEntries = await fs.readdir(instructionsDir);
+        const siblingFiles = dirEntries
+          .filter((f) => f.endsWith(".md") && f !== entryFileName)
+          .sort();
+        for (const siblingFile of siblingFiles) {
+          const content = await fs.readFile(path.join(instructionsDir, siblingFile), "utf-8");
+          if (content.trim()) {
+            siblingContent += `\n\n---\n\n${content}`;
+          }
+        }
+        if (siblingFiles.length > 0) {
+          await onLog("stderr", `[paperclip] Included ${siblingFiles.length} sibling instruction file(s): ${siblingFiles.join(", ")}\n`);
+        }
+      } catch {
+        // Directory read failed — proceed with entry file only
+      }
+
       const pathDirective = `\nThe above agent instructions were loaded from ${instructionsFilePath}. Resolve any relative file references from ${instructionsFileDir}.`;
       const combinedPath = path.join(skillsDir, "agent-instructions.md");
-      await fs.writeFile(combinedPath, instructionsContent + pathDirective, "utf-8");
+      await fs.writeFile(combinedPath, instructionsContent + siblingContent + pathDirective, "utf-8");
       effectiveInstructionsFilePath = combinedPath;
       await onLog("stderr", `[paperclip] Loaded agent instructions file: ${instructionsFilePath}\n`);
     } catch (err) {
