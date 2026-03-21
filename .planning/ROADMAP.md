@@ -52,13 +52,17 @@ Plans:
 ### Phase 2: MCP Servers Setup
 **Goal:** Все MCP серверы установлены и отвечают
 **Requirements:** INFRA-02
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — Install pandoc, Twenty CRM MCP, Office-Word-MCP, mcp-pandoc (no credentials needed)
+- [ ] 02-02-PLAN.md — Configure Telegram bot MCP + Email MCP (requires user credentials)
 **Tasks:**
-- Install twenty-mcp (jezweb/twenty-mcp)
-- Install telegram-mcp (chigwell/telegram-mcp)
-- Install email MCP (IMAP/SMTP)
-- Install Office-Word-MCP + mcp-pandoc
-- Configure Telegram bot (@BotFather, group chat)
-- Verify all servers
+- Install pandoc binary via Homebrew
+- Install + register Twenty CRM MCP server
+- Install + register Office-Word-MCP + mcp-pandoc
+- User creates Telegram bot + Gmail App Password
+- Register Telegram + Email MCP servers
+- Verify all 5 servers in Claude Code
 
 ### Phase 3: Registry Skills Install
 **Goal:** 21 скил из 4 источников установлен
@@ -275,4 +279,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-03-21*
-*Last updated: 2026-03-21 after phase 1 planning*
+*Last updated: 2026-03-21 after phase 2 planning*
