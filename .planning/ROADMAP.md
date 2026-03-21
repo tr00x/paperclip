@@ -42,7 +42,7 @@
 **Requirements:** INFRA-01
 **Plans:** 1 plan
 Plans:
-- [ ] 01-01-PLAN.md — Deploy Twenty CRM via Docker, create workspace, configure 4 pipelines, get API key
+- [x] 01-01-PLAN.md — Deploy Twenty CRM via Docker, create workspace, configure 4 pipelines, get API key
 **Tasks:**
 - Docker pull + start Twenty
 - Create workspace
