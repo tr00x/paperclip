@@ -1,9 +1,9 @@
 ---
-name: AmriTech AI HQ
-description: AI штаб для AmriTech IT Solutions — 9 автономных агентов для лидгена, продаж, госконтрактов и операционки
-slug: amritech-hq
+name: AmriTech
+description: AI штаб для AmriTech IT Solutions & Business Services — автономные агенты для лидгена, продаж, госконтрактов и операционки
+slug: amritech
 schema: agentcompanies/v1
-version: 2.0.0
+version: 2.1.0
 goals:
   - Вывести AmriTech на $100k MRR силами 3 человек + AI штаб
   - Автоматизировать лидген — находить компании с плохим IT в NJ/NY/PA
@@ -13,24 +13,63 @@ goals:
 requirements:
   secrets:
     - TELEGRAM_BOT_TOKEN
-    - GMAIL_APP_PASSWORD
     - TWENTY_CRM_API_KEY
 ---
 
-# AmriTech AI HQ v2
+# AmriTech
 
-AI штаб для AmriTech IT Solutions & Business Services — MSP из Бруклина.
+AI штаб для **AmriTech IT Solutions & Business Services** — MSP из Бруклина, Нью-Йорк.
+
+**Сайт:** https://amritech.us/
+**Регион:** NYC, NJ, PA
+**Слоган:** Local Technology Insights. Enterprise-Level IT Solutions.
 
 ## Команда
-- **Berik Amri** — CEO, закрывает сделки, финальные решения
-- **Ula** — Account Manager, общение с клиентами, renewals
-- **Timur** — AI/Automation, строит и рулит штабом
+- **Berik Amri** — CEO, закрывает сделки, финальные решения, техническая экспертиза
+- **Ula** — Account Manager, общение с клиентами, renewals, on-site support
+- **Timur** — AI/Automation & Full-Stack Dev, строит и рулит AI штабом, разработка, DevOps
 
 ## Принцип
-Berik и Ula бегают по клиентам и делают техническую работу. Timur строит машину которая их кормит лидами и снимает рутину. Штаб работает пока все трое заняты делом.
+Berik и Ula бегают по клиентам и делают техническую работу. Timur строит машину которая кормит лидами и снимает рутину. AI штаб работает 24/7 пока все трое заняты делом.
 
-## Регион
-NYC, NJ, PA
+## Услуги (полный спектр IT)
 
-## Услуги
-Полный спектр IT: managed IT, cybersecurity, cloud, DevOps, VoIP, networking, custom development, consulting, on-site support.
+### Core Managed IT
+- **Same Day IT Support** — телефон, email, remote access (NY/NJ/PA)
+- **IT Helpdesk Services** — troubleshooting, software issues, general IT support
+- **24/7 Monitoring & Support** — проактивный мониторинг, минимальный downtime
+- **IT Infrastructure Management** — hardware, software, maintenance, оптимизация
+
+### Cybersecurity
+- **Cybersecurity Solutions** — файрволы, endpoint protection, threat mitigation
+- **Network Security** — проактивная защита от киберугроз
+
+### Cloud & Data
+- **Cloud Server Management** — setup, monitoring, security, оптимизация
+- **Scalable Cloud Solutions** — миграция, hybrid, managed cloud
+- **Data Backup & Recovery** — регулярные бэкапы, disaster recovery
+
+### Development & Automation
+- **Custom Software Development** — веб, мобайл, интеграции, автоматизация
+- **DevOps** — CI/CD, инфраструктура как код, контейнеризация
+- **AI & Automation** — AI агенты, workflow автоматизация, RPA
+
+### Networking & Communications
+- **VoIP Solutions** — бизнес телефония, unified communications
+- **Network Design & Setup** — проектирование и развёртывание сетей
+
+### Consulting & Strategy
+- **IT Consulting** — аудит, стратегия, оптимизация расходов
+- **SEO & Digital Marketing** — Google ranking, keyword research, on-page optimization
+
+## Целевые ниши
+Юрфирмы, автодилеры, бухгалтерия, CRE (коммерческая недвижимость), архитектурные бюро, клиники/медцентры, стоматология, ветклиники, Hands & Feet салоны.
+
+## Избегать для лидгена
+Рестораны, ритейл, стартапы без бюджета.
+
+## Конкурентные преимущества
+- Локальные (Brooklyn) — same day on-site support
+- Полный спектр — от батона до гандона, один партнёр на всё IT
+- AI-powered — штаб агентов работает 24/7, автоматизация рутины
+- Трое человек делают работу за 15 — за счёт AI и автоматизации
