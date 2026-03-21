@@ -2200,28 +2200,11 @@ function PromptsTab({
             )}
           </div>
 
-          {selectedFileExists && fileLoading && !selectedFileDetail ? (
+          {selectedFileExists && (fileLoading || !selectedFileDetail) ? (
             <PromptEditorSkeleton />
-          ) : isMarkdown(selectedOrEntryFile) ? (
-            <MarkdownEditor
-              key={selectedOrEntryFile}
-              value={displayValue}
-              onChange={(value) => {
-                // Ignore empty onChange from MDXEditor initialization — prevents wiping real content
-                if (value === "" && currentContent !== "") return;
-                setDraft(value ?? "");
-              }}
-              placeholder="# Agent instructions"
-              contentClassName="min-h-[420px] text-sm font-mono"
-              imageUploadHandler={async (file) => {
-                const namespace = `agents/${agent.id}/instructions/${selectedOrEntryFile.replaceAll("/", "-")}`;
-                const asset = await uploadMarkdownImage.mutateAsync({ file, namespace });
-                return asset.contentPath;
-              }}
-            />
           ) : (
             <textarea
-              value={displayValue}
+              value={draft !== null ? draft : currentContent}
               onChange={(event) => setDraft(event.target.value)}
               className="min-h-[420px] w-full rounded-md border border-border bg-transparent px-3 py-2 font-mono text-sm outline-none"
               placeholder="File contents"
