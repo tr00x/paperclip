@@ -90,28 +90,49 @@ Check Gmail for replies to outreach emails since last heartbeat.
 
 For each reply:
 
-1. **Read and classify the reply:**
-   - **Interested / Has questions** -> proceed to handoff
-   - **Not interested** -> close gracefully
-   - **Wrong person / referral** -> note and redirect
-   - **Out of office** -> adjust follow-up timing
-   - **Unsubscribe request** -> comply immediately, mark in CRM
+1. **Read and classify the reply into one of 7 categories:**
 
-2. **If interested:**
+| Reply Type | % of Replies | Action |
+|---|---|---|
+| **Positive interest** ("Tell me more", "Let's talk") | 25-35% | Route to CEO immediately. Speed matters — respond within 1 hour. |
+| **Question about offer** ("What do you charge?", "How does it work?") | 20-30% | Answer with specifics, re-CTA. Draft response for CEO review. |
+| **Objection — timing** ("Not now", "Maybe later") | 15-20% | Acknowledge, set 30-day follow-up in CRM. |
+| **Objection — budget** ("Too expensive", "No budget") | 5-10% | Share value/ROI angle, offer smaller entry point (security audit). |
+| **Referral** ("Talk to our office manager") | 10-15% | Thank them, create Hunter task for referred contact. |
+| **Not interested** ("Remove me", "Not interested") | 10-15% | Gracious close. Remove from all sequences immediately. |
+| **Out of office / Auto-reply** | 5-10% | Pause sequence, re-send after return date. |
+
+2. **If positive interest (respond within 1 hour):**
    - Comment on Paperclip task: "Lead replied — [brief summary of their response]. Moving to CEO for review."
    - Update Paperclip task: status `in_review`, mention @CEO
    - Update Twenty CRM: lead status to "replied - interested"
    - Draft a suggested response for CEO if the reply contains specific questions
 
-3. **If not interested:**
-   - Send brief, gracious reply (not HTML template — plain reply is fine)
+3. **If question about offer:**
+   - Draft a response that answers specifically (no generic brochure language)
+   - Include one relevant proof point for their niche
+   - End with CTA: "Want me to put together a quick overview for {Company}?"
+   - Route to CEO for approval before sending
+
+4. **If objection — timing:**
+   - Reply: "Totally understand — timing matters. I'll check back in [30 days]. In the meantime, if IT ever becomes a headache, we're a quick call away."
+   - Set 30-day follow-up in CRM
+   - Do NOT close the task — set to `paused`
+
+5. **If objection — budget:**
+   - Reply with value angle: "Totally fair. Quick context — most {niche} our size spend $X-Y/month on reactive IT fixes alone. We typically save that by preventing issues before they hit. Happy to do a free 15-minute assessment to see if the math works for {Company}."
+   - Route to CEO if they engage further
+
+6. **If not interested:**
+   - Send brief, gracious reply: "Understood — appreciate you letting me know. If anything changes, we're here."
    - Update CRM: "closed - not interested"
+   - Remove from ALL active sequences
    - Close Paperclip task as `done`
 
-4. **If referral:**
-   - Thank the person
-   - Create a task for Hunter to research the referred contact
-   - Log referral in CRM
+7. **If referral:**
+   - Thank the person warmly
+   - Create a task for Hunter to research the referred contact (tag as [REFERRAL] — higher priority)
+   - Log referral source in CRM — referral leads convert 2-3x better
 
 ---
 
