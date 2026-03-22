@@ -26,11 +26,14 @@
         "MCP_EMAIL_IMAP_PORT": "1143",
         "MCP_EMAIL_SMTP_HOST": "localhost",
         "MCP_EMAIL_SMTP_PORT": "1025",
-        "MCP_EMAIL_SMTP_SECURE": "false",
-        "MCP_EMAIL_IMAP_SECURE": "false",
         "MCP_EMAIL_SMTP_TLS": "false",
         "MCP_EMAIL_IMAP_TLS": "false",
-        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+        "MCP_EMAIL_SMTP_STARTTLS": "false",
+        "MCP_EMAIL_IMAP_STARTTLS": "false",
+        "MCP_EMAIL_SMTP_VERIFY_SSL": "false",
+        "MCP_EMAIL_IMAP_VERIFY_SSL": "false",
+        "MCP_EMAIL_ACCOUNT_NAME": "amritech",
+        "MCP_EMAIL_FULL_NAME": "AmriTech IT Solutions"
       }
     },
     "ddg-search": {
