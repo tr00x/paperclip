@@ -16,7 +16,8 @@ Generate beautiful, branded HTML emails for AmriTech IT Solutions. Every email m
 - **White:** #FFFFFF (main background)
 - **Font stack:** Arial, Helvetica, sans-serif
 - **Company name:** AmriTech IT Solutions & Business Services
-- **CEO:** Berik Amri
+- **CEO:** Berik Izmaganov
+- **Phone:** (929) 500-5955
 - **Website:** amritech.us
 - **Location:** Brooklyn, NY | Serving NJ/NY/PA
 
@@ -59,11 +60,10 @@ Generate beautiful, branded HTML emails for AmriTech IT Solutions. Every email m
       {{BODY_CONTENT}}
     </div>
     <div class="footer">
-      <strong>Berik Amri</strong><br>
-      CEO, AmriTech IT Solutions<br>
-      <hr class="divider">
-      <a href="https://amritech.us">amritech.us</a><br>
-      Brooklyn, NY | Serving NJ/NY/PA
+      <strong>Berik Izmaganov</strong><br>
+      CEO, AmriTech IT Solutions & Business Services<br>
+      (929) 500-5955 | <a href="https://amritech.us">amritech.us</a><br>
+      Brooklyn, NY | Serving NYC/NJ/PA
     </div>
   </div>
 </body>
