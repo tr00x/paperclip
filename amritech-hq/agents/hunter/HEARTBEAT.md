@@ -113,30 +113,43 @@ When researching a prospect, look for signs of existing IT provider:
 
 **Fit Score:** {XX}/100 | **Intent Score:** {XX}/100
 **Estimated MRR:** ${X,XXX}/мес
-**Employees:** ~{N} (source: LinkedIn/website)
+**Employees:** ~{N}
 **Location:** {City, State}
 **Website:** {URL}
 **Current IT:** {Competitor or "Unknown"}
 
-### Signals (minimum 2, aim for 3+)
-1. {Signal} — {Evidence + source URL}
-2. {Signal} — {Evidence + source URL}
-3. {Signal} — {Evidence + source URL}
+### Sources (ОБЯЗАТЕЛЬНО — ссылки на ВСЁ)
+| Данные | Источник |
+|--------|---------|
+| Компания | {URL — Google Maps, LinkedIn company page, website} |
+| Кол-во сотрудников | {URL — LinkedIn About, website team page} |
+| Decision Maker | {URL — LinkedIn profile, company About page, Indeed listing} |
+| Email DM | {URL или метод — website contact, LinkedIn, email pattern guess} |
+| Телефон | {URL — website, Google Maps, Yelp listing} |
+| Текущий IT | {URL — review, job posting, website footer} |
 
-### Decision Maker
-- **Name:** {Name}
+### Signals (minimum 2, aim for 3+) — каждый с ссылкой!
+1. {Signal} — {Evidence} — **Source:** {URL}
+2. {Signal} — {Evidence} — **Source:** {URL}
+3. {Signal} — {Evidence} — **Source:** {URL}
+
+### Decision Maker (КОНКРЕТНОЕ имя, не TBD!)
+- **Name:** {Имя Фамилия} — **Source:** {URL где нашёл}
 - **Title:** {Title}
-- **LinkedIn:** {URL}
-- **Email:** {email if public}
+- **LinkedIn:** {URL профиля}
+- **Email:** {email} — **Source:** {откуда: website, pattern, LinkedIn}
+- **Phone:** {direct or company} — **Source:** {URL}
 - **Confidence:** Verified (>85%) / Likely (70-85%) / Unverified (<70%)
 - **LinkedIn active:** Yes (posted in last 30d) / No
 - **Changed roles recently:** Yes (last 90d) / No
 
+**ПРАВИЛО: Если не можешь найти конкретное имя DM — НЕ пиши TBD. Ищи глубже: LinkedIn company page → People, Google "{company name} office manager", website About/Team page. Если реально не нашёл — напиши "Not found after: LinkedIn, website, Google search" с URL каждой попытки.**
+
 ### Enrichment Data (for SDR personalization)
-- **Recent company news:** {funding, new office, award, hire — for first-line hook}
-- **Tech signals:** {SSL status, DMARC, website tech, security headers grade}
-- **Hiring signals:** {IT-related job postings, growth indicators}
-- **Review mentions:** {Glassdoor/Google reviews mentioning IT pain}
+- **Recent company news:** {funding, new office, award, hire} — **Source:** {URL}
+- **Tech signals:** {SSL status, DMARC, website tech} — **Source:** {URL проверки}
+- **Hiring signals:** {IT-related job postings} — **Source:** {Indeed/LinkedIn URL}
+- **Review mentions:** {Glassdoor/Google reviews mentioning IT} — **Source:** {URL отзыва}
 
 ### Competitor Battlecard
 - **Current provider:** {Name} ({Type: Large MSP / Break-fix / Offshore / In-house})
