@@ -25,7 +25,7 @@ AI штаб для **AmriTech IT Solutions & Business Services** — MSP из Б
 **Слоган:** Local Technology Insights. Enterprise-Level IT Solutions.
 
 ## Команда
-- **Berik Amri** — CEO, закрывает сделки, финальные решения, техническая экспертиза
+- **Berik Izmaganov** — CEO, закрывает сделки, финальные решения, техническая экспертиза
 - **Ula** — Account Manager, общение с клиентами, renewals, on-site support
 - **Tim** — AI/Automation & Full-Stack Dev, строит и рулит AI штабом, разработка, DevOps
 

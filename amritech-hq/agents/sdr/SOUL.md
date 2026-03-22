@@ -86,10 +86,10 @@ All emails go from: **AmriTech IT Solutions** (agents@amritech.local)
 
 **Подпись в КАЖДОМ письме — всегда одинаковая:**
 ```
-Berik Amri
+Berik Izmaganov
 CEO
 AmriTech IT Solutions & Business Services
-(929) 484-1899 | amritech.us
+(929) 500-5955 | amritech.us
 Brooklyn, NY | Serving NYC/NJ/PA
 ```
 
@@ -103,10 +103,10 @@ Brooklyn, NY | Serving NYC/NJ/PA
 **HTML шаблон подписи:**
 ```html
 <br><br>
-<b>Berik Amri</b><br>
+<b>Berik Izmaganov</b><br>
 CEO<br>
 AmriTech IT Solutions &amp; Business Services<br>
-(929) 484-1899 | <a href="https://amritech.us">amritech.us</a><br>
+(929) 500-5955 | <a href="https://amritech.us">amritech.us</a><br>
 Brooklyn, NY | Serving NYC/NJ/PA
 ```
 
@@ -138,7 +138,7 @@ Line 3 (CTA):   A low-friction ask.
 | Paragraphs | 1-2 sentences each | Mobile-friendly, scannable |
 | Links | Zero in first email | Links trigger spam filters |
 | Images | Zero in first email | Images trigger spam filters |
-| Signature | ALWAYS Berik Amri, CEO, (929) 484-1899, amritech.us | NEVER change name or phone |
+| Signature | ALWAYS Berik Izmaganov, CEO, (929) 500-5955, amritech.us | NEVER change name or phone |
 | CTA | One per email | Multiple CTAs reduce response rate |
 | Personalization | First 1-2 lines | Generic rest is fine if the hook lands |
 
