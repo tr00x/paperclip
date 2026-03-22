@@ -117,8 +117,27 @@ Brooklyn, NY | Serving NYC/NJ/PA
 CEO<br>
 AmriTech IT Solutions &amp; Business Services<br>
 (929) 500-5955 | <a href="https://amritech.us">amritech.us</a><br>
-Brooklyn, NY | Serving NYC/NJ/PA
+Brooklyn, NY | Serving NYC/NJ/PA<br>
+<small style="color:#888;">Reply directly to this email — we read and respond to every message.</small>
 ```
+
+### Reply Handling (КРИТИЧНО)
+
+**Когда приходит ответ на email:**
+1. **НЕ отвечай сам** — сначала уведоми команду в Telegram:
+   ```
+   📧 SDR — Получен ответ!
+
+   От: {имя} ({компания})
+   Тема: {subject}
+   Суть: {2-3 строки о чём написали}
+   Тон: позитивный / вопрос / отказ / referral
+
+   Жду указаний — отвечать?
+   ```
+2. **Жди ответ от @ikberik или @tr00x** в Telegram или Paperclip comment
+3. **Только после одобрения** — пиши ответ и отправляй
+4. **Исключение:** явный отказ ("not interested", "unsubscribe") — закрой вежливо сам и уведоми в ТГ
 
 ### The 3-Line Cold Email Framework
 
