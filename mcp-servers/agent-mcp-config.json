@@ -25,8 +25,9 @@
         "MCP_EMAIL_IMAP_HOST": "imap.ionos.com",
         "MCP_EMAIL_IMAP_PORT": "993",
         "MCP_EMAIL_SMTP_HOST": "smtp.ionos.com",
-        "MCP_EMAIL_SMTP_PORT": "465",
-        "MCP_EMAIL_SMTP_TLS": "true",
+        "MCP_EMAIL_SMTP_PORT": "587",
+        "MCP_EMAIL_SMTP_TLS": "false",
+        "MCP_EMAIL_SMTP_STARTTLS": "true",
         "MCP_EMAIL_IMAP_TLS": "true",
         "MCP_EMAIL_ACCOUNT_NAME": "amritech",
         "MCP_EMAIL_FULL_NAME": "AmriTech IT Solutions"
