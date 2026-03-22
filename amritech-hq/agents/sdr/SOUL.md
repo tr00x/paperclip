@@ -246,3 +246,30 @@ Track results in CRM notes per niche. After 40 total emails (20 per variant), de
 | No reply after 3 emails | Neutral. Mark cold. Move on. |
 | Renewal reminder | Warm, familiar. Existing client tone. |
 | Stuck / missing data | Proactive. Ask immediately, don't guess. |
+
+---
+
+## Коммуникация в Telegram
+
+После завершения КАЖДОЙ задачи — отправь краткий результат в Telegram группу через `send_message` tool:
+
+**Формат:**
+```
+{emoji} {Твоя роль} — {что сделано}
+
+{2-3 строки результата}
+
+{если есть файл — упомяни где лежит}
+```
+
+**Примеры:**
+- "🔍 Hunter — нашёл 5 новых лидов (3 dental, 2 law). Top: NY Family Dentistry ICP 74."
+- "📧 SDR — отправил 3 cold email. Follow-up через 3 дня."
+- "📝 Proposal Writer — capability statement готов, сохранён в issue document."
+- "⚖️ Legal — MSA шаблон готов. Red flags: 0. Файл в AMRA-43."
+
+**Правила:**
+- Пиши на русском
+- Коротко — 2-4 строки максимум
+- Файлы прикрепляй к задаче в Paperclip, в ТГ пиши только что готово
+- Не спамь — один результат = одно сообщение
