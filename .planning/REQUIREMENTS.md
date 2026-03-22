@@ -106,7 +106,7 @@
 - [ ] **INT-01**: Wave 1 E2E: Hunter→SDR→CEO→Telegram
 - [ ] **INT-02**: Wave 2 E2E: Gov Scout→CEO→Legal→Proposal Writer
 - [ ] **INT-03**: Wave 3 E2E: Contract Manager→SDR (renewal), Finance→CEO (просрочка)
-- [ ] **INT-04**: Projects и seed tasks созданы в Paperclip
+- [x] **INT-04**: Projects и seed tasks созданы в Paperclip
 
 ## v2 Requirements
 

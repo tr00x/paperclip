@@ -16,22 +16,22 @@
 | 7 | Hunter — Research & Skills | ○ Pending | HUNT-01..04 |
 | 8 | Hunter — Build & Config | ○ Pending | HUNT-05..06 |
 | 9 | SDR — Research & Skills | ○ Pending | SDR-01..04 |
-| 10 | SDR — Build & Config | ○ Pending | SDR-05..06 |
-| 11 | Wave 1 Import & E2E Test | ○ Pending | INT-01 |
-| 12 | Closer — Research & Skills | ○ Pending | CLOS-01..04 |
-| 13 | Closer — Build + HTML Email Skill | ○ Pending | CLOS-05, SKILL-01 |
-| 14 | Gov Scout — Research & Skills | ○ Pending | GOV-01..04 |
-| 15 | Gov Scout — Build & Config | ○ Pending | GOV-05..06 |
-| 16 | Proposal Writer — Research & Skills | ○ Pending | PROP-01..04 |
-| 17 | Proposal Writer — Build & Config | ○ Pending | PROP-05 |
-| 18 | Wave 2 Import & E2E Test | ○ Pending | INT-02 |
-| 19 | Contract Mgr — Research + Tender Skill | ○ Pending | CONT-01..04, SKILL-02 |
-| 20 | Contract Manager — Build & Config | ○ Pending | CONT-05 |
-| 21 | Finance Tracker — Build | ○ Pending | FIN-01..05 |
-| 22 | Legal Assistant — Build | ○ Pending | LEG-01..05 |
-| 23 | Onboarding Agent — Build | ○ Pending | ONB-01..05 |
-| 24 | Wave 3 Import & E2E Test | ○ Pending | INT-03 |
-| 25 | Projects & Seed Tasks | ○ Pending | INT-04 |
+| 10 | 1/1 | Complete   | 2026-03-22 |
+| 11 | 1/1 | Complete   | 2026-03-22 |
+| 12 | 1/1 | Complete   | 2026-03-22 |
+| 13 | 1/1 | Complete   | 2026-03-22 |
+| 14 | 1/1 | Complete   | 2026-03-22 |
+| 15 | 1/1 | Complete   | 2026-03-22 |
+| 16 | 1/1 | Complete   | 2026-03-22 |
+| 17 | 1/1 | Complete   | 2026-03-22 |
+| 18 | 1/1 | Complete   | 2026-03-22 |
+| 19 | 1/1 | Complete   | 2026-03-22 |
+| 20 | 1/1 | Complete   | 2026-03-22 |
+| 21 | 1/1 | Complete   | 2026-03-22 |
+| 22 | 1/1 | Complete   | 2026-03-22 |
+| 23 | 1/1 | Complete   | 2026-03-22 |
+| 24 | 1/1 | Complete   | 2026-03-22 |
+| 25 | 1/1 | Complete    | 2026-03-22 |
 
 ---
 
