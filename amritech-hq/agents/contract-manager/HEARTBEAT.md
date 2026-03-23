@@ -42,50 +42,50 @@ Run this checklist every heartbeat (once per day). Execute each step in order. D
 
 ---
 
-## Step 3: Deadline Scan
+## Step 2: Deadline Scan
 
 This is your most critical daily function. For every active contract in your portfolio:
 
-### 3a. Expiry Today (0 days)
+### 2a. Expiry Today (0 days)
 - Check if any contracts expire today.
 - Auto-renewal contracts: confirm renewal processed, roll forward dates, update contract record, notify Finance Tracker of continued MRR.
 - Non-auto-renewal without signed renewal: mark as EXPIRED, create urgent escalation to CEO.
 
-### 3b. Final Escalation (7 days out)
+### 2b. Final Escalation (7 days out)
 - Contracts expiring within 7 days with no renewal confirmation.
 - Create urgent task for CEO with subject `[HOT] Contract expiring in {N} days -- {Company}`.
 - Include churn risk assessment, MRR at risk, last client contact date.
 - **Telegram CRITICAL:** "🔴 ВСЕМ: контракт {client} истекает через {N} дней! MRR at risk: ${amount}. @ikberik @UlaAmri — нужно действие СЕГОДНЯ."
 
-### 3c. Escalation Check (14 days out)
+### 2c. Escalation Check (14 days out)
 - Contracts expiring within 14 days where SDR renewal outreach got no response.
 - Escalate to CEO: `[RENEWAL] No response from {Company} -- {N} days to expiry`.
 - Include: original outreach date, follow-up attempts, churn risk level.
 - **Telegram demand:** "⚠️ @ikberik, контракт {client} — 14 дней до истечения. SDR outreach без ответа. @UlaAmri, ты звонил?"
 - If Ula hasn't reported in CRM within 3 days of 30-day demand: "@UlaAmri, 3 дня назад просили позвонить {client}. Нет записи в CRM. Контракт через 14 дней!"
 
-### 3d. SDR Renewal Task + Ula Call (30 days out)
+### 2d. SDR Renewal Task + Ula Call (30 days out)
 - Contracts expiring within 30 days that do not yet have a `[RENEWAL]` task.
 - Create `[RENEWAL]` task for SDR using the Renewal Task Format from AGENTS.md.
 - Notify CEO that renewal outreach is being initiated.
 - **Telegram demand to Ula:** "@UlaAmri, контракт {client} истекает через 30 дней. Позвони клиенту — узнай настроение, планируют ли продлевать."
 - Track in CRM notes: `"RENEWAL_DEMAND:30d sent {date}"`
 
-### 3e. Performance Review (60 days out)
+### 2e. Performance Review (60 days out)
 - Contracts expiring within 60 days that have not been reviewed.
 - Pull service history from Twenty CRM: tickets, SLA compliance, incidents, complaints.
 - Assess churn risk (low/medium/high) based on service quality and client engagement.
 - Run upsell analysis using `expansion-retention` skill.
 - Document findings in the contract record.
 
-### 3f. Upcoming Flag (90 days out)
+### 2f. Upcoming Flag (90 days out)
 - Contracts expiring within 90 days that are not yet flagged.
 - Flag for upcoming renewal. Add to renewal pipeline tracking.
 - No action required yet -- just awareness.
 
 ---
 
-## Step 4: Government Contract Check
+## Step 3: Government Contract Check
 
 For all government contracts specifically:
 
@@ -97,7 +97,7 @@ For all government contracts specifically:
 
 ---
 
-## Step 5: Upsell Pipeline Review
+## Step 4: Upsell Pipeline Review
 
 1. Review contracts where upsell opportunities were identified during performance reviews.
 2. Check if upsell recommendations were acted on (task created, proposal sent, etc.).
@@ -106,7 +106,7 @@ For all government contracts specifically:
 
 ---
 
-## Step 6: Amendment Processing
+## Step 5: Amendment Processing
 
 1. Check for any pending contract amendments (scope changes, price adjustments, add-ons).
 2. For each amendment:
@@ -117,7 +117,7 @@ For all government contracts specifically:
 
 ---
 
-## Step 7: Daily Summary
+## Step 6: Daily Summary
 
 Create a brief summary comment on your standing task or report to CEO if any of the following are true:
 
@@ -153,7 +153,7 @@ If nothing notable happened, no summary is needed. Do not create noise.
 
 ---
 
-## Step 8: Clean Up
+## Step 7: Clean Up
 
 1. Close completed tasks (renewed contracts, processed amendments).
 2. Archive expired contracts that have been fully resolved.
