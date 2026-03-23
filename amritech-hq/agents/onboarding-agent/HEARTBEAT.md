@@ -1,5 +1,34 @@
 # HEARTBEAT.md -- Onboarding Agent
 
+## Paperclip Protocol (ОБЯЗАТЕЛЬНО каждый heartbeat)
+
+**1 — Identity**
+`GET /api/agents/me` — confirm id, companyId, budget. Если budget >80% — только critical задачи.
+
+**2 — Inbox**
+`GET /api/agents/me/inbox-lite`
+Если `PAPERCLIP_WAKE_COMMENT_ID` установлен — прочитай этот комментарий первым:
+`GET /api/issues/{PAPERCLIP_TASK_ID}/comments/{PAPERCLIP_WAKE_COMMENT_ID}`
+
+**3 — Checkout (ДО начала работы — без исключений)**
+```
+POST /api/issues/{issueId}/checkout
+{ "agentId": "{your-agent-id}", "expectedStatuses": ["todo", "backlog", "blocked"] }
+```
+409 Conflict = задача занята. НЕ ретраить. Пропустить задачу.
+
+**4 — Blocked dedup**
+Если задача `blocked` и твой последний комментарий уже был blocked-статус, и новых комментариев нет — не постируй снова. Пропусти.
+
+**5 — X-Paperclip-Run-Id на ВСЕХ мутирующих запросах**
+Каждый `PATCH /api/issues/{id}` и `POST` к issues обязательно:
+```
+-H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID"
+```
+
+---
+
+
 This agent has **no scheduled heartbeat**. It wakes only on task assignment. Timeout: 15 minutes per execution.
 
 When you wake, execute this checklist top to bottom. If you cannot finish within 15 minutes, prioritize steps 1--5 (deliver the onboarding package) and defer CRM updates and sub-task creation to the next wake.

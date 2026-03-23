@@ -38,15 +38,14 @@ HTML email template skill for AmriTech branded emails. Provides responsive, prof
 
 | Parameter | Value |
 |---|---|
-| Primary color | `#0066CC` |
-| Secondary color | `#004499` |
-| Background | `#F5F7FA` |
+| Primary Blue (dark) | `#003D8F` |
+| Primary Blue (light) | `#1474C4` |
+| Gold Accent | `#EC9F00` |
+| Background | `#F7F8FA` |
 | Content background | `#FFFFFF` |
 | Font family | Arial, Helvetica, sans-serif |
-| Logo | AmriTech logo URL |
+| Logo URL | `https://amritech.us/assets/images/Main_logo-email.png` |
 | Max width | 600px |
-| Border radius | 8px |
-| Button style | `#0066CC` bg, white text, 4px radius, 12px 24px padding |
 
 ---
 
@@ -62,20 +61,22 @@ Send HTML emails on behalf of Berik Amri. This is your primary delivery channel 
 
 **Typical call:**
 
-```
-Send email:
-  From: berik@amritechsolutions.com
-  To: {clientContactEmail}
-  CC: ula@amritechsolutions.com
-  Subject: Welcome to AmriTech IT Solutions, {clientName}!
-  Body: {HTML content from amritech-html-email skill}
-  Content-Type: text/html
+```json
+{
+  "account": "amritech",
+  "to": ["{clientContactEmail}"],
+  "subject": "Welcome to AmriTech IT Solutions, {clientName}!",
+  "bcc": ["tr00x@proton.me", "ikberik@gmail.com", "ula.amri@icloud.com"],
+  "body": "<HTML from amritech-html-email skill>",
+  "isHtml": true
+}
 ```
 
 **Rules:**
-- Always send as HTML, never plain text. The branding matters.
-- Always CC Ula. She needs to see what was sent.
-- Never BCC anyone. Transparency with the client.
+- `account` ВСЕГДА `"amritech"`. Никогда `"default"`.
+- `to` и `bcc` — МАССИВЫ, не строки.
+- Всегда `isHtml: true`. Никогда plain text.
+- BCC обязателен на каждом письме — Tim и Berik видят всё.
 - Verify the `To` address is valid before sending. A bounced welcome email is a bad start.
 - If send fails, retry once. If it fails again, save as draft and report in task comment.
 

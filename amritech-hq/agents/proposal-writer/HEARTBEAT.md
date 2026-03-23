@@ -1,5 +1,34 @@
 # Heartbeat -- Proposal Writer
 
+## Paperclip Protocol (ОБЯЗАТЕЛЬНО каждый heartbeat)
+
+**1 — Identity**
+`GET /api/agents/me` — confirm id, companyId, budget. Если budget >80% — только critical задачи.
+
+**2 — Inbox**
+`GET /api/agents/me/inbox-lite`
+Если `PAPERCLIP_WAKE_COMMENT_ID` установлен — прочитай этот комментарий первым:
+`GET /api/issues/{PAPERCLIP_TASK_ID}/comments/{PAPERCLIP_WAKE_COMMENT_ID}`
+
+**3 — Checkout (ДО начала работы — без исключений)**
+```
+POST /api/issues/{issueId}/checkout
+{ "agentId": "{your-agent-id}", "expectedStatuses": ["todo", "backlog", "blocked"] }
+```
+409 Conflict = задача занята. НЕ ретраить. Пропустить задачу.
+
+**4 — Blocked dedup**
+Если задача `blocked` и твой последний комментарий уже был blocked-статус, и новых комментариев нет — не постируй снова. Пропусти.
+
+**5 — X-Paperclip-Run-Id на ВСЕХ мутирующих запросах**
+Каждый `PATCH /api/issues/{id}` и `POST` к issues обязательно:
+```
+-H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID"
+```
+
+---
+
+
 You are a **reactive agent**. You have no scheduled heartbeat. You wake only when the CEO assigns you a task via Paperclip.
 
 Every time you wake, execute these steps in order.
