@@ -1,12 +1,25 @@
 # HEARTBEAT.md -- Hunter Heartbeat Checklist
 
-Run this checklist every 6 hours. Timeout: 20 minutes per cycle.
+Run this checklist every 6 hours.
+
+## HARD LIMITS (обязательно соблюдать)
+
+```
+MAX leads to discover per cycle:   10 кандидатов
+MAX leads to deeply enrich:        3 лида (остальные → [ENRICH] subtask)
+Discovery phase budget:            10 минут
+Quick scoring phase budget:        5 минут
+Enrich per lead budget:            8 минут (затем стоп → subtask)
+Total cycle budget:                35 минут — после этого финиш с прогресс-комментом
+```
+
+**Принцип:** Найти быстро, оценить грубо, углубиться только в топ. Лучше 10 кандидатов со скором чем 1 полный профиль.
 
 ---
 
 ## 1. Identity and Context
 
-- `GET /api/agents/me` -- confirm your id, role, budget, chainOfCommand.
+- `GET /api/agents/me` -- confirm id, role, budget, chainOfCommand.
 - Check wake context: `PAPERCLIP_TASK_ID`, `PAPERCLIP_WAKE_REASON`, `PAPERCLIP_WAKE_COMMENT_ID`.
 - If woken by a specific task, prioritize that task first.
 
@@ -14,7 +27,6 @@ Run this checklist every 6 hours. Timeout: 20 minutes per cycle.
 
 - `GET /api/companies/{companyId}/issues?assigneeAgentId={your-id}&status=todo,in_progress`
 - Prioritize `in_progress` first, then `todo`.
-- If `PAPERCLIP_TASK_ID` is set and assigned to you, work that task first.
 - Checkout before working: `POST /api/issues/{id}/checkout`. Never retry a 409.
 
 ## 3. Check Feedback Loop
@@ -22,83 +34,115 @@ Run this checklist every 6 hours. Timeout: 20 minutes per cycle.
 Before prospecting, check what SDR/Closer reported on your previous leads:
 
 - Search tasks tagged with your leads that are now `done` or `cancelled`
-- For converted leads: **What worked?** Which signals were strongest? Which niche? Note in memory.
-- For dead leads: **Why?** Wrong size? Bad timing? Already had IT? Not decision maker? Note in memory.
-- Every 10 lead outcomes, recalibrate your ICP scoring weights.
-
-```
-## Feedback Tracker
-| Lead | Outcome | Reason | Lesson |
-|------|---------|--------|--------|
-| ABC Law | Converted → $3k MRR | SSL expired, no MFA, replied to email #2 | Law firms respond to compliance angle |
-| XYZ Dental | Dead | Already has MSP (Dataprise) | Check for existing MSP before scoring high |
-```
+- For converted leads: **What worked?** Which signals were strongest? Which niche?
+- For dead leads: **Why?** Wrong size? Bad timing? Already had IT?
+- Every 10 lead outcomes, recalibrate ICP scoring weights.
 
 ## 4. Execute Assigned Work
 
-Complete any assigned research, enrichment, or re-scoring tasks before prospecting.
+Complete any `[ENRICH]` or `[ENRICHMENT]` tasks first — these are deep-research tasks you created in prior cycles for leads that passed quick scoring.
 
-## 5. Prospect -- Channel Rotation
+---
 
-Rotate through channels each cycle. Do not hit the same channel twice in a row unless assigned.
+## 5. Discovery Sprint (≤ 10 мин)
 
-**Cycle A (Morning -- 6:00 AM ET):**
-- Google Maps: 2 niches, scan for new businesses and reviews
-- LinkedIn: check for IT job postings (signal: they need IT help)
+**Goal:** найти 8-10 кандидатов. Только базовые данные: название, нишь, примерный размер, город. НЕ делай deep research на этом этапе.
 
-**Cycle B (Noon -- 12:00 PM ET):**
-- Passive security recon on prospects from pipeline (see Security Recon below)
-- Indeed/Glassdoor: IT support job postings + employee reviews mentioning tech problems
+**Стоп-триггеры:** 10 кандидатов найдено OR 10 минут прошло — переходи к шагу 6.
 
-**Cycle C (Evening -- 6:00 PM ET):**
-- Yelp/Google Reviews: service businesses with reviews mentioning tech issues, slow systems, downtime
-- Industry directories: check for new listings in target niches
+### Channel Rotation
 
-**Cycle D (Night -- 12:00 AM ET):**
-- Deep research on top 3 prospects from previous cycles
-- Signal validation and enrichment on existing pipeline
-- CRM cleanup and deduplication
-- Competitor research: who serves our target companies now?
+Rotate channels each cycle. Never hit the same channel twice in a row.
 
-## 6. Security Recon (Passive Only)
+**Cycle A (Morning — 6:00 AM ET) — Job Postings:**
+- Indeed: `"IT support" OR "helpdesk" OR "IT coordinator" site:indeed.com "NJ" OR "NYC" OR "New York"`
+- LinkedIn Jobs: `IT support specialist New Jersey` + `managed services New York`
+- Google: `"replace IT provider" OR "looking for MSP" site:linkedin.com`
+- **NEW:** ZipRecruiter/Dice: IT helpdesk NJ/NY job listings (different companies than Indeed)
 
-**NEVER do active scanning. Passive recon only — public data.**
+**Cycle B (Noon — 12:00 PM ET) — Directories + Reviews:**
+- Google Maps: 2 niches — scan for businesses with IT pain signals in reviews
+- **NEW:** BBB Directory (bbb.org): search NJ/NY businesses by niche → complaints mentioning "system", "network", "computer" = pain signal
+- **NEW:** NJ Chamber directories (njchamber.com, njbia.org) — member lists by industry
+- **NEW:** NYC Bar Association (nycbar.org) → law firm directory, filter 10-50 attorneys
 
-For each serious prospect, check:
+**Cycle C (Evening — 6:00 PM ET) — News + Growth Signals:**
+- Glassdoor/Indeed reviews: `"slow computer" OR "IT issues" OR "outdated systems"` for NJ/NY companies
+- **NEW:** NJ Biz Journal (njbiz.com): "office expansion" OR "new location" OR "growth" — companies actively scaling
+- **NEW:** NY Business Journal (bizjournals.com/newyork): same signals
+- **NEW:** Google News: `[niche] "New Jersey" OR "New York" "new office" OR "expansion" 2026`
 
-| Check | How | What it tells you |
-|-------|-----|-------------------|
-| SSL status | Search: `"{domain}" site:ssllabs.com` or check browser | Expired/missing = IT neglect |
-| DMARC/SPF | Search: `"{domain}" DMARC` or use web tools | Missing = email spoofing risk, no IT governance |
-| Website tech | Check page source, meta tags | WordPress 4.x, old jQuery = neglected site |
-| Security headers | Search: `"{domain}" site:securityheaders.com` | F grade = no security awareness |
-| Data breaches | Search: `"{company}" "data breach" OR "security incident"` | Past incident = high awareness of need |
-| Job postings | Search: `"{company}" "IT support" OR "helpdesk" site:indeed.com` | Hiring IT = pain point is real |
+**Cycle D (Night — 12:00 AM ET) — Enrichment + Cleanup:**
+- Work through existing `[ENRICH]` subtasks (deep research on leads from prior cycles)
+- Pipeline review (see Step 10)
+- CRM deduplication and cleanup
+- **No new discovery in Cycle D** — focus on depth
 
-**Score bonus:** Each verified security signal adds +10 to ICP score.
+### New Discovery Sources (use all cycles as needed)
 
-## 7. Competitor Detection
+| Source | What to find | How |
+|--------|-------------|-----|
+| **BBB NJ/NY** | Complaints about tech/IT issues | bbb.org → search by niche + location |
+| **NJ Chamber** | Member directories by industry | njchamber.com member search |
+| **NYC Bar Assoc** | Law firms 5-50 attorneys | nycbar.org member directory |
+| **NJ State Bar** | Law firms in specific counties | njsba.com |
+| **Healthgrades** | Dental/medical multi-location | healthgrades.com → filter NJ/NY |
+| **Zocdoc** | Medical practices by city | zocdoc.com → practice pages |
+| **NJ/NY Biz Journals** | Growing companies, new offices | njbiz.com, bizjournals.com/newyork |
+| **Clutch.co** | IT client reverse-lookup | clutch.co → find who uses which MSPs |
+| **LinkedIn company search** | Filter: industry + NJ/NY + size | linkedin.com/search/results/companies |
+| **Google Maps** | Existing channel | 2 niches per cycle |
 
-When researching a prospect, look for signs of existing IT provider:
+---
 
-- Website footer: "Managed by..." or "IT by..."
-- Google Reviews: mentions of IT company name
-- LinkedIn: check if company has IT staff or MSP relationship
-- Job posting: "replace current IT provider" = HOT signal
+## 6. Quick Scoring (≤ 5 мин)
 
-**Record competitor in CRM notes.** SDR will use this for personalization:
-- "We noticed you're with [Competitor] — our clients who switched from them typically see [specific benefit]"
+For each candidate found in Discovery, apply **firmographic-only** quick score:
 
-## 8. For Each Prospect Found
+```
+Quick Score = Geography (0/25/50/100) + Industry (0/25/50/100) + Size (0/25/50/100)
+              divided by 3
+```
 
-1. **Check CRM** -- search by company name, domain, decision maker. Skip if already active.
-2. **Collect signals** -- gather at least 2 concrete IT pain signals with evidence and source URLs.
+| Quick Score | Action |
+|-------------|--------|
+| ≥ 50 | Add to Enrich queue for this cycle (max 3) or create [ENRICH] task |
+| 30-49 | CRM entry as Nurture only — no enrichment now |
+| < 30 | Skip |
+
+**Check CRM first** for each candidate — skip if already active.
+
+---
+
+## 7. Enrich Top 3 (≤ 8 мин per lead)
+
+Pick the top 3 from Quick Scoring queue. For each:
+
+1. **Signals** — find 2+ concrete IT pain signals (SSL, DMARC, reviews, job postings, tech stack)
+2. **Size verification** — confirm employee count via LinkedIn About
+3. **Decision maker** — find name, title, LinkedIn profile
+4. **Email** — check website, LinkedIn, email pattern
+5. **Apply full ICP scoring matrix** (see SOUL.md)
+6. **Create CRM record + task** (see Step 8)
+
+**⏱ Time check:** After each lead, check elapsed time. If > 8 min per lead or total > 30 min:
+→ Stop enrichment
+→ Create `[ENRICH] {Company} — quick score {X}` subtask assigned to yourself
+→ Continue with progress comment (Step 11)
+
+**Remaining leads (beyond top 3):** Always create [ENRICH] subtasks — never try to squeeze in a 4th lead.
+
+---
+
+## 8. For Each Enriched Prospect
+
+1. **Check CRM** -- search by company name/domain. Skip if already active.
+2. **Collect signals** -- minimum 2 concrete IT pain signals with evidence + source URLs.
 3. **Check for existing IT provider** -- note competitor if found.
-4. **Estimate MRR** -- based on employee count and services needed (see pricing table in SOUL.md).
-5. **Score** -- apply ICP scoring matrix (0-100). Only proceed if score >= 40.
-6. **Enrich** -- find decision maker: name, title, LinkedIn, email (if public).
-7. **Create CRM record** -- company + person in Twenty CRM with all signals.
-8. **Create task:**
+4. **Estimate MRR** -- based on employee count (see pricing table in SOUL.md).
+5. **Score** -- apply full ICP scoring matrix (0-100). Only proceed if score >= 40.
+6. **Enrich** -- find decision maker: name, title, LinkedIn, email.
+7. **Create CRM record** + **Create task:**
 
 | Score | Email есть? | Tag | Assign to | CRM status | Priority |
 |-------|-------------|-----|-----------|------------|----------|
@@ -110,17 +154,11 @@ When researching a prospect, look for signs of existing IT provider:
 
 **AUTO-QUEUE правило (ICP 60+ с email):**
 Если лид набрал 60+ И у него есть верифицированный email DM'а:
-→ Ставь CRM `status: "qualified"` (не `new`)
-→ Создай задачу SDR: `[AUTO-QUEUE] {Company} — ICP {score}, ready for outreach`
-→ Комментарий: "Auto-queued for SDR. Score {X}, email verified. SDR — действуй."
-→ SDR начнёт outreach без ручного одобрения CEO
+→ CRM `status: "qualified"`
+→ Задача SDR: `[AUTO-QUEUE] {Company} — ICP {score}, ready for outreach`
+→ Комментарий: "Auto-queued. Score {X}, email verified. SDR — действуй."
 
-**Лиды БЕЗ email (любой скор):**
-→ CRM `status: "new"`, `outreachStatus: "pending"`
-→ Создай задачу себе: `[ENRICHMENT] {Company} — need DM email`
-→ Продолжай искать email через LinkedIn, website, email pattern
-
-**Lead brief format (in task description):**
+**Lead brief format:**
 ```markdown
 ## {Company Name} — {Niche} — ICP Score: {XX}/100
 
@@ -131,155 +169,163 @@ When researching a prospect, look for signs of existing IT provider:
 **Website:** {URL}
 **Current IT:** {Competitor or "Unknown"}
 
-### Sources (ОБЯЗАТЕЛЬНО — ссылки на ВСЁ)
+### Sources
 | Данные | Источник |
 |--------|---------|
-| Компания | {URL — Google Maps, LinkedIn company page, website} |
-| Кол-во сотрудников | {URL — LinkedIn About, website team page} |
-| Decision Maker | {URL — LinkedIn profile, company About page, Indeed listing} |
-| Email DM | {URL или метод — website contact, LinkedIn, email pattern guess} |
-| Телефон | {URL — website, Google Maps, Yelp listing} |
-| Текущий IT | {URL — review, job posting, website footer} |
-
-### Signals (minimum 2, aim for 3+) — каждый с ссылкой!
-1. {Signal} — {Evidence} — **Source:** {URL}
-2. {Signal} — {Evidence} — **Source:** {URL}
-3. {Signal} — {Evidence} — **Source:** {URL}
-
-### Decision Maker (КОНКРЕТНОЕ имя, не TBD!)
-- **Name:** {Имя Фамилия} — **Source:** {URL где нашёл}
-- **Title:** {Title}
-- **LinkedIn:** {URL профиля}
-- **Email:** {email} — **Source:** {откуда: website, pattern, LinkedIn}
-- **Phone:** {direct or company} — **Source:** {URL}
-- **Confidence:** Verified (>85%) / Likely (70-85%) / Unverified (<70%)
-- **LinkedIn active:** Yes (posted in last 30d) / No
-- **Changed roles recently:** Yes (last 90d) / No
-
-**ПРАВИЛО: Если не можешь найти конкретное имя DM — НЕ пиши TBD. Ищи глубже: LinkedIn company page → People, Google "{company name} office manager", website About/Team page. Если реально не нашёл — напиши "Not found after: LinkedIn, website, Google search" с URL каждой попытки.**
-
-### Enrichment Data (for SDR personalization)
-- **Recent company news:** {funding, new office, award, hire} — **Source:** {URL}
-- **Tech signals:** {SSL status, DMARC, website tech} — **Source:** {URL проверки}
-- **Hiring signals:** {IT-related job postings} — **Source:** {Indeed/LinkedIn URL}
-- **Review mentions:** {Glassdoor/Google reviews mentioning IT} — **Source:** {URL отзыва}
-
-### Competitor Battlecard
-- **Current provider:** {Name} ({Type: Large MSP / Break-fix / Offshore / In-house})
-- **Known weakness:** {specific to this competitor type}
-- **Evidence:** {review quote, job posting text, website mention}
-- **Recommended angle:** {one sentence — what SDR should lead with}
-- **Landmine question:** {question for the meeting to steer evaluation}
-
-### Recommended Angle
-{Why this company needs AmriTech right now. Connect the signal to their pain to our value. Use this formula:}
-{[Signal observation] + [Relevance to their role/industry] + [Bridge to AmriTech value]}
-```
-
-### Step 8: CRM Lead Record (ОБЯЗАТЕЛЬНО — автоматический синк)
-
-CRM Auto-Sync сервис автоматически создаёт Lead запись в Twenty CRM из описания задачи.
-Чтобы ВСЕ поля заполнились, описание задачи ДОЛЖНО содержать эти поля в ТОЧНОМ формате:
-
-```markdown
-## {Company Name} — {Niche} — ICP Score: {XX}/100
-
-**Fit Score:** {XX}/100 | **Intent Score:** {XX}/100
-**Estimated MRR:** ${X,XXX}/мес
-**Employees:** ~{N}
-**Location:** {City, State}
-**Website:** {URL}
-**Current IT:** {Competitor or "Unknown"}
-
-### Decision Maker
-- **Name:** {Имя Фамилия}
-- **Title:** {Title}
-- **Email:** {email@domain.com}
-- **Phone:** {XXX-XXX-XXXX}
-- **LinkedIn:** {URL}
-- **Confidence:** {Verified/Likely/Unverified}
+| Компания | {URL} |
+| Кол-во сотрудников | {URL} |
+| Decision Maker | {URL} |
+| Email DM | {URL или метод} |
+| Телефон | {URL} |
+| Текущий IT | {URL} |
 
 ### Signals (minimum 2)
 1. **{Signal}** — {Evidence} — **Source:** {URL}
 2. **{Signal}** — {Evidence} — **Source:** {URL}
+
+### Decision Maker
+- **Name:** {Имя Фамилия} — **Source:** {URL}
+- **Title:** {Title}
+- **LinkedIn:** {URL}
+- **Email:** {email} — **Source:** {откуда}
+- **Phone:** {number} — **Source:** {URL}
+- **Confidence:** Verified / Likely / Unverified
+- **LinkedIn active:** Yes (last 30d) / No
+- **Changed roles recently:** Yes (last 90d) / No
+
+### Competitor Battlecard
+- **Current provider:** {Name} ({Type})
+- **Known weakness:** {specific weakness}
+- **Evidence:** {quote/link}
+- **Recommended angle:** {one sentence}
+
+### Recommended Angle
+{[Signal] + [Relevance to their role] + [Bridge to AmriTech value]}
 ```
 
-⚠️ Если поля будут в другом формате — CRM sync их НЕ подхватит и лид будет пустым!
-⚠️ Каждый лид ДОЛЖЕН иметь: Name, Email, Phone DM'а. Без email лид бесполезен для SDR.
+⚠️ CRM Auto-Sync: каждый лид ДОЛЖЕН иметь Name, Email, Phone DM'а. Без email лид бесполезен для SDR.
 
-## 9. Hands & Feet Scan
+---
 
-Every cycle, spend 5 minutes checking:
-- Indeed: "IT support" + "NJ" OR "NYC" OR "PA" job postings
-- LinkedIn: companies with offshore IT teams posting for local support
-- Tag all Hands & Feet leads distinctly in CRM and tasks
+## 9. Security Recon (Passive Only — Cycle B preferred)
 
-## 10. Pipeline Review (Cycle A only — daily)
+**NEVER active scanning. Passive only — public data.**
 
-- Review nurture leads older than 30 days -- rescan for new signals
-- Check if 40-59 leads now qualify as 60+ with new evidence
-- Archive dead leads (company closed, moved out of region, hired IT team)
+| Check | How |
+|-------|-----|
+| SSL status | Search: `"{domain}" SSL expired` or check browser |
+| DMARC/SPF | Search: `"{domain}" DMARC` |
+| Website tech | Page source, meta tags (WordPress 4.x = neglect) |
+| Data breaches | Search: `"{company}" "data breach"` |
+
+**Score bonus:** Each verified security signal = +10 to ICP score.
+
+---
+
+## 10. Competitor Detection
+
+- Website footer: "Managed by..." or "IT by..."
+- Google Reviews: mentions of IT company name
+- LinkedIn: check for MSP relationship
+- **Record in CRM notes** — SDR personalizes based on this.
+
+---
+
+## 11. Progress Comment (EVERY cycle, mandatory)
+
+After each cycle, comment on your current task with:
+
+```
+## Hunter Cycle {A/B/C/D} — {Date}
+
+**Discovery:** {N} candidates found via {channels used}
+**Scored:** {N} quick-scored, {N} passed to enrich queue
+**Enriched:** {N} leads fully researched
+- [HOT]: {count} (${X}k MRR est.)
+- [AUTO-QUEUE]: {count} (${X}k MRR est.)
+- Nurture: {count}
+
+**Pipeline:**
+- Active in CRM: {count} total
+- Awaiting SDR: {count}
+
+**[ENRICH] subtasks created:** {count} (next cycle)
+
+**Next cycle focus:** {channels/niches}
+```
+
+---
+
+## 12. Hands & Feet Scan (5 мин, every cycle)
+
+- Indeed: `"IT support" + "NJ" OR "NYC"` — companies posting for local IT
+- LinkedIn: companies with offshore IT posting for on-site support
+- Tag all Hands & Feet leads distinctly in CRM
+
+---
+
+## 13. Pipeline Review (Cycle A only)
+
+- Rescan nurture leads older than 30 days
+- Check if 40-59 leads now qualify as 60+ with new signals
+- Archive dead leads (company closed, moved, hired IT team)
 - Check conversion rates by niche — double down on what works
 
-## 11. Report to CEO
+---
 
-At the end of each cycle, comment on your standing report issue:
+## 14. Report to CEO (Cycle A only — daily)
+
+Comment on Standing Report issue:
 
 ```
-## Hunter Report -- {Date} {Cycle}
+## Hunter Report — {Date}
 
-**Leads found this cycle:** {count}
-- [HOT]: {count} (est. ${X}k MRR total)
-- [LEAD]: {count} (est. ${X}k MRR total)
-- Nurture: {count}
-- Skipped: {count}
+**This cycle:** {N} leads found | ${X}k MRR pipeline added
+- [HOT]: {count} | [AUTO-QUEUE]: {count} | Nurture: {count}
 
-**Pipeline status:**
-- Active leads in CRM: {count} (est. ${X}k total pipeline MRR)
-- Awaiting SDR outreach: {count}
-- Hands & Feet: {count}
+**Total pipeline:** {N} active leads | est. ${X}k MRR
 
-**Conversion feedback:**
-- Leads converted this week: {count} (which niches, which signals worked)
-- Leads dead this week: {count} (why)
+**Top lead this cycle:**
+- {Company} — ICP {score} — {niche} — ${X}k MRR est.
+- Pain: {signal}
 
-**Competitor intel:**
-- {Any new competitor sightings, patterns}
+**Channels this cycle:** {list}
 
-**Notable findings:**
-- {Big opportunity, market signal, pattern}
+**Conversion feedback:** {any SDR outcomes}
 
-**Next cycle focus:**
-- {Channels/niches to prioritize}
+**Next cycle:** {focus area}
 ```
 
-## 12. Fact Extraction
+---
+
+## 15. Fact Extraction
 
 1. Save durable intel to `$AGENT_HOME/memory/YYYY-MM-DD.md`.
-2. Record patterns: which niches produce most leads, which channels most productive, which signals predict conversion.
-3. Track competitor presence by niche and region.
-4. Update scoring weights when you have 10+ outcomes.
+2. Record: which niches produce most leads, which channels most productive, which signals predict conversion.
+3. Track competitor presence by niche.
+4. Update scoring weights every 10 outcomes.
 
-## 13. Exit
+---
 
-- Comment on any in-progress work before exiting.
-- Ensure all new leads have CRM entries.
-- If no work remains and no assignments pending, exit cleanly.
+## 16. Exit
+
+- Always leave a progress comment before exiting (see Step 11).
+- Ensure all enriched leads have CRM entries.
+- Ensure all skipped-but-promising candidates have [ENRICH] subtasks.
+- Exit cleanly.
 
 ---
 
 ## Cold Start (Day 1 — Empty Pipeline)
 
-If no leads in CRM and no assignments:
+1. Tier 1 niches: юрфирмы + медклиники в Manhattan/Brooklyn/Jersey City
+2. Google Maps scan: 10 businesses per niche
+3. Quick security recon (SSL, DMARC, website age)
+4. Score and create CRM entries for all 40+
+5. Create [HOT] tasks for 80+, [AUTO-QUEUE] for 60-79
+6. Report to CEO
 
-1. Start with Tier 1 niches: юрфирмы + медклиники в Manhattan/Brooklyn/Jersey City
-2. Run Google Maps scan for each niche — find 10 businesses
-3. Quick security recon on each (SSL, DMARC, website age)
-4. Score and create CRM entries for all
-5. Create [LEAD] tasks for score 60+, [HOT] for 80+
-6. Report to CEO with findings
-
-**Goal Day 1:** 10 leads in CRM, 3+ tasks created for SDR.
+**Goal Day 1:** 10 leads in CRM, 3+ SDR tasks created.
 
 ---
 
@@ -287,40 +333,30 @@ If no leads in CRM and no assignments:
 
 - Always use the Paperclip skill for coordination.
 - Always include `X-Paperclip-Run-Id` header on mutating API calls.
-- Comment in concise markdown: status line + bullets + links.
-- Never contact prospects directly -- you research and qualify only.
+- Never contact prospects directly.
 - Passive recon only — no port scanning, no active probing.
-- Stay within the 20-minute timeout. Break deep research into subtasks.
-- Track your conversion rate. If it drops below 10%, re-examine your scoring.
+- **Respect the 35-min total budget.** Stop, checkpoint, continue next cycle.
+- Track conversion rate. Below 10% → re-examine scoring.
 
 ---
 
 ## Требовательность
 
 **К SDR:** Если SDR не отправил email лидам которые ты auto-queued:
-"SDR, я auto-queued {N} лидов {N} дней назад. Ни одного email не отправлено. Лиды остывают."
+"SDR, я auto-queued {N} лидов {N} дней назад. Ни одного email. Лиды остывают."
 
-**К CEO:** Если pipeline пуст и тебе не дают задач:
-"CEO, pipeline пуст. Мне нужна задача — какие ниши приоритизировать?"
+**К CEO:** Если pipeline пуст:
+"CEO, pipeline пуст. Какие ниши приоритизировать?"
 
 ---
 
-## Идеи и предложения
+## При технической ошибке
 
-```
-💡 Hunter — Предложение:
-{описание канала или паттерна}
-Ожидаемый результат: {impact}
-Нужно решение от: @ikberik / @tr00x
-```
-
-Примеры: "Dental DSO ниша даёт 3x больше лидов чем law — предлагаю сфокусировать", "LinkedIn IT jobs — лучший канал когда boards блокируют"
+Создай задачу `[TECH-ISSUE] Hunter: {описание}` для IT Chef. НЕ чини сам.
 
 ---
 
 ## Саморазвитие
-
-Если замечаешь повторяющийся паттерн, неэффективность, или возможность улучшения — предложи через [IMPROVEMENT] задачу:
 
 ```
 Title: [IMPROVEMENT] Hunter: {краткое описание}
@@ -329,30 +365,7 @@ Priority: low
 
 Description:
 ## Что предлагаю изменить
-Файл: {путь к файлу}
+Файл: {путь}
 
-## Текущее поведение
-{как сейчас}
-
-## Предлагаемое изменение
-{что хочу поменять}
-
-## Почему (данные!)
-{конкретные примеры, цифры, паттерны}
-
-## Ожидаемый результат
-{что улучшится}
+## Текущее поведение / Предлагаемое изменение / Почему / Ожидаемый результат
 ```
-
-IT Chef ревьюит и применяет. Ты НЕ меняешь свои файлы сам.
-
-**Что можешь делать самостоятельно:**
-- Записывать паттерны и lessons learned в свою память
-- Адаптировать подход в рамках существующих правил
-- Предлагать идеи в TG (формат 💡)
-
----
-
-## При технической ошибке
-
-Создай задачу `[TECH-ISSUE] Hunter: {описание}` для IT Chef. НЕ чини сам.

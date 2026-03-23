@@ -185,7 +185,31 @@ ensure_crm_sync() {
 # 7. Cloudflare tunnel → auto-update Telegram webhook URL
 # ---------------------------------------------------------------------------
 ensure_cloudflare_tunnel() {
+  TUNNEL_HEALTHY=false
+
+  # Check 1: process alive?
   if pgrep -f "cloudflared tunnel" >/dev/null 2>&1; then
+    # Check 2: tunnel actually works? (ask Telegram API for webhook errors)
+    CURRENT_URL=$(cat "$TUNNEL_URL_FILE" 2>/dev/null)
+    if [ -n "$CURRENT_URL" ]; then
+      # Probe the tunnel directly — if 530 or timeout, it's dead
+      PROBE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$CURRENT_URL/health" 2>/dev/null)
+      if [ "$PROBE_CODE" = "200" ]; then
+        TUNNEL_HEALTHY=true
+      else
+        log "Tunnel process alive but returning HTTP $PROBE_CODE — restarting..."
+        pkill -f "cloudflared tunnel" 2>/dev/null
+        sleep 2
+      fi
+    else
+      # No saved URL — something wrong, restart
+      log "Tunnel process alive but no saved URL — restarting..."
+      pkill -f "cloudflared tunnel" 2>/dev/null
+      sleep 2
+    fi
+  fi
+
+  if $TUNNEL_HEALTHY; then
     return 0
   fi
 
@@ -213,26 +237,115 @@ ensure_cloudflare_tunnel() {
   echo "$NEW_URL" > "$TUNNEL_URL_FILE"
   log "Tunnel URL: $NEW_URL"
 
-  # Update Telegram webhook if URL changed
-  if [ "$NEW_URL" != "$OLD_URL" ]; then
-    log "Tunnel URL changed, updating Telegram webhook..."
-    # DNS needs time to propagate for quick tunnels — retry with backoff
-    for attempt in $(seq 1 6); do
-      sleep $((attempt * 10))
-      WEBHOOK_RESULT=$(curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/setWebhook" \
-        -H "Content-Type: application/json" \
-        -d "{\"url\":\"${NEW_URL}/webhook\"}" 2>/dev/null)
-      log "Telegram webhook attempt $attempt: $WEBHOOK_RESULT"
-      echo "$WEBHOOK_RESULT" | grep -q '"ok":true' && break
-    done
+  # Always update Telegram webhook after tunnel restart
+  log "Updating Telegram webhook to $NEW_URL..."
+  for attempt in $(seq 1 6); do
+    sleep $((attempt * 10))
+    WEBHOOK_RESULT=$(curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/setWebhook" \
+      -H "Content-Type: application/json" \
+      -d "{\"url\":\"${NEW_URL}/webhook\"}" 2>/dev/null)
+    log "Telegram webhook attempt $attempt: $WEBHOOK_RESULT"
+    echo "$WEBHOOK_RESULT" | grep -q '"ok":true' && break
+  done
 
-    # Append new log to main cloudflared log
-    cat /tmp/cloudflared-new.log >> /tmp/cloudflared.log
+  # Append new log to main cloudflared log
+  cat /tmp/cloudflared-new.log >> /tmp/cloudflared.log
+}
+
+# ---------------------------------------------------------------------------
+# 8. Auto-restart on "RESTART REQUIRED" (backend files changed)
+# ---------------------------------------------------------------------------
+check_restart_required() {
+  HEALTH=$(curl -s "http://127.0.0.1:$PAPERCLIP_PORT/api/health" 2>/dev/null)
+  if [ -z "$HEALTH" ]; then
+    return 0
+  fi
+
+  RESTART_NEEDED=$(echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('devServer',{}).get('restartRequired',False))" 2>/dev/null)
+  ACTIVE_RUNS=$(echo "$HEALTH" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('devServer',{}).get('activeRunCount',0))" 2>/dev/null)
+
+  if [ "$RESTART_NEEDED" = "True" ]; then
+    # Wait for active runs to finish (max 5 min)
+    if [ "$ACTIVE_RUNS" != "0" ] && [ "$ACTIVE_RUNS" != "" ]; then
+      log "Restart required but $ACTIVE_RUNS active runs — waiting..."
+      return 0
+    fi
+
+    log "RESTART REQUIRED detected — backend files changed. Restarting Paperclip..."
+    pkill -f "pnpm.*dev" 2>/dev/null
+    pkill -f "tsx.*server.*src/index" 2>/dev/null
+    sleep 3
+
+    cd "$PAPERCLIP_DIR"
+    PORT=$PAPERCLIP_PORT nohup pnpm dev:once >> /tmp/paperclip-dev.log 2>&1 &
+    log "Paperclip restarted (PID: $!)"
+
+    for i in $(seq 1 30); do
+      sleep 2
+      if curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$PAPERCLIP_PORT/api/health" 2>/dev/null | grep -q "200"; then
+        log "Paperclip ready after restart"
+        fix_stale_agents
+        return 0
+      fi
+    done
+    log "ERROR: Paperclip failed to restart after 60s"
   fi
 }
 
 # ---------------------------------------------------------------------------
-# 8. Periodic health check for agents (every 5 min)
+# 9. Kill hung agent runs (> 35 min) — prevent Hunter/SDR zombie sessions
+# ---------------------------------------------------------------------------
+kill_hung_runs() {
+  node -e '
+const pg = require("/Users/timur/paperclip/node_modules/.pnpm/pg@8.18.0/node_modules/pg");
+async function main() {
+  const c = new pg.Client({host:"127.0.0.1", port:54329, user:"paperclip", password:"paperclip", database:"paperclip"});
+  await c.connect();
+  const t = "'"$TG_COMPANY_ID"'";
+
+  // Find runs stuck running for > 35 minutes
+  const r = await c.query(`
+    SELECT hr.id, hr.agent_id, a.name, hr.created_at,
+           EXTRACT(EPOCH FROM (NOW() - hr.created_at))/60 AS minutes_running
+    FROM heartbeat_runs hr
+    JOIN agents a ON a.id = hr.agent_id
+    WHERE hr.company_id = $1
+      AND hr.status = '\''running'\''
+      AND hr.created_at < NOW() - interval '\''35 minutes'\''
+  `, [t]);
+
+  for (const row of r.rows) {
+    const mins = Math.floor(row.minutes_running);
+    console.log("HUNG RUN: " + row.name + " (run " + row.id + ") running for " + mins + "min — killing");
+
+    // Mark run as error
+    await c.query(
+      "UPDATE heartbeat_runs SET status = '\''error'\'', updated_at = NOW() WHERE id = $1",
+      [row.id]
+    );
+
+    // Reset agent to idle
+    await c.query(
+      "UPDATE agents SET status = '\''idle'\'', updated_at = NOW() WHERE id = $1",
+      [row.agent_id]
+    );
+
+    // Unlock any issues locked by this run
+    await c.query(
+      "UPDATE issues SET checkout_run_id = NULL, execution_run_id = NULL, execution_locked_at = NULL, updated_at = NOW() WHERE company_id = $1 AND (checkout_run_id = $2 OR execution_run_id = $2)",
+      [t, row.id]
+    );
+  }
+
+  if (r.rowCount > 0) console.log("Killed " + r.rowCount + " hung runs");
+  await c.end();
+}
+main().catch(e => console.error("kill_hung_runs:", e.message));
+' 2>> "$LOG"
+}
+
+# ---------------------------------------------------------------------------
+# 10. Periodic health check for agents (every 5 min)
 # ---------------------------------------------------------------------------
 AGENT_CHECK_COUNTER=0
 check_agent_health() {
@@ -302,6 +415,8 @@ log "========================================="
 while true; do
   rotate_log
   ensure_paperclip
+  check_restart_required
+  kill_hung_runs
   ensure_twenty
   ensure_telegram_webhook
   ensure_crm_sync

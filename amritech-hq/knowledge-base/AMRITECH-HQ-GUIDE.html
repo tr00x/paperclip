@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AmriTech AI HQ — Полный гайд для команды</title>
+<title></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -779,8 +779,8 @@ blockquote p:last-child { margin-bottom: 0; }
 
 @media print {
   @page {
-    margin: 2cm;
-    size: A4;
+    margin: 1cm 1.5cm;
+    size: 210mm 5000mm;
   }
 
   body {
@@ -793,30 +793,30 @@ blockquote p:last-child { margin-bottom: 0; }
 
   .cover {
     min-height: auto;
-    padding: 3cm 0;
+    padding: 2cm 0;
   }
 
-  .cover-title { font-size: 40px; }
-  .cover-subtitle { font-size: 18px; }
+  .cover-title { font-size: 36px; }
+  .cover-subtitle { font-size: 16px; }
 
-  .page-break { page-break-before: always; }
+  .page-break { page-break-before: auto; }
+
+  .agent-card, .workflow-step, .table-wrap, pre, .info-box, .warning-box, .critical-box {
+    box-shadow: none;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
 
   .agent-card {
-    box-shadow: none;
     border: 1px solid var(--border);
-    break-inside: avoid;
   }
-
-  .workflow-step { break-inside: avoid; }
-  .table-wrap { break-inside: avoid; }
-  pre { break-inside: avoid; }
 
   .agent-card:hover {
     box-shadow: none;
     transform: none;
   }
 
-  h2, h3 { page-break-after: avoid; }
+  h2, h3 { page-break-after: auto; }
 
   a { color: var(--text); border-bottom: none; }
 }

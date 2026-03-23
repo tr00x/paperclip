@@ -17,24 +17,46 @@
 
 **Sending HTML Emails:**
 
-Always send emails as HTML with `isHtml: true`. Use the full HTML template from AGENTS.md with AmriTech branding (header #0066CC, responsive layout, signature block).
+Always send emails as HTML with `isHtml: true`. **MANDATORY:** Load the `amritech-html-email` skill FIRST and use its exact template (gradient header, gold accent, table layout, branded signature). Never invent your own HTML.
 
+**CRITICAL: `to` and `bcc` must be arrays, NOT strings. This WILL error otherwise.**
+
+```json
+{
+  "account": "amritech",
+  "to": ["prospect@company.com"],
+  "subject": "On-site IT for [Company]'s NJ office",
+  "bcc": ["tr00x@proton.me", "ikberik@gmail.com", "ula.amri@icloud.com"],
+  "body": "<full HTML from amritech-html-email skill template>",
+  "isHtml": true
+}
 ```
-send_email:
-  to: "prospect@company.com"
-  subject: "On-site IT for [Company]'s NJ office"
-  body: "<full HTML from AGENTS.md template>"
-  isHtml: true
+
+**WRONG (will fail):**
 ```
+"to": "[\"email@example.com\"]"     ← STRING, not array!
+"bcc": "[\"a@b.com\", \"c@d.com\"]" ← STRING, not array!
+```
+
+**CORRECT:**
+```
+"to": ["email@example.com"]          ← ARRAY
+"bcc": ["a@b.com", "c@d.com"]        ← ARRAY
+```
+
+**CRITICAL: Account name is ALWAYS `"amritech"`. NEVER use `"default"`. Every email MCP call must include `"account": "amritech"`.**
 
 **Checking for Replies:**
 
 Search for replies to outreach emails every heartbeat:
 
-```
-search_emails:
-  query: "is:inbox is:unread subject:(AmriTech OR 'on-site IT' OR '15-minute call')"
-  maxResults: 20
+```json
+{
+  "account": "amritech",
+  "mailbox": "INBOX",
+  "seen": false,
+  "pageSize": 20
+}
 ```
 
 **Follow-up Replies (same thread):**
