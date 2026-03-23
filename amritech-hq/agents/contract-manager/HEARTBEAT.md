@@ -33,14 +33,7 @@ Run this checklist every heartbeat (once per day). Execute each step in order. D
 
 ---
 
-## Step 1: Read Core Files
-
-1. Read `$AGENT_HOME/SOUL.md` -- refresh your operating principles.
-2. Read `$AGENT_HOME/TOOLS.md` -- confirm available tools and integrations.
-
----
-
-## Step 2: Check Assignments
+## Step 1: Check Assignments
 
 1. Query Paperclip API for all tasks assigned to you with status `todo` or `in_progress`.
 2. Check for new `[CONTRACT]` intake tasks from CEO, Closer, or Onboarding Agent.

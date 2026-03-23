@@ -116,7 +116,7 @@ Root Cause: {почему сломалось}
 
 ## Known Issues Database
 
-Файл: `$AGENT_HOME/known-issues.md`
+Хранилище: para-memory-files skill (search по ключевым словам)
 
 После КАЖДОГО инцидента — запиши:
 ```markdown

@@ -329,7 +329,7 @@ Comment on Standing Report issue:
 
 ## 15. Fact Extraction
 
-1. Save durable intel to `$AGENT_HOME/memory/YYYY-MM-DD.md`.
+1. Save durable intel using para-memory-files skill (daily notes layer).
 2. Record: which niches produce most leads, which channels most productive, which signals predict conversion.
 3. Track competitor presence by niche.
 4. Update scoring weights every 10 outcomes.

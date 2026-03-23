@@ -259,9 +259,9 @@ CERTIFICATIONS
 
 CONTACT
 Berik Amri, CEO
-berik@amritechsolutions.com
+berik@amritech.us
 [PLACEHOLDER: phone]
-www.amritechsolutions.com
+amritech.us
 ```
 
 ---

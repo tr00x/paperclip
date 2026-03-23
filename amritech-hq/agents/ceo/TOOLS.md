@@ -118,7 +118,7 @@ File-based persistent memory using PARA method. Use this for all knowledge stora
 
 ### Three Layers
 
-**Layer 1: Knowledge Graph** (`$AGENT_HOME/life/`)
+**Layer 1: Knowledge Graph** (`life/`)
 ```
 life/
   projects/          # Active deals, campaigns, initiatives
@@ -142,12 +142,12 @@ life/
   index.md
 ```
 
-**Layer 2: Daily Notes** (`$AGENT_HOME/memory/YYYY-MM-DD.md`)
+**Layer 2: Daily Notes** (`memory/YYYY-MM-DD.md`)
 - Raw timeline of everything that happened.
 - Write continuously during heartbeats.
 - Extract durable facts to Layer 1 during fact extraction step.
 
-**Layer 3: Tacit Knowledge** (`$AGENT_HOME/MEMORY.md`)
+**Layer 3: Tacit Knowledge** (`MEMORY.md`)
 - Patterns about how the team operates.
 - Lessons learned from deals won and lost.
 - What works and what doesn't in outreach, pricing, proposals.
@@ -157,7 +157,7 @@ life/
 **Save a fact:** Write to the relevant entity's `items.yaml`.
 **Recall context:** Use `qmd query "question"` for semantic search.
 **Search exact phrase:** Use `qmd search "phrase"` for keyword search.
-**Index your memory:** Run `qmd index $AGENT_HOME` periodically.
+**Index your memory:** Run `qmd index` periodically.
 
 ### What to Store
 
@@ -170,7 +170,7 @@ life/
 | Client churned | Move to `life/archives/`, escalate reason to Telegram |
 | Weekly metrics | `life/areas/metrics/weekly/YYYY-WXX.md` |
 | Monthly metrics | `life/areas/metrics/monthly/YYYY-MM.md` |
-| Lesson learned | `$AGENT_HOME/MEMORY.md` |
+| Lesson learned | `MEMORY.md` |
 
 ## 4. GTM Skills
 

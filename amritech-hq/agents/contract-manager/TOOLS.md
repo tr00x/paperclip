@@ -76,18 +76,6 @@ Skill for identifying upsell and cross-sell opportunities within existing client
 
 ---
 
-## File System
-
-Your home directory is `$AGENT_HOME`. Use it for persistent storage:
-
-- `$AGENT_HOME/life/` -- working memory, notes, and operational data.
-- `$AGENT_HOME/AGENTS.md` -- your full role definition and procedures.
-- `$AGENT_HOME/HEARTBEAT.md` -- daily execution checklist.
-- `$AGENT_HOME/SOUL.md` -- your identity and operating principles.
-- `$AGENT_HOME/TOOLS.md` -- this file.
-
----
-
 ## Tool Usage Principles
 
 1. **Twenty CRM is the source of truth** for client data, service history, and contact information. Always query CRM before making assumptions about a client.

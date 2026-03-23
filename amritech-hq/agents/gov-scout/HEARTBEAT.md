@@ -36,10 +36,7 @@ Timeout: 20 minutes.
 
 ## Pre-scan Setup
 
-1. Read `$AGENT_HOME/AGENTS.md` -- refresh portal list, NAICS codes, scoring criteria.
-2. Read `$AGENT_HOME/SOUL.md` -- calibrate judgment.
-3. Read `$AGENT_HOME/TOOLS.md` -- confirm available tools.
-4. Check Paperclip inbox for any CEO directives, priority changes, or specific search requests.
+1. Check Paperclip inbox for any CEO directives, priority changes, or specific search requests.
 
 ---
 

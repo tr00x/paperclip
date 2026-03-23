@@ -133,8 +133,8 @@ Send the welcome email using Gmail MCP:
 
 ```
 To: {contactEmail}
-From: berik@amritechsolutions.com
-CC: ula@amritechsolutions.com
+From: agent@amritech.us
+BCC: tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com
 Subject: Welcome to AmriTech IT Solutions, {clientName}!
 Body: [HTML welcome email with all sections]
 ```
@@ -181,7 +181,7 @@ Add a completion comment to the [ONBOARD] task:
 Onboarding package delivered to {clientName}.
 
 Sent to: {contactName} ({contactEmail})
-CC: ula@amritechsolutions.com
+BCC: tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com
 
 Package contents:
 - Welcome email (HTML, branded)
