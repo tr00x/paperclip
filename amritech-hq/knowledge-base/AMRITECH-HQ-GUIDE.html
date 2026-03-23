@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AmriTech AI HQ — Полный гайд для команды</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   AMRITECH AI HQ — DESIGN SYSTEM
+   Swiss Modernism 2.0
+   ============================================================ */
+
+:root {
+  --primary-dark: #1C1917;
+  --secondary: #44403C;
+  --accent-gold: #CA8A04;
+  --accent-gold-light: #F5E6B8;
+  --bg: #FAFAF9;
+  --text: #0C0A09;
+  --muted: #78716C;
+  --border: #E7E5E4;
+  --info-bg: #F5F5F4;
+  --blue: #1474C4;
+  --red: #DC2626;
+  --green: #16A34A;
+  --unit: 8px;
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  font-size: 16px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--bg);
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 calc(var(--unit) * 4);
+}
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+
+h1 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 36px;
+  line-height: 1.2;
+  color: var(--primary-dark);
+  margin-bottom: calc(var(--unit) * 3);
+}
+
+h2 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.3;
+  color: var(--primary-dark);
+  margin-top: calc(var(--unit) * 5);
+  margin-bottom: calc(var(--unit) * 2);
+}
+
+h3 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--primary-dark);
+  margin-top: calc(var(--unit) * 4);
+  margin-bottom: calc(var(--unit) * 2);
+}
+
+h4 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--secondary);
+  margin-top: calc(var(--unit) * 3);
+  margin-bottom: calc(var(--unit) * 1);
+}
+
+p {
+  margin-bottom: calc(var(--unit) * 2);
+  color: var(--text);
+}
+
+strong { font-weight: 700; }
+
+a {
+  color: var(--blue);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+a:hover { border-bottom-color: var(--blue); }
+
+/* ============================================================
+   COVER PAGE
+   ============================================================ */
+
+.cover {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: calc(var(--unit) * 8) calc(var(--unit) * 4);
+  position: relative;
+}
+
+.cover-logo {
+  width: 180px;
+  height: auto;
+  margin-bottom: calc(var(--unit) * 6);
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.08));
+}
+
+.cover-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 52px;
+  line-height: 1.1;
+  color: var(--primary-dark);
+  margin-bottom: calc(var(--unit) * 2);
+  letter-spacing: -1px;
+}
+
+.cover-subtitle {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--muted);
+  margin-bottom: calc(var(--unit) * 5);
+}
+
+.cover-gold-line {
+  width: 80px;
+  height: 4px;
+  background: var(--accent-gold);
+  border-radius: 2px;
+  margin: 0 auto calc(var(--unit) * 5);
+}
+
+.cover-meta {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 2;
+}
+
+.cover-meta span {
+  display: inline-block;
+  padding: 0 calc(var(--unit) * 2);
+  border-right: 1px solid var(--border);
+}
+.cover-meta span:last-child { border-right: none; }
+
+/* ============================================================
+   TABLE OF CONTENTS
+   ============================================================ */
+
+.toc {
+  padding: calc(var(--unit) * 8) 0;
+}
+
+.toc h2 {
+  font-size: 28px;
+  margin-bottom: calc(var(--unit) * 4);
+  padding-bottom: calc(var(--unit) * 2);
+  border-bottom: 2px solid var(--accent-gold);
+  display: inline-block;
+}
+
+.toc-list {
+  list-style: none;
+  counter-reset: toc-counter;
+}
+
+.toc-item {
+  display: flex;
+  align-items: baseline;
+  padding: calc(var(--unit) * 1.5) 0;
+  border-bottom: 1px dotted var(--border);
+  transition: background 0.15s;
+}
+
+.toc-item:hover { background: var(--info-bg); }
+
+.toc-number {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent-gold);
+  min-width: 56px;
+  flex-shrink: 0;
+}
+
+.toc-title {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--primary-dark);
+  flex: 1;
+}
+
+.toc-page {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ============================================================
+   PART HEADERS
+   ============================================================ */
+
+.part-header {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--unit) * 3);
+  margin-top: calc(var(--unit) * 4);
+  margin-bottom: calc(var(--unit) * 5);
+  padding: calc(var(--unit) * 4) 0;
+  border-left: 4px solid var(--accent-gold);
+  padding-left: calc(var(--unit) * 4);
+}
+
+.part-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.part-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1.2;
+  color: var(--primary-dark);
+  margin: 0;
+}
+
+/* ============================================================
+   CALLOUT BOXES
+   ============================================================ */
+
+.info-box {
+  background: var(--info-bg);
+  border-left: 4px solid var(--accent-gold);
+  border-radius: 0 8px 8px 0;
+  padding: calc(var(--unit) * 3);
+  margin: calc(var(--unit) * 3) 0;
+  font-size: 15px;
+}
+
+.info-box p { margin-bottom: calc(var(--unit) * 1); }
+.info-box p:last-child { margin-bottom: 0; }
+
+.warning-box {
+  background: #FEF3C7;
+  border-left: 4px solid var(--accent-gold);
+  border-radius: 0 8px 8px 0;
+  padding: calc(var(--unit) * 3);
+  margin: calc(var(--unit) * 3) 0;
+  font-size: 15px;
+}
+
+.critical-box {
+  background: var(--red);
+  border-radius: 8px;
+  padding: calc(var(--unit) * 3);
+  margin: calc(var(--unit) * 3) 0;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.critical-box strong { color: #fff; }
+
+.error-box {
+  background: #FEF2F2;
+  border-left: 4px solid var(--red);
+  border-radius: 0 8px 8px 0;
+  padding: calc(var(--unit) * 3);
+  margin: calc(var(--unit) * 3) 0;
+  font-size: 15px;
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+
+.table-wrap {
+  overflow-x: auto;
+  margin: calc(var(--unit) * 3) 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead th {
+  background: var(--primary-dark);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: calc(var(--unit) * 1.5) calc(var(--unit) * 2);
+  text-align: left;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: calc(var(--unit) * 1.5) calc(var(--unit) * 2);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) { background: var(--info-bg); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: #F0EFEE; }
+
+/* Color-coded rows for escalation tables */
+tbody tr.row-warning { background: #FEF3C7; }
+tbody tr.row-warning:hover { background: #FDE68A; }
+tbody tr.row-critical { background: #FEE2E2; }
+tbody tr.row-critical:hover { background: #FECACA; }
+tbody tr.row-urgent { background: #FEE2E2; font-weight: 600; }
+
+/* ============================================================
+   CODE BLOCKS
+   ============================================================ */
+
+code {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  background: var(--info-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--primary-dark);
+}
+
+pre {
+  background: var(--primary-dark);
+  color: #E7E5E4;
+  padding: calc(var(--unit) * 3);
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: calc(var(--unit) * 2) 0 calc(var(--unit) * 3);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+}
+
+/* ============================================================
+   AGENT CARDS
+   ============================================================ */
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: calc(var(--unit) * 2);
+  margin: calc(var(--unit) * 3) 0;
+}
+
+.agent-card {
+  display: flex;
+  gap: calc(var(--unit) * 2.5);
+  padding: calc(var(--unit) * 3);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.agent-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+
+.agent-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #EFF6FF;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.agent-info { flex: 1; min-width: 0; }
+
+.agent-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--primary-dark);
+  margin-bottom: 2px;
+}
+
+.agent-role {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: calc(var(--unit) * 1);
+}
+
+.agent-desc {
+  font-size: 14px;
+  color: var(--secondary);
+  margin-bottom: calc(var(--unit) * 1);
+  line-height: 1.5;
+}
+
+.agent-meta {
+  display: flex;
+  gap: calc(var(--unit) * 2);
+  flex-wrap: wrap;
+}
+
+.agent-tag {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--info-bg);
+  color: var(--muted);
+}
+
+/* ============================================================
+   WORKFLOW / FUNNEL DIAGRAM
+   ============================================================ */
+
+.workflow {
+  margin: calc(var(--unit) * 4) 0;
+  position: relative;
+}
+
+.workflow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--unit) * 3);
+  position: relative;
+  padding-bottom: calc(var(--unit) * 3);
+}
+
+.workflow-step:last-child { padding-bottom: 0; }
+
+.workflow-line {
+  position: absolute;
+  left: 23px;
+  top: 48px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.workflow-step:last-child .workflow-line { display: none; }
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 18px;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.step-content {
+  flex: 1;
+  padding-top: 10px;
+}
+
+.step-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--primary-dark);
+  margin-bottom: 4px;
+}
+
+.step-desc {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* Branch steps */
+.workflow-branch {
+  margin-left: 72px;
+  margin-top: calc(var(--unit) * 1);
+  margin-bottom: calc(var(--unit) * 2);
+  border-left: 2px solid var(--border);
+  padding-left: calc(var(--unit) * 3);
+}
+
+.branch-item {
+  padding: calc(var(--unit) * 1.5) 0;
+  font-size: 14px;
+  color: var(--secondary);
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--unit) * 1);
+}
+
+.branch-label {
+  font-weight: 600;
+  color: var(--primary-dark);
+  white-space: nowrap;
+}
+
+.branch-yes { color: var(--green); }
+.branch-no { color: var(--red); }
+
+/* ============================================================
+   CHECKLISTS
+   ============================================================ */
+
+.checklist {
+  list-style: none;
+  margin: calc(var(--unit) * 2) 0;
+}
+
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--unit) * 1.5);
+  padding: calc(var(--unit) * 1.5) 0;
+  font-size: 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.checklist li:last-child { border-bottom: none; }
+
+.check-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--accent-gold);
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+/* ============================================================
+   SECTION DIVIDER
+   ============================================================ */
+
+.divider {
+  width: 60px;
+  height: 2px;
+  background: var(--accent-gold);
+  margin: calc(var(--unit) * 5) 0;
+  border: none;
+}
+
+.divider-full {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+  margin: calc(var(--unit) * 4) 0;
+  border: none;
+}
+
+/* ============================================================
+   ORDERED / UNORDERED LISTS
+   ============================================================ */
+
+ol, ul {
+  padding-left: calc(var(--unit) * 3);
+  margin-bottom: calc(var(--unit) * 2);
+}
+
+li {
+  margin-bottom: calc(var(--unit) * 1);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   NUMBERED STEPS (for instructions)
+   ============================================================ */
+
+.steps {
+  counter-reset: step-counter;
+  list-style: none;
+  padding-left: 0;
+  margin: calc(var(--unit) * 2) 0;
+}
+
+.steps li {
+  counter-increment: step-counter;
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--unit) * 2);
+  padding: calc(var(--unit) * 2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.steps li:last-child { border-bottom: none; }
+
+.steps li::before {
+  content: counter(step-counter);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   HIGHLIGHT / ACCENT TEXT
+   ============================================================ */
+
+.gold { color: var(--accent-gold); font-weight: 700; }
+.green-text { color: var(--green); }
+.red-text { color: var(--red); font-weight: 600; }
+
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.badge-gold { background: var(--accent-gold-light); color: #92400E; }
+.badge-green { background: #DCFCE7; color: #166534; }
+.badge-red { background: #FEE2E2; color: #991B1B; }
+.badge-blue { background: #DBEAFE; color: #1E40AF; }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+.page-footer {
+  text-align: center;
+  padding: calc(var(--unit) * 6) 0 calc(var(--unit) * 4);
+  font-size: 13px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  margin-top: calc(var(--unit) * 6);
+}
+
+.page-footer .gold-line {
+  width: 40px;
+  height: 3px;
+  background: var(--accent-gold);
+  margin: 0 auto calc(var(--unit) * 2);
+  border-radius: 2px;
+}
+
+/* ============================================================
+   QUOTE / BLOCKQUOTE
+   ============================================================ */
+
+blockquote {
+  border-left: 4px solid var(--accent-gold);
+  background: var(--info-bg);
+  padding: calc(var(--unit) * 3);
+  margin: calc(var(--unit) * 3) 0;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: var(--secondary);
+}
+
+blockquote p:last-child { margin-bottom: 0; }
+
+/* ============================================================
+   EXAMPLE BLOCKS
+   ============================================================ */
+
+.example-label {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent-gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: calc(var(--unit) * 1);
+}
+
+/* ============================================================
+   ROLES SECTION
+   ============================================================ */
+
+.role-header {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--unit) * 2);
+  padding: calc(var(--unit) * 2) calc(var(--unit) * 3);
+  background: var(--primary-dark);
+  color: #fff;
+  border-radius: 12px 12px 0 0;
+  margin-top: calc(var(--unit) * 4);
+}
+
+.role-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.role-tag {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent-gold);
+}
+
+.role-body {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: calc(var(--unit) * 3);
+  margin-bottom: calc(var(--unit) * 3);
+}
+
+/* ============================================================
+   PRINT STYLES
+   ============================================================ */
+
+@media print {
+  @page {
+    margin: 2cm;
+    size: A4;
+  }
+
+  body {
+    background: #fff;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .container { padding: 0; max-width: 100%; }
+
+  .cover {
+    min-height: auto;
+    padding: 3cm 0;
+  }
+
+  .cover-title { font-size: 40px; }
+  .cover-subtitle { font-size: 18px; }
+
+  .page-break { page-break-before: always; }
+
+  .agent-card {
+    box-shadow: none;
+    border: 1px solid var(--border);
+    break-inside: avoid;
+  }
+
+  .workflow-step { break-inside: avoid; }
+  .table-wrap { break-inside: avoid; }
+  pre { break-inside: avoid; }
+
+  .agent-card:hover {
+    box-shadow: none;
+    transform: none;
+  }
+
+  h2, h3 { page-break-after: avoid; }
+
+  a { color: var(--text); border-bottom: none; }
+}
+
+/* ============================================================
+   RESPONSIVE (SCREEN)
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .cover-title { font-size: 36px; }
+  .cover-subtitle { font-size: 18px; }
+  .part-title { font-size: 24px; }
+  h1 { font-size: 28px; }
+  h2 { font-size: 24px; }
+  h3 { font-size: 20px; }
+  .container { padding: 0 calc(var(--unit) * 2); }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     COVER PAGE
+     ============================================================ -->
+
+<div class="cover page-break">
+  <img src="https://amritech.us/assets/images/logo.png" alt="AmriTech Logo" class="cover-logo">
+  <div class="cover-title">AmriTech AI HQ</div>
+  <div class="cover-subtitle">Полный гайд для команды</div>
+  <div class="cover-gold-line"></div>
+  <div class="cover-meta">
+    <span>Версия HQ v2</span>
+    <span>22 марта 2026</span>
+    <span>amritech.us</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     TABLE OF CONTENTS
+     ============================================================ -->
+
+<div class="container toc page-break">
+  <h2>Содержание</h2>
+  <ul class="toc-list">
+    <li class="toc-item">
+      <span class="toc-number">Часть 1</span>
+      <span class="toc-title">Быстрый старт (5 минут)</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 2</span>
+      <span class="toc-title">Telegram — как общаться с агентами</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 3</span>
+      <span class="toc-title">CRM — как работать с базой данных</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 4</span>
+      <span class="toc-title">Кто есть кто — агенты</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 5</span>
+      <span class="toc-title">Как работает воронка продаж</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 6</span>
+      <span class="toc-title">Что нужно от каждого</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 7</span>
+      <span class="toc-title">Агенты требовательные — что ожидать</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 8</span>
+      <span class="toc-title">Email — как выглядят наши письма</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 9</span>
+      <span class="toc-title">Что делать когда что-то сломалось</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 10</span>
+      <span class="toc-title">Саморазвитие агентов</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 11</span>
+      <span class="toc-title">Безопасность</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number">Часть 12</span>
+      <span class="toc-title">Контакты</span>
+    </li>
+    <li class="toc-item">
+      <span class="toc-number"></span>
+      <span class="toc-title" style="color: var(--accent-gold); font-weight: 700;">Чеклист готовности</span>
+    </li>
+  </ul>
+</div>
+
+<!-- ============================================================
+     PART 1: QUICK START
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">1</div>
+    <div class="part-title">Быстрый старт<br><span style="font-size: 18px; font-weight: 400; color: var(--muted);">5 минут</span></div>
+  </div>
+
+  <blockquote>
+    <p>Этот документ — всё что нужно знать чтобы работать с AI-штабом AmriTech. Для Berik, Ula, и любого нового сотрудника. Без технического жаргона.</p>
+  </blockquote>
+
+  <h2>Что такое AI-штаб?</h2>
+  <p>У нас работают <strong>12 AI-сотрудников</strong> — они ищут клиентов, пишут email'ы, следят за контрактами и деньгами. Они работают 24/7, не спят, не болеют, не забывают.</p>
+
+  <div class="info-box">
+    <p><strong>Ты + Berik + Ula + 12 AI-агентов = команда из 15 человек.</strong></p>
+  </div>
+
+  <h2>Что тебе нужно делать?</h2>
+  <p>Всего 3 вещи:</p>
+  <ol>
+    <li><strong>Telegram</strong> — общайся с агентами через команды</li>
+    <li><strong>CRM</strong> — записывай результаты звонков и встреч</li>
+    <li><strong>Реагируй</strong> — когда агент просит тебя что-то сделать — делай</li>
+  </ol>
+
+  <h2>Твои первые 5 минут</h2>
+  <ol class="steps">
+    <li>Открой <strong>Telegram</strong> &rarr; наш групповой чат</li>
+    <li>Напиши <code>/help</code> &rarr; прочитай список команд</li>
+    <li>Напиши <code>/status</code> &rarr; посмотри кто из агентов работает</li>
+    <li>Напиши <code>/pipeline</code> &rarr; посмотри сколько лидов в работе</li>
+    <li>Готово! Ты в системе.</li>
+  </ol>
+</div>
+
+<!-- ============================================================
+     PART 2: TELEGRAM
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">2</div>
+    <div class="part-title">Telegram<br><span style="font-size: 18px; font-weight: 400; color: var(--muted);">Как общаться с агентами</span></div>
+  </div>
+
+  <h2>Где это?</h2>
+  <p>В нашем <strong>групповом чате</strong> в Telegram. Все команды пишутся прямо туда.</p>
+
+  <h2>Быстрые команды (ответ за 1 секунду)</h2>
+  <p>Эти команды не будят агентов — бот сам отвечает мгновенно:</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Что написать</th><th>Что увидишь</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/status</code></td><td>Список агентов: работает, задержка, проблема</td></tr>
+        <tr><td><code>/pipeline</code></td><td>Сколько лидов на каждом этапе (new, contacted, replied...)</td></tr>
+        <tr><td><code>/leads</code></td><td>Сколько email'ов отправлено, кто ответил</td></tr>
+        <tr><td><code>/help</code></td><td>Полная справка со всеми командами</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Пример ответа на <code>/status</code>:</h4>
+  <pre><code>Статус штаба
+
+Агенты:
+CEO     — 2ч назад
+Hunter  — 1ч назад
+SDR     — 30м назад
+Closer  — idle (нет задач)
+Finance — 3 дня назад
+
+Сервисы: CRM: OK | Sync: OK</code></pre>
+
+  <h2>Команды агентам (создают задачу и будят агента)</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Что написать</th><th>Кто получит</th><th>Пример</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>/hunter найди...</code></td><td>Hunter (искатель)</td><td><code>/hunter найди стоматологии в Bergen County NJ</code></td></tr>
+        <tr><td><code>/sdr напиши...</code></td><td>SDR (email)</td><td><code>/sdr напиши email для ABC Dental</code></td></tr>
+        <tr><td><code>/closer подготовь...</code></td><td>Closer (briefing)</td><td><code>/closer подготовь brief для звонка с ABC Corp</code></td></tr>
+        <tr><td><code>/contract проверь...</code></td><td>Contract Manager</td><td><code>/contract проверь renewal для ABC Corp</code></td></tr>
+        <tr><td><code>/finance сколько...</code></td><td>Finance Tracker</td><td><code>/finance сколько MRR сейчас?</code></td></tr>
+        <tr><td><code>/onboard запусти...</code></td><td>Onboarding</td><td><code>/onboard запусти онбординг для XYZ Law</code></td></tr>
+        <tr><td><code>/staff что...</code></td><td>Staff Manager</td><td><code>/staff что умеет Hunter?</code></td></tr>
+        <tr><td><code>/fix проблема</code></td><td>IT Chef (починка)</td><td><code>/fix CRM не грузится</code></td></tr>
+        <tr><td><code>/gov проверь...</code></td><td>Gov Scout (тендеры)</td><td><code>/gov проверь тендеры на IT в NJ</code></td></tr>
+        <tr><td><code>/proposal напиши...</code></td><td>Proposal Writer</td><td><code>/proposal напиши КП для ABC Corp</code></td></tr>
+        <tr><td><code>/legal проверь...</code></td><td>Legal Assistant</td><td><code>/legal проверь этот контракт</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-box">
+    <p><strong>Просто текст без <code>/</code></strong> — получит CEO (координатор):</p>
+    <pre><code>добавь эту компанию в приоритет: ABC Inc</code></pre>
+  </div>
+
+  <h2>Примеры (копируй и вставляй)</h2>
+
+  <h4>Хочу найти новых клиентов:</h4>
+  <pre><code>/hunter найди юрфирмы с плохим IT в Manhattan</code></pre>
+
+  <h4>Хочу узнать что происходит:</h4>
+  <pre><code>/status</code></pre>
+
+  <h4>Вопрос про систему:</h4>
+  <pre><code>/staff сколько лидов нашли за неделю?</code></pre>
+
+  <h4>Что-то сломалось:</h4>
+  <pre><code>/fix агенты не отвечают</code></pre>
+
+  <h2>Как отправить фото или файл агенту</h2>
+  <ol>
+    <li>Нажми скрепку в Telegram</li>
+    <li>Выбери фото или файл</li>
+    <li>В подписи (caption) напиши команду</li>
+  </ol>
+
+  <h4>Примеры:</h4>
+  <ul>
+    <li>Фото визитки + подпись <code>/hunter новый контакт</code> &rarr; Hunter разберёт визитку</li>
+    <li>Скриншот ошибки + подпись <code>/fix</code> &rarr; IT Chef диагностирует</li>
+    <li>PDF контракт + подпись <code>/legal проверь</code> &rarr; Legal ревьюит</li>
+  </ul>
+
+  <h2>Что делать когда агент пишет ТЕБЕ</h2>
+  <p>Агенты будут писать в чат и тегать тебя (@ikberik или @UlaAmri). Это значит им нужно от тебя действие.</p>
+
+  <h3>Пример 1: SDR просит одобрить ответ</h3>
+  <pre><code>SDR — Получен ответ!
+От: John Smith (ABC Corp)
+Тема: Re: On-site IT for your NJ office
+Суть: Interested in meeting next week
+Тон: позитивный
+Жду указаний — отвечать?</code></pre>
+  <div class="info-box">
+    <p><strong>Что делать Berik:</strong> Ответь в чат: <code>Да, ответь ему. Предложи вторник или среду 10 AM.</code></p>
+  </div>
+
+  <h3>Пример 2: Contract Manager просит Ula позвонить</h3>
+  <pre><code>@UlaAmri, контракт ABC Corp истекает через 15 дней.
+SDR outreach без ответа. Позвони клиенту!</code></pre>
+  <div class="warning-box">
+    <p><strong>Что делать Ula:</strong> Позвони клиенту. После звонка запиши результат в CRM (см. Часть 3).</p>
+  </div>
+
+  <h3>Пример 3: Finance просит решение</h3>
+  <pre><code>@ikberik, счёт XYZ Corp просрочен 14 дней ($3,000). Решение?</code></pre>
+  <div class="info-box">
+    <p><strong>Что делать Berik:</strong> Ответь: <code>Подожди ещё неделю</code> или <code>Ula, позвони им</code> или <code>Отправь formal reminder</code>.</p>
+  </div>
+
+  <h3>Пример 4: SDR спрашивает про отправку</h3>
+  <pre><code>Готово 3 письма. Отправить сейчас или запланировать на Пн 9AM?</code></pre>
+  <div class="info-box">
+    <p><strong>Что делать Berik:</strong> Ответь: <code>Отправляй</code> или <code>На понедельник</code>.</p>
+  </div>
+
+  <h2>Если агент пингует повторно</h2>
+  <p>Агенты <strong>требовательные</strong>. Если ты не ответил — они напомнят:</p>
+  <ul>
+    <li>Через 2 часа: "Лид ответил 2ч назад. @ikberik, решение?"</li>
+    <li>Через 4 часа: "Лид остывает!"</li>
+    <li>Через 8 часов: "СРОЧНО! Лид ждёт 8 часов!"</li>
+  </ul>
+
+  <div class="info-box">
+    <p><strong>Это нормально.</strong> Они делают это потому что каждый час промедления = клиент может уйти к конкуренту. Просто ответь когда увидишь.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     PART 3: CRM
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">3</div>
+    <div class="part-title">CRM<br><span style="font-size: 18px; font-weight: 400; color: var(--muted);">Как работать с базой данных</span></div>
+  </div>
+
+  <h2>Что такое CRM?</h2>
+  <p>CRM (Twenty) — это наша база данных. Здесь хранится информация о лидах (потенциальных клиентах), текущих клиентах, контрактах, оплатах.</p>
+
+  <div class="critical-box">
+    <p><strong>Все AI-агенты читают данные из CRM.</strong> Если ты не записал результат звонка — агенты не знают что произошло.</p>
+  </div>
+
+  <h2>Как открыть CRM</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Когда</th><th>Как зайти</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Сейчас</strong></td><td>Только с компа Tim'а &rarr; браузер &rarr; <code>localhost:5555</code></td></tr>
+        <tr><td><strong>Скоро</strong></td><td>Из любого браузера &rarr; <code>crm.amritech.us</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Как войти</h2>
+  <ol>
+    <li>Открой CRM в браузере</li>
+    <li>Логин: (спроси у Tim'а или Berik'а — он настраивал)</li>
+    <li>Увидишь dashboard с агентами, задачами, лидами</li>
+  </ol>
+
+  <h2>Что ты видишь в CRM</h2>
+
+  <h3>Левое меню:</h3>
+  <ul>
+    <li><strong>Leads</strong> — потенциальные клиенты (от Hunter)</li>
+    <li><strong>Clients</strong> — действующие клиенты</li>
+    <li><strong>Invoices</strong> — счета</li>
+    <li><strong>People</strong> — контактные лица</li>
+    <li><strong>Companies</strong> — компании</li>
+  </ul>
+
+  <h3>Карточка лида:</h3>
+  <p>Когда открываешь лид, видишь:</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Поле</th><th>Что это</th><th>Пример</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Name</strong></td><td>Название компании</td><td>ABC Dental Practice</td></tr>
+        <tr><td><strong>Decision Maker</strong></td><td>Контактное лицо</td><td>John Smith</td></tr>
+        <tr><td><strong>DM Email</strong></td><td>Его email</td><td>john@abcdental.com</td></tr>
+        <tr><td><strong>DM Phone</strong></td><td>Его телефон</td><td>(718) 555-1234</td></tr>
+        <tr><td><strong>ICP Score</strong></td><td>Оценка качества лида (0-100)</td><td>72</td></tr>
+        <tr><td><strong>Industry</strong></td><td>Ниша</td><td>Dental</td></tr>
+        <tr><td><strong>Location</strong></td><td>Где находятся</td><td>Brooklyn, NY</td></tr>
+        <tr><td><strong>Status</strong></td><td>Где в воронке</td><td>contacted</td></tr>
+        <tr><td><strong>Outreach Status</strong></td><td>Что происходит с email'ами</td><td>email_sent</td></tr>
+        <tr><td><strong>Notes</strong></td><td>Заметки (сюда ТВОИ записи!)</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Статусы лида (что они значат)</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Что видишь</th><th>Что это значит</th><th>Что происходит</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-blue">new</span></td><td>Hunter только нашёл</td><td>Ждём пока SDR напишет email</td></tr>
+        <tr><td><span class="badge badge-gold">qualified</span></td><td>Готов к outreach</td><td>SDR берёт в работу</td></tr>
+        <tr><td><span class="badge badge-gold">contacted</span></td><td>Email отправлен</td><td>Ждём ответ</td></tr>
+        <tr><td><span class="badge badge-green">engaged</span></td><td>Лид ответил!</td><td>Berik решает что делать</td></tr>
+        <tr><td><span class="badge badge-green">meeting_set</span></td><td>Звонок назначен</td><td>Closer готовит briefing</td></tr>
+        <tr><td><span class="badge badge-green">closed_won</span></td><td>Стал клиентом!</td><td>Onboarding запускается</td></tr>
+        <tr><td><span class="badge badge-red">closed_lost</span></td><td>Отказал</td><td>Архив</td></tr>
+        <tr><td><span class="badge">nurture</span></td><td>Не сейчас</td><td>Вернёмся через 3 месяца</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info-box">
+    <p><strong>Ты НЕ меняешь статусы вручную</strong> — агенты делают это автоматически. Твоя задача — писать заметки (Notes).</p>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Как записать результат звонка (для Ula)</h2>
+
+  <h3>Пошагово:</h3>
+
+  <ol class="steps">
+    <li>Открой CRM в браузере</li>
+    <li>Нажми <strong>Leads</strong> (или <strong>Clients</strong>) в левом меню</li>
+    <li>Найди компанию: используй поиск наверху. Начни вводить название: <code>ABC</code> &rarr; увидишь <code>ABC Dental Practice</code>. Нажми на неё.</li>
+    <li>Прокрути вниз до поля <strong>Notes</strong></li>
+    <li>Добавь запись в формате ниже</li>
+    <li>Сохрани (нажми за пределами поля или Ctrl+S)</li>
+  </ol>
+
+  <h4>Формат записи:</h4>
+  <pre><code>[2026-03-22] Звонил John Smith (ABC Dental)
+Тема: Renewal контракта
+Результат: Довольны сервисом, продлевают на год
+Next step: Отправить обновлённый контракт к среде
+Настроение: Позитивное
+— Ula</code></pre>
+
+  <h3>Что обязательно указывать:</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Пункт</th><th>Зачем</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Дата</strong></td><td>Чтобы знать когда был звонок</td></tr>
+        <tr><td><strong>Кому звонил</strong></td><td>Имя + компания</td></tr>
+        <tr><td><strong>Тема</strong></td><td>О чём говорили</td></tr>
+        <tr><td><strong>Результат</strong></td><td>Что решили</td></tr>
+        <tr><td><strong>Next step</strong></td><td>Что делать дальше</td></tr>
+        <tr><td><strong>Твоё имя</strong></td><td>Чтобы знать кто записал</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Примеры записей:</h3>
+
+  <h4>Renewal звонок:</h4>
+  <pre><code>[2026-03-22] Звонил Mike Salerno (Salerno Auto Group)
+Тема: Renewal — контракт через 25 дней
+Результат: Хочет обсудить цену, просит скидку 10%
+Next step: Передать Berik для решения по цене
+Настроение: Нейтральное, торгуется
+— Ula</code></pre>
+
+  <h4>Collection звонок:</h4>
+  <pre><code>[2026-03-22] Звонил Dr. Rhee (Staten Island Dental)
+Тема: Просрочка оплаты 14 дней ($2,500)
+Результат: Обещал оплатить до пятницы, проблема с бухгалтерией
+Next step: Проверить оплату в пятницу
+Настроение: Извинялся, проблема понятна
+— Ula</code></pre>
+
+  <h4>Check-in звонок (новый клиент):</h4>
+  <pre><code>[2026-03-22] Звонил Timothy (Connell Foley LLP)
+Тема: Day 3 check-in (онбординг)
+Результат: Всё работает, вопросов нет, доволен скоростью ответов
+Next step: Следующий check-in через неделю
+Настроение: Очень доволен
+— Ula</code></pre>
+
+  <hr class="divider">
+
+  <h2>Как внести клиента в CRM (для Berik)</h2>
+
+  <h3>Пошагово:</h3>
+
+  <ol class="steps">
+    <li>Открой CRM &rarr; нажми <strong>Clients</strong> в левом меню</li>
+    <li>Нажми <strong>+ Новая запись</strong> (или + кнопку)</li>
+    <li>Заполни поля (см. таблицу ниже)</li>
+    <li>Сохрани</li>
+    <li>Повтори для каждого клиента</li>
+  </ol>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Поле</th><th>Что вписать</th><th>Пример</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Name</strong></td><td>Название компании</td><td>ABC Dental Practice</td></tr>
+        <tr><td><strong>Industry</strong></td><td>Ниша</td><td>Dental</td></tr>
+        <tr><td><strong>Location</strong></td><td>Адрес</td><td>123 Main St, Brooklyn, NY</td></tr>
+        <tr><td><strong>Contact</strong></td><td>Контактное лицо</td><td>Dr. John Smith</td></tr>
+        <tr><td><strong>Email</strong></td><td>Его email</td><td>john@abcdental.com</td></tr>
+        <tr><td><strong>Phone</strong></td><td>Телефон</td><td>(718) 555-1234</td></tr>
+        <tr><td><strong>MRR</strong></td><td>Сколько платят в месяц</td><td>$2,500</td></tr>
+        <tr><td><strong>Contract Start</strong></td><td>Дата начала контракта</td><td>2025-06-01</td></tr>
+        <tr><td><strong>Contract End</strong></td><td>Дата окончания</td><td>2026-06-01</td></tr>
+        <tr><td><strong>Services</strong></td><td>Какие услуги</td><td>Managed IT, Cybersecurity</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Зачем это нужно:</h3>
+
+  <div class="error-box">
+    <p>Без списка клиентов в CRM:</p>
+    <ul>
+      <li>Contract Manager не видит когда renewal — контракт истечёт без предупреждения</li>
+      <li>Finance не может считать MRR — мы не знаем свой доход</li>
+      <li>SDR может отправить cold email <strong>действующему клиенту</strong> — это ужасно</li>
+      <li>CEO не может строить pipeline — принимает плохие решения</li>
+    </ul>
+  </div>
+
+  <div class="critical-box">
+    <p><strong>Одна запись = 5 минут. Потеря клиента = $30,000/год.</strong></p>
+  </div>
+</div>
+
+<!-- ============================================================
+     PART 4: AGENTS
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">4</div>
+    <div class="part-title">Кто есть кто<br><span style="font-size: 18px; font-weight: 400; color: var(--muted);">Агенты</span></div>
+  </div>
+
+  <h2>Список всех агентов</h2>
+
+  <div class="agent-grid">
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #FEF3C7;">&#128269;</div>
+      <div class="agent-info">
+        <div class="agent-name">Hunter</div>
+        <div class="agent-role">Искатель лидов</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Ищет компании которым нужен IT. Проверяет Google Maps, LinkedIn, Indeed, отзывы. Оценивает по ICP score (0-100).</div>
+        <div class="agent-meta">
+          <span class="agent-tag">4x/день</span>
+          <span class="agent-tag">каждые 6ч</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>"Нашёл стоматологию в NJ с истёкшим SSL сертификатом — ICP 72/100"</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #DBEAFE;">&#128231;</div>
+      <div class="agent-info">
+        <div class="agent-name">SDR</div>
+        <div class="agent-role">Писатель email'ов</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Пишет персонализированные email'ы лидам. Отправляет, делает follow-up на Day 3 и Day 7. Проверяет ответы.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">каждые 2ч</span>
+          <span class="agent-tag">Пн-Чт 8-10AM</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>Спрашивает у Berik'а подтверждение перед отправкой.</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #DCFCE7;">&#129309;</div>
+      <div class="agent-info">
+        <div class="agent-name">Closer</div>
+        <div class="agent-role">Подготовка к звонку</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Когда лид ответил положительно — готовит полный briefing для Berik'а: кто клиент, что болит, какая цена, какие возражения ожидать, как вести разговор.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">по задаче</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>Berik идёт на звонок полностью подготовленный.</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #FEF3C7;">&#128081;</div>
+      <div class="agent-info">
+        <div class="agent-name">CEO</div>
+        <div class="agent-role">Координатор штаба</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Раздаёт задачи всем агентам, делает утренний дайджест, еженедельные отчёты, следит за pipeline.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">9 AM + 6 PM</span>
+          <span class="agent-tag">по событиям</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>Утренний дайджест в TG, weekly report.</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #FEE2E2;">&#128735;</div>
+      <div class="agent-info">
+        <div class="agent-name">Staff Manager</div>
+        <div class="agent-role">Надзиратель</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Следит за здоровьем агентов. Если кто-то завис — сигнализирует. Следит чтобы Berik и Ula вели CRM.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">каждые 4ч</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>"SDR не отправил ни одного email за 24 часа — что-то не так!"</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #DBEAFE;">&#128203;</div>
+      <div class="agent-info">
+        <div class="agent-name">Contract Manager</div>
+        <div class="agent-role">Контракты</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Следит за сроками контрактов. За 30 дней до окончания — просит Ula позвонить. Если молчат — эскалирует.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">ежедневно</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>"Контракт ABC Corp через 30 дней — @UlaAmri, позвони"</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #FEF3C7;">&#128176;</div>
+      <div class="agent-info">
+        <div class="agent-name">Finance Tracker</div>
+        <div class="agent-role">Финансы</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Считает MRR (ежемесячный доход), следит за оплатами, эскалирует просрочки.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">по понедельникам</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>"Счёт XYZ просрочен 14 дней — @ikberik, решение?"</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #DCFCE7;">&#128295;</div>
+      <div class="agent-info">
+        <div class="agent-name">IT Chef</div>
+        <div class="agent-role">Девопс</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Мониторит все сервисы (CRM, Paperclip, email, Telegram). Если что-то упало — чинит автоматически. Когда Tim offline — его полная замена.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">каждый час</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>"CRM sync упал — перезапустил, всё работает"</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #DBEAFE;">&#128221;</div>
+      <div class="agent-info">
+        <div class="agent-name">Proposal Writer</div>
+        <div class="agent-role">Proposals</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Пишет коммерческие предложения (КП), ответы на тендеры (RFP), capability statements.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">по задаче</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>Готовый документ (.docx) для клиента.</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #FEE2E2;">&#9878;</div>
+      <div class="agent-info">
+        <div class="agent-name">Legal Assistant</div>
+        <div class="agent-role">Юрист</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Проверяет контракты на риски, compliance (HIPAA, SOX), находит проблемные пункты.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">по задаче</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>"В контракте нет SLA — нужно добавить перед подписью"</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #DCFCE7;">&#128640;</div>
+      <div class="agent-info">
+        <div class="agent-name">Onboarding Agent</div>
+        <div class="agent-role">Онбординг</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Когда новый клиент подписал — отправляет welcome email, IT аудит чеклист, 30-дневный план.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">по задаче</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>"Отправил welcome пакет новому клиенту"</em></p>
+      </div>
+    </div>
+
+    <div class="agent-card">
+      <div class="agent-icon" style="background: #FEF3C7;">&#127963;</div>
+      <div class="agent-info">
+        <div class="agent-name">Gov Scout</div>
+        <div class="agent-role">Тендеры</div>
+        <div class="agent-desc"><strong>Что делает:</strong> Мониторит SAM.gov, NY/NJ порталы. Ищет IT тендеры, скорит по размеру и сложности.</div>
+        <div class="agent-meta">
+          <span class="agent-tag">ежедневно</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-top: 8px; margin-bottom: 0;"><em>"Тендер на IT services в Newark — score 78/100, deadline через 14 дней"</em></p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     PART 5: SALES FUNNEL
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">5</div>
+    <div class="part-title">Как работает воронка продаж</div>
+  </div>
+
+  <h2>Путь лида от находки до клиента</h2>
+
+  <div class="workflow">
+
+    <div class="workflow-step">
+      <div class="step-number">1</div>
+      <div class="workflow-line"></div>
+      <div class="step-content">
+        <div class="step-title">Hunter находит компанию с плохим IT</div>
+        <div class="step-desc">Google Maps, LinkedIn, Indeed, отзывы, SSL-сертификаты</div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">2</div>
+      <div class="workflow-line"></div>
+      <div class="step-content">
+        <div class="step-title">Создаёт лид в CRM</div>
+        <div class="step-desc">ICP score, контакты, сигналы боли</div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">3</div>
+      <div class="workflow-line"></div>
+      <div class="step-content">
+        <div class="step-title">Если ICP 60+ и есть email &rarr; SDR автоматом получает задачу</div>
+        <div class="step-desc">Ниже 60 &rarr; уходит в Nurture</div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">4</div>
+      <div class="workflow-line"></div>
+      <div class="step-content">
+        <div class="step-title">SDR пишет персонализированный email</div>
+        <div class="step-desc">На основе сигналов боли из карточки лида</div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">5</div>
+      <div class="workflow-line"></div>
+      <div class="step-content">
+        <div class="step-title">Berik подтверждает время отправки</div>
+        <div class="step-desc">SDR спрашивает в Telegram</div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">6</div>
+      <div class="workflow-line"></div>
+      <div class="step-content">
+        <div class="step-title">SDR отправляет (Пн-Чт, 8-10 AM)</div>
+        <div class="step-desc">Оптимальное окно для открытия</div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">7</div>
+      <div class="workflow-line"></div>
+      <div class="step-content">
+        <div class="step-title">Через 3 дня &rarr; автоматический follow-up #1</div>
+        <div class="step-desc">Без подтверждения Berik'а</div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">8</div>
+      <div class="workflow-line"></div>
+      <div class="step-content">
+        <div class="step-title">Через 7 дней &rarr; автоматический follow-up #2</div>
+        <div class="step-desc">Последняя попытка</div>
+      </div>
+    </div>
+
+    <div class="workflow-step">
+      <div class="step-number">9</div>
+      <div class="step-content">
+        <div class="step-title">Лид ответил?</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="workflow-branch">
+    <div class="branch-item">
+      <span class="branch-label branch-yes">ДА (хочет поговорить):</span>
+      <span>SDR уведомляет в TG &rarr; Berik одобряет ответ &rarr; Closer готовит briefing &rarr; Berik звонит &rarr; Если закрыли &rarr; Onboarding + Contract + Finance автоматом</span>
+    </div>
+    <div class="branch-item">
+      <span class="branch-label branch-yes">ДА (вопрос по цене):</span>
+      <span>SDR готовит ответ &rarr; Berik одобряет &rarr; SDR отправляет</span>
+    </div>
+    <div class="branch-item">
+      <span class="branch-label branch-no">ДА (не интересно):</span>
+      <span>SDR закрывает вежливо &rarr; лид в архив</span>
+    </div>
+    <div class="branch-item">
+      <span class="branch-label branch-no">НЕТ (тишина):</span>
+      <span>Через 14 дней &rarr; финальное письмо &rarr; лид в nurture (вернёмся через 90 дней)</span>
+    </div>
+  </div>
+
+  <h2>Что делает каждый на каждом этапе</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Этап</th><th>Hunter</th><th>SDR</th><th>Berik</th><th>Ula</th><th>Closer</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Поиск</strong></td><td style="color: var(--green); font-weight: 600;">Ищет</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td><strong>Outreach</strong></td><td>—</td><td style="color: var(--green); font-weight: 600;">Пишет email</td><td style="color: var(--green); font-weight: 600;">Одобряет</td><td>—</td><td>—</td></tr>
+        <tr><td><strong>Follow-up</strong></td><td>—</td><td style="color: var(--green); font-weight: 600;">Автоматом</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td><strong>Ответ лида</strong></td><td>—</td><td style="color: var(--green); font-weight: 600;">Уведомляет</td><td style="color: var(--green); font-weight: 600;">Решает</td><td>—</td><td>—</td></tr>
+        <tr><td><strong>Briefing</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td style="color: var(--green); font-weight: 600;">Готовит</td></tr>
+        <tr><td><strong>Звонок</strong></td><td>—</td><td>—</td><td style="color: var(--green); font-weight: 600;">Звонит</td><td>—</td><td>—</td></tr>
+        <tr><td><strong>Renewal</strong></td><td>—</td><td style="color: var(--green); font-weight: 600;">Email</td><td>—</td><td style="color: var(--green); font-weight: 600;">Звонит</td><td>—</td></tr>
+        <tr><td><strong>Collection</strong></td><td>—</td><td style="color: var(--green); font-weight: 600;">Reminder</td><td style="color: var(--green); font-weight: 600;">Решение</td><td style="color: var(--green); font-weight: 600;">Звонит</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================
+     PART 6: RESPONSIBILITIES
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">6</div>
+    <div class="part-title">Что нужно от каждого</div>
+  </div>
+
+  <!-- BERIK -->
+  <div class="role-header">
+    <div class="role-name">Berik</div>
+    <div class="role-tag">@ikberik &middot; CEO</div>
+  </div>
+  <div class="role-body">
+
+    <h3>Ежедневно:</h3>
+    <ul class="checklist">
+      <li><span class="check-box"></span> Проверять TG утром — прочитать дайджест от CEO</li>
+      <li><span class="check-box"></span> Отвечать на лидов <strong>в течение 4 часов</strong> (SDR будет пинговать если дольше)</li>
+      <li><span class="check-box"></span> Одобрять отправку email'ов когда SDR спрашивает</li>
+    </ul>
+
+    <h3>Еженедельно:</h3>
+    <ul class="checklist">
+      <li><span class="check-box"></span> Прочитать weekly report от CEO</li>
+      <li><span class="check-box"></span> Обновить CRM если что-то изменилось (новый клиент, потеряли клиента)</li>
+    </ul>
+
+    <h3>Разово (ВАЖНО):</h3>
+    <div class="critical-box">
+      <p><strong>Внести ВСЕХ текущих клиентов в CRM</strong> (см. Часть 3)</p>
+    </div>
+
+    <h4>Как одобрять email:</h4>
+    <p>SDR напишет в TG: "Готово 3 письма. Отправить сейчас или на Пн 9AM?"</p>
+    <p>Ты отвечаешь: <code>Отправляй</code> или <code>На понедельник</code> или <code>Подожди, покажи мне текст</code></p>
+
+    <h4>Как одобрять ответ на лида:</h4>
+    <p>SDR напишет: "SDR — Получен ответ! ... Жду указаний — отвечать?"</p>
+    <p>Ты отвечаешь: <code>Да, ответь. Предложи звонок на вторник 10 AM</code> или <code>Подожди, я сам позвоню</code></p>
+  </div>
+
+  <!-- ULA -->
+  <div class="role-header">
+    <div class="role-name">Ula</div>
+    <div class="role-tag">@UlaAmri &middot; Account Manager</div>
+  </div>
+  <div class="role-body">
+
+    <h3>Ежедневно:</h3>
+    <ul class="checklist">
+      <li><span class="check-box"></span> Проверять TG — реагировать на запросы от агентов</li>
+      <li><span class="check-box"></span> <strong>После КАЖДОГО звонка — записать результат в CRM</strong> (см. Часть 3)</li>
+    </ul>
+
+    <h3>Когда агенты попросят:</h3>
+    <ul class="checklist">
+      <li><span class="check-box"></span> <strong>Renewal звонок</strong> — Contract Manager скажет "позвони клиенту" &rarr; позвони &rarr; запиши</li>
+      <li><span class="check-box"></span> <strong>Collection звонок</strong> — Finance скажет "клиент не платит" &rarr; позвони &rarr; запиши</li>
+      <li><span class="check-box"></span> <strong>Check-in звонок</strong> — Onboarding скажет "Day 3, позвони новому клиенту" &rarr; позвони &rarr; запиши</li>
+    </ul>
+
+    <div class="warning-box">
+      <p><strong>Важно:</strong></p>
+      <ul>
+        <li>Если не позвонишь в течение 3 дней — агент эскалирует к Berik</li>
+        <li>Если позвонил но не записал в CRM — Staff Manager напомнит</li>
+        <li>Записывать ОБЯЗАТЕЛЬНО — без записи SDR может отправить cold email действующему клиенту</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- TIM -->
+  <div class="role-header">
+    <div class="role-name">Tim</div>
+    <div class="role-tag">@tr00x &middot; AI/Automation & Dev</div>
+  </div>
+  <div class="role-body">
+
+    <h3>По запросу:</h3>
+    <ul>
+      <li>Починка если IT Chef не справился</li>
+      <li>Новые агенты и скиллы</li>
+      <li>Изменения инфраструктуры</li>
+    </ul>
+
+    <h3>Автоматически:</h3>
+    <ul>
+      <li>Watchdog мониторит и перезапускает всё каждые 60 секунд</li>
+      <li>IT Chef чинит типовые проблемы без спроса</li>
+      <li>Система самовосстанавливается</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================
+     PART 7: AGENT DEMANDS
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">7</div>
+    <div class="part-title">Агенты требовательные<br><span style="font-size: 18px; font-weight: 400; color: var(--muted);">Что ожидать</span></div>
+  </div>
+
+  <h2>Почему агенты пингуют?</h2>
+  <p>Потому что каждый час промедления = потенциальный клиент уходит. Агенты не злые — они делают свою работу.</p>
+
+  <h2>Примеры demand'ов и что делать</h2>
+
+  <h3>SDR пингует Berik (ответ на лид):</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Через</th><th>Что увидишь</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr><td>2ч</td><td>"Лид ответил 2ч назад. Решение?"</td><td>Ответь: "Да, ответь ему" или "Подожди"</td></tr>
+        <tr class="row-warning"><td>4ч</td><td>"Лид остывает!"</td><td>Ответь <strong>СЕЙЧАС</strong></td></tr>
+        <tr class="row-critical"><td>8ч</td><td>"СРОЧНО!"</td><td>Ответь <strong>НЕМЕДЛЕННО</strong> или позвони сам</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Contract Manager пингует Ula (renewal):</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Когда</th><th>Что увидишь</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr><td>30 дней до</td><td>"@UlaAmri, позвони клиенту"</td><td>Позвони, запиши в CRM</td></tr>
+        <tr><td>3 дня без ответа</td><td>"Ты не позвонил!"</td><td>Позвони СЕГОДНЯ</td></tr>
+        <tr class="row-warning"><td>15 дней до</td><td>"Ещё не позвонил!"</td><td><strong>СРОЧНО</strong> позвони</td></tr>
+        <tr class="row-critical"><td>7 дней до</td><td>"КРИТИЧНО!"</td><td>Звони <strong>ПРЯМО СЕЙЧАС</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Finance пингует всех (просрочка):</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Дней</th><th>Что увидишь</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr><td>7</td><td>SDR отправит reminder email</td><td>Ничего (автоматом)</td></tr>
+        <tr><td>14</td><td>"@ikberik, решение?"</td><td>Berik: "Подождём" или "Ula, позвони"</td></tr>
+        <tr class="row-warning"><td>30</td><td>"@UlaAmri, позвони!"</td><td>Ula: Позвони, запиши</td></tr>
+        <tr class="row-critical"><td>60</td><td>"Formal notice?"</td><td>Berik решает: пауза сервиса или подождать</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Staff Manager пингует про CRM:</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Что увидишь</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr><td>"@ikberik, в CRM нет клиентов"</td><td>Berik: внеси клиентов</td></tr>
+        <tr><td>"@UlaAmri, нет записи о звонке"</td><td>Ula: зайди в CRM, запиши</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================
+     PART 8: EMAIL
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">8</div>
+    <div class="part-title">Email<br><span style="font-size: 18px; font-weight: 400; color: var(--muted);">Как выглядят наши письма</span></div>
+  </div>
+
+  <h2>Шаблон</h2>
+  <p>Все email'ы от AmriTech выглядят так:</p>
+  <ul>
+    <li><strong>Верх:</strong> Синий gradient header с белым лого AmriTech</li>
+    <li><strong>Золотая полоска</strong> под header</li>
+    <li><strong>Текст:</strong> Короткий, персонализированный, по делу</li>
+    <li><strong>Кнопка:</strong> "Book a 15-min Phone Call" &rarr; ведёт на Calendly</li>
+    <li><strong>Подпись:</strong> Berik Izmaganov, CEO, с золотой полоской</li>
+    <li><strong>Низ:</strong> "Have a question? Just reply to this email"</li>
+  </ul>
+
+  <h2>Кто получает копии</h2>
+  <div class="info-box">
+    <p><strong>КАЖДЫЙ</strong> email клиенту автоматически копируется (BCC) на:</p>
+    <ul>
+      <li>Tim (tr00x@proton.me)</li>
+      <li>Berik (ikberik@gmail.com)</li>
+      <li>Ula (ula.amri@icloud.com)</li>
+    </ul>
+    <p>Вы видите ВСЕ письма которые уходят клиентам.</p>
+  </div>
+
+  <h2>Расписание отправки</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Когда</th><th>Что происходит</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Пн-Чт, 8-10 AM ET</strong></td><td>Оптимальное окно, SDR отправляет</td></tr>
+        <tr><td><strong>Пт / выходные / вечер</strong></td><td>Email'ы в очереди на понедельник 9 AM</td></tr>
+        <tr><td><strong>Follow-up Day 3/7</strong></td><td>Автоматом, без подтверждения</td></tr>
+        <tr><td><strong>Новые email'ы</strong></td><td>SDR спрашивает Berik перед отправкой</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Calendly</h2>
+  <p>Кнопка в email ведёт на: <code>calendly.com/amritech/15-min-it-discovery-call</code></p>
+  <ul>
+    <li>Клиент сам выбирает время</li>
+    <li>Berik получает приглашение в календарь</li>
+    <li>15 минут, по телефону, Mon-Fri 9AM-5PM ET</li>
+  </ul>
+</div>
+
+<!-- ============================================================
+     PART 9: TROUBLESHOOTING
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">9</div>
+    <div class="part-title">Что делать когда что-то сломалось</div>
+  </div>
+
+  <h2>Быстрая проверка</h2>
+  <ol class="steps">
+    <li>Напиши <code>/status</code> в TG</li>
+    <li>Если бот ответил — система жива. Смотри статусы агентов.</li>
+    <li>Если бот молчит — подожди 2 минуты (watchdog перезапустит)</li>
+  </ol>
+
+  <h2>Типичные проблемы</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Проблема</th><th>Что делать</th></tr></thead>
+      <tbody>
+        <tr><td>Бот не отвечает в TG</td><td>Подожди 2 мин. Если не помогло — скажи Tim'у</td></tr>
+        <tr><td>CRM не открывается</td><td>Напиши <code>/fix CRM не грузится</code></td></tr>
+        <tr><td>Агент не реагирует</td><td>Подожди до его heartbeat (SDR=2ч, Hunter=6ч, CEO=утро)</td></tr>
+        <tr><td>Email не дошёл</td><td>Напиши <code>/fix email не работает</code></td></tr>
+        <tr><td>Не понимаю что агент хочет</td><td>Напиши <code>/staff объясни что от меня хочет Contract Manager</code></td></tr>
+        <tr><td>Вообще ничего не понимаю</td><td>Напиши <code>/help</code> или позвони Tim'у</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Золотое правило</h2>
+  <div class="info-box">
+    <p><strong>Большинство проблем решаются сами за 2-5 минут.</strong> Watchdog мониторит каждые 60 секунд и перезапускает упавшие сервисы. IT Chef мониторит каждый час и чинит.</p>
+    <p>Если через 10 минут не починилось — напиши <code>/fix описание проблемы</code> или позвони Tim'у.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     PART 10: SELF-IMPROVEMENT
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">10</div>
+    <div class="part-title">Саморазвитие агентов</div>
+  </div>
+
+  <h2>Агенты учатся</h2>
+  <p>Если агент заметил паттерн — он предлагает улучшение:</p>
+
+  <pre><code>SDR — Предложение:
+Email'ы с темой "SSL expired" дают 0 ответов.
+Предлагаю сменить на "Quick IT check for {company}".
+Ожидаемый результат: +20% open rate</code></pre>
+
+  <p>IT Chef ревьюит предложение:</p>
+  <ul>
+    <li><strong>Безопасно</strong> &rarr; одобряет и применяет</li>
+    <li><strong>Рискованно</strong> &rarr; передаёт Tim'у</li>
+  </ul>
+
+  <div class="info-box">
+    <p><strong>Вам ничего делать не надо</strong> — это происходит автоматически. Просто знайте что агенты становятся лучше со временем.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     PART 11: SECURITY
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">11</div>
+    <div class="part-title">Безопасность</div>
+  </div>
+
+  <h2>Где хранятся данные</h2>
+  <ul>
+    <li><strong>CRM данные</strong> — на компьютере Tim'а (не в облаке)</li>
+    <li><strong>Email</strong> — через IONOS (наш домен amritech.us)</li>
+    <li><strong>Telegram</strong> — закрытая группа, наш бот</li>
+    <li><strong>Файлы</strong> — на компьютере Tim'а</li>
+  </ul>
+
+  <h2>Кто имеет доступ</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Кто</th><th>CRM</th><th>Paperclip</th><th>Email</th><th>TG</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Berik</strong></td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+          <td style="color: var(--green); font-weight: 600;">Да (BCC)</td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+        </tr>
+        <tr>
+          <td><strong>Ula</strong></td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+          <td style="color: var(--green); font-weight: 600;">Да (BCC)</td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+        </tr>
+        <tr>
+          <td><strong>Tim</strong></td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+        </tr>
+        <tr>
+          <td><strong>AI агенты</strong></td>
+          <td style="color: var(--green);">через API</td>
+          <td style="color: var(--green); font-weight: 600;">Да</td>
+          <td style="color: var(--green);">отправка</td>
+          <td style="color: var(--green);">бот</td>
+        </tr>
+        <tr>
+          <td><strong>Посторонние</strong></td>
+          <td style="color: var(--red); font-weight: 600;">Нет</td>
+          <td style="color: var(--red); font-weight: 600;">Нет</td>
+          <td style="color: var(--red); font-weight: 600;">Нет</td>
+          <td style="color: var(--red); font-weight: 600;">Нет</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Cloudflare Access (настраивается)</h2>
+  <p>Когда настроим удалённый доступ:</p>
+  <ul>
+    <li>Перед CRM/Paperclip — страница "введи email"</li>
+    <li>Приходит одноразовый код</li>
+    <li>Только наши email'ы допущены</li>
+    <li>Посторонние не зайдут</li>
+  </ul>
+</div>
+
+<!-- ============================================================
+     PART 12: CONTACTS
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number">12</div>
+    <div class="part-title">Контакты</div>
+  </div>
+
+  <h2>Люди</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Кто</th><th>TG</th><th>Email</th><th>Когда писать</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Berik</strong></td><td><code>@ikberik</code></td><td>ikberik@gmail.com</td><td>Решения, цены, одобрения</td></tr>
+        <tr><td><strong>Ula</strong></td><td><code>@UlaAmri</code></td><td>ula.amri@icloud.com</td><td>Звонки клиентам, renewals</td></tr>
+        <tr><td><strong>Tim</strong></td><td><code>@tr00x</code></td><td>tr00x@proton.me</td><td>Техническое, сломалось, идеи</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>TG команды (шпаргалка)</h2>
+  <pre><code>/status    — здоровье системы
+/pipeline  — воронка лидов
+/leads     — статус outreach
+/help      — все команды
+/fix       — починить проблему
+/hunter    — найти клиентов
+/sdr       — написать email
+/closer    — подготовить briefing
+/staff     — вопрос про систему
+/contract  — контракты
+/finance   — финансы
+/onboard   — онбординг
+/gov       — тендеры
+/proposal  — КП
+/legal     — юридическое
+/chef      — IT Chef</code></pre>
+</div>
+
+<!-- ============================================================
+     READINESS CHECKLIST
+     ============================================================ -->
+
+<div class="container page-break">
+  <div class="part-header">
+    <div class="part-number" style="background: var(--green);">&#10003;</div>
+    <div class="part-title">Чеклист готовности</div>
+  </div>
+
+  <h2>Berik</h2>
+  <ul class="checklist">
+    <li><span class="check-box"></span> Прочитал этот гайд</li>
+    <li><span class="check-box"></span> Написал <code>/help</code> в TG</li>
+    <li><span class="check-box"></span> Написал <code>/status</code> в TG</li>
+    <li><span class="check-box"></span> Написал <code>/pipeline</code> в TG</li>
+    <li><span class="check-box"></span> Внёс хотя бы 1 клиента в CRM</li>
+    <li><span class="check-box"></span> Знает как одобрить email SDR</li>
+    <li><span class="check-box"></span> Знает как ответить на demand от агента</li>
+  </ul>
+
+  <h2>Ula</h2>
+  <ul class="checklist">
+    <li><span class="check-box"></span> Прочитал этот гайд</li>
+    <li><span class="check-box"></span> Написал <code>/help</code> в TG</li>
+    <li><span class="check-box"></span> Написал <code>/status</code> в TG</li>
+    <li><span class="check-box"></span> Открыл CRM</li>
+    <li><span class="check-box"></span> Записал тестовую заметку в CRM</li>
+    <li><span class="check-box"></span> Знает формат записи звонка</li>
+    <li><span class="check-box"></span> Знает что делать когда агент просит позвонить</li>
+  </ul>
+
+  <hr class="divider">
+
+  <blockquote>
+    <p><strong>Мы — 3 человека + 12 AI-агентов. Работаем как компания из 15. Это наше секретное оружие.</strong></p>
+  </blockquote>
+
+  <p style="text-align: center; color: var(--muted); font-style: italic; margin-top: calc(var(--unit) * 4);">Версия: HQ v2 | Дата: 22 марта 2026 | Вопросы &rarr; @tr00x в Telegram</p>
+
+  <!-- FOOTER -->
+  <div class="page-footer">
+    <div class="gold-line"></div>
+    AmriTech IT Solutions &middot; amritech.us &middot; Версия HQ v2 &middot; Март 2026
+  </div>
+</div>
+
+</body>
+</html>
