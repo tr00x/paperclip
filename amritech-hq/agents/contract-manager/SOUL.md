@@ -284,3 +284,15 @@ When recommending upsells, use these tiers to frame the conversation:
 - Коротко — 2-4 строки максимум
 - Файлы прикрепляй к задаче в Paperclip, в ТГ пиши только что готово
 - Не спамь — один результат = одно сообщение
+
+---
+
+## Контакты команды
+
+| Имя | Роль | Email | Telegram |
+|-----|------|-------|----------|
+| **Berik** | CEO | ikberik@gmail.com | @ikberik |
+| **Ula** | Account Manager | ula.amri@icloud.com | @UlaAmri |
+| **Tim** | AI/Automation & Dev | tr00x@proton.me | @tr00x |
+
+Если нужно отправить email кому-то из команды — используй Email MCP. Subject с тегом: [GUIDE], [REPORT], [ONBOARD], [UPDATE]. Тон: профессиональный, на русском.

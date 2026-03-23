@@ -10,7 +10,7 @@ MCP (Model Context Protocol) servers that provide AI agents with access to exter
 | word-docs | office-word-mcp-server | Create and edit DOCX documents | Configured |
 | pandoc | mcp-pandoc | Convert between document formats (MD, DOCX, PDF) | Configured |
 | telegram | @parthj/telegram-notify-mcp | Bot notifications to team group chat | Configured |
-| email | @codefuturist/email-mcp | Local Mailpit SMTP/IMAP - send and read emails | Configured |
+| email | @codefuturist/email-mcp | IONOS SMTP/IMAP - send and read emails (agent@amritech.us) | Configured |
 
 ## Prerequisites
 
@@ -51,24 +51,14 @@ Requires: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_USERNAME` or `TELEGRAM_CHAT_ID`
 npx @codefuturist/email-mcp stdio
 ```
 Requires: `MCP_EMAIL_ADDRESS`, `MCP_EMAIL_PASSWORD`, IMAP/SMTP hosts.
-Currently uses local Mailpit (no auth needed). Switch to real SMTP by changing host/port in `.env`.
-
-### Mailpit (Local Email Server)
-```bash
-cd mcp-servers/mailpit && docker compose up -d
-```
-- **Web UI:** http://localhost:8025 (see all agent emails)
-- **SMTP:** localhost:1025 (agents send here)
-- **IMAP:** localhost:1143 (agents read here)
-
-To switch to real email later, change `MCP_EMAIL_SMTP_HOST` and `MCP_EMAIL_SMTP_PORT` in `email/.env`.
+Uses IONOS SMTP (port 587 STARTTLS) and IMAP (port 993 TLS) for agent@amritech.us.
 
 ## Configuration
 
 Environment files are stored in each server's subdirectory:
 - `twenty-crm/.env` - Twenty CRM API key and base URL
 - `telegram/.env` - Telegram bot token and chat ID
-- `email/.env` - Mailpit SMTP/IMAP config (local)
+- `email/.env` - IONOS SMTP/IMAP config
 - `docs/.env` - Pandoc path notes (stateless, no secrets)
 
 **Security:** All `.env` files in `mcp-servers/` are gitignored. Never commit API keys or tokens.

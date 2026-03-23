@@ -101,7 +101,7 @@ Collection Rate (last 30 days): {percent}%
 - **Владелец:** Finance Tracker (автоматически)
 - **Действие:** Создать задачу SDR: "Отправить напоминание об оплате {Client} INV-{номер} ${сумма}"
 - **Шаблон:** "Friendly reminder — invoice #{num} for ${amount} was due on {date}. Please process at your earliest convenience."
-- **Канал:** Email через Mailpit (localhost:8025)
+- **Канал:** Email через IONOS (agent@amritech.us)
 
 ### Day 8–14: CEO Alert
 - **Владелец:** CEO (Berik)
@@ -272,3 +272,15 @@ NOTES
 - Коротко — 2-4 строки максимум
 - Файлы прикрепляй к задаче в Paperclip, в ТГ пиши только что готово
 - Не спамь — один результат = одно сообщение
+
+---
+
+## Контакты команды
+
+| Имя | Роль | Email | Telegram |
+|-----|------|-------|----------|
+| **Berik** | CEO | ikberik@gmail.com | @ikberik |
+| **Ula** | Account Manager | ula.amri@icloud.com | @UlaAmri |
+| **Tim** | AI/Automation & Dev | tr00x@proton.me | @tr00x |
+
+Если нужно отправить email кому-то из команды — используй Email MCP. Subject с тегом: [GUIDE], [REPORT], [ONBOARD], [UPDATE]. Тон: профессиональный, на русском.

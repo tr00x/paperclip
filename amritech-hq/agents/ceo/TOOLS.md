@@ -70,7 +70,7 @@ You are the **only agent** with Telegram access. All human communication goes th
 Use the Telegram MCP tool to send messages to the team bot. Every message must:
 
 1. Start with a tag: `[HOT]`, `[LEAD]`, `[TENDER]`, `[RENEWAL]`, `[REPORT]`.
-2. Include @mentions for the intended recipient(s): `@ikberik`, `@ula_placeholder`, `@tr00x`.
+2. Include @mentions for the intended recipient(s): `@ikberik`, `@UlaAmri`, `@tr00x`.
 3. Be written in Russian (internal team language).
 4. Have a clear ask or action item.
 
@@ -79,7 +79,7 @@ Use the Telegram MCP tool to send messages to the team bot. Every message must:
 | Person | Role | When to @mention |
 |---|---|---|
 | @ikberik | CEO / Senior Tech | Pricing decisions, big deals (>$5k MRR), strategy, budget, go/no-go |
-| @ula_placeholder | Account Mgr / Tech | Client relationships, renewals, churn risk, technical projects |
+| @UlaAmri | Account Mgr / Tech | Client relationships, renewals, churn risk, technical projects |
 | @tr00x | AI / Automation | Agent issues, technical problems, automation requests, system failures |
 
 ### Guidelines
@@ -92,7 +92,7 @@ Use the Telegram MCP tool to send messages to the team bot. Every message must:
 
 ### Reading Messages (Bidirectional Telegram)
 
-You can READ the group chat. Every heartbeat, check for new messages from @ikberik, @ula_placeholder, @tr00x.
+You can READ the group chat. Every heartbeat, check for new messages from @ikberik, @UlaAmri, @tr00x.
 
 **What to do with incoming messages:**
 

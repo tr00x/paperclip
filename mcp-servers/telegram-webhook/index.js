@@ -18,6 +18,12 @@
  *   /onboard <task>    → Onboarding Agent
  *   /help              → Show commands
  *
+ * Quick Commands (no agent wake — instant response):
+ *   /status            → Agent health + pipeline summary
+ *   /pipeline          → CRM pipeline by status
+ *   /leads             → Lead counts by outreach status
+ *   /fix <issue>       → IT Chef diagnostic task
+ *
  * Dedup: tracks message IDs to prevent double-processing.
  */
 
@@ -42,7 +48,7 @@ const chatId = TELEGRAM_CHAT_ID ? Number(TELEGRAM_CHAT_ID) : null;
 const TEAM_MEMBERS = {
   "tr00x": { name: "Tim", role: "AI/Automation & Dev", handle: "@tr00x" },
   "ikberik": { name: "Berik", role: "CEO", handle: "@ikberik" },
-  "ula_placeholder": { name: "Ula", role: "Account Manager", handle: "@ula_placeholder" },
+  "UlaAmri": { name: "Ula", role: "Account Manager", handle: "@UlaAmri" },
 };
 
 function resolveTeamMember(tgMessage) {
@@ -98,6 +104,7 @@ const COMMANDS = {
   "/finance": { agent: "finance-tracker", emoji: "💰", name: "Finance Tracker" },
   "/legal": { agent: "legal-assistant", emoji: "⚖️", name: "Legal Assistant" },
   "/onboard": { agent: "onboarding-agent", emoji: "🚀", name: "Onboarding Agent" },
+  "/chef": { agent: "it-chef", emoji: "🔧", name: "IT Chef" },
 };
 
 function parseCommand(text) {
@@ -149,7 +156,7 @@ async function createTaskAndWake(agentSlug, cmd, from, text, member) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         reason: "telegram_message",
-        context: `Telegram from ${from}: ${text.slice(0, 500)}`,
+        context: `Telegram from ${from}: ${text}`,
       }),
     });
     const data = await res.json();
@@ -175,29 +182,197 @@ async function sendTelegram(text) {
   } catch {}
 }
 
+// ---------- Quick Commands (CRM queries, no agent wake) ----------
+
+const TWENTY_URL = process.env.TWENTY_URL || "http://localhost:5555";
+const TWENTY_API_KEY = process.env.TWENTY_API_KEY || "";
+
+async function crmQuery(query) {
+  try {
+    const res = await fetch(`${TWENTY_URL}/graphql`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${TWENTY_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query }),
+    });
+    return await res.json();
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function handleStatus() {
+  // Agent health from Paperclip
+  let agentStatus = "";
+  try {
+    const res = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/agents`);
+    const agents = await res.json();
+    for (const a of agents) {
+      const lastHb = a.lastHeartbeatAt ? new Date(a.lastHeartbeatAt) : null;
+      const ago = lastHb ? Math.round((Date.now() - lastHb) / 60000) : null;
+      const icon = !ago ? "⚪" : ago < 60 ? "🟢" : ago < 240 ? "🟡" : "🔴";
+      const agoStr = ago ? `${ago}м назад` : "никогда";
+      agentStatus += `${icon} ${a.name || a.urlKey} — ${agoStr}\n`;
+    }
+  } catch {
+    agentStatus = "❌ Paperclip недоступен\n";
+  }
+
+  // Pipeline from CRM
+  let pipeline = "";
+  if (TWENTY_API_KEY) {
+    const data = await crmQuery(`{ leads { edges { node { status outreachStatus } } } }`);
+    const leads = data?.data?.leads?.edges || [];
+    const byStatus = {};
+    for (const { node } of leads) {
+      byStatus[node.status] = (byStatus[node.status] || 0) + 1;
+    }
+    pipeline = Object.entries(byStatus).map(([k, v]) => `  ${k}: ${v}`).join("\n") || "пусто";
+  }
+
+  // Services
+  let services = "";
+  try {
+    const crm = await fetch(`${TWENTY_URL}/healthz`).then(r => r.ok ? "🟢" : "🔴").catch(() => "🔴");
+    const sync = await fetch("http://localhost:3089/health").then(r => r.ok ? "🟢" : "🔴").catch(() => "🔴");
+    services = `CRM: ${crm} | Sync: ${sync}`;
+  } catch {
+    services = "проверка не удалась";
+  }
+
+  await sendTelegram(`📊 <b>Статус штаба</b>\n\n<b>Агенты:</b>\n${agentStatus}\n<b>Pipeline:</b>\n${pipeline}\n\n<b>Сервисы:</b> ${services}`);
+}
+
+async function handlePipeline() {
+  if (!TWENTY_API_KEY) {
+    await sendTelegram("❌ CRM API key не настроен");
+    return;
+  }
+  const data = await crmQuery(`{ leads { edges { node { name status outreachStatus icpScore } } } }`);
+  const leads = data?.data?.leads?.edges || [];
+
+  const stages = {
+    new: [], qualified: [], contacted: [], engaged: [],
+    meeting_set: [], closed_won: [], closed_lost: [], nurture: [],
+  };
+  for (const { node } of leads) {
+    const s = node.status || "new";
+    if (!stages[s]) stages[s] = [];
+    stages[s].push(node.name);
+  }
+
+  const icons = { new: "⬜", qualified: "🟦", contacted: "📧", engaged: "💬", meeting_set: "📞", closed_won: "✅", closed_lost: "❌", nurture: "💤" };
+  let msg = "📊 <b>Pipeline</b>\n\n";
+  for (const [stage, names] of Object.entries(stages)) {
+    if (names.length > 0) {
+      msg += `${icons[stage] || "▪️"} <b>${stage}</b> (${names.length}):\n`;
+      for (const n of names.slice(0, 5)) msg += `  • ${n}\n`;
+      if (names.length > 5) msg += `  ... и ещё ${names.length - 5}\n`;
+      msg += "\n";
+    }
+  }
+  msg += `<b>Всего:</b> ${leads.length} лидов`;
+  await sendTelegram(msg);
+}
+
+async function handleLeads() {
+  if (!TWENTY_API_KEY) {
+    await sendTelegram("❌ CRM API key не настроен");
+    return;
+  }
+  const data = await crmQuery(`{ leads { edges { node { outreachStatus decisionMakerEmail } } } }`);
+  const leads = data?.data?.leads?.edges || [];
+
+  const byOutreach = {};
+  let withEmail = 0;
+  let withoutEmail = 0;
+  for (const { node } of leads) {
+    const s = node.outreachStatus || "pending";
+    byOutreach[s] = (byOutreach[s] || 0) + 1;
+    if (node.decisionMakerEmail) withEmail++;
+    else withoutEmail++;
+  }
+
+  const icons = { pending: "⬜", email_sent: "📧", follow_up_1: "📧📧", follow_up_2: "📧📧📧", replied_interested: "🔥", replied_question: "❓", replied_objection: "🤔", not_interested: "❌", no_response: "😶", meeting_scheduled: "📞" };
+  let msg = "📋 <b>Outreach статус лидов</b>\n\n";
+  for (const [status, count] of Object.entries(byOutreach)) {
+    msg += `${icons[status] || "▪️"} ${status}: <b>${count}</b>\n`;
+  }
+  msg += `\n📧 С email: ${withEmail} | Без email: ${withoutEmail}`;
+  msg += `\n<b>Всего:</b> ${leads.length}`;
+  await sendTelegram(msg);
+}
+
 async function handleHelp() {
-  await sendTelegram(`🤖 <b>AmriTech AI Штаб</b>
+  // Send two messages — TG has 4096 char limit
+  await sendTelegram(`🤖 <b>AmriTech AI Штаб — Справка</b>
 
-<b>Команды:</b>
-/ceo — Координатор (по умолчанию)
-/staff — Справка по агентам и системе
-/hunter — Поиск лидов
-/sdr — Cold emails
-/closer — Подготовка к звонкам
-/gov — Тендеры (SAM.gov)
-/proposal — Proposals и RFP
-/contract — Контракты и renewals
-/finance — Финансы и инвойсы
-/legal — Юридические вопросы
-/onboard — Онбординг клиентов
+<b>━━━ 📊 БЫСТРЫЕ КОМАНДЫ ━━━</b>
+<i>(мгновенный ответ, не будит агентов)</i>
 
-<b>Примеры:</b>
-<code>/staff что может SDR?</code>
-<code>/ceo найди 10 заводов в Hoboken NJ</code>
-<code>/hunter юрфирмы в Bergen County</code>
-<code>/sdr напиши email для ABC Corp</code>
+/status — Кто из агентов работает, кто завис
+/pipeline — Сколько лидов на каждом этапе воронки
+/leads — Сколько email отправлено, кто ответил
+/fix — Что-то сломалось? Напиши и починим
 
-Без команды → CEO`);
+<b>━━━ 🤖 КОМАНДЫ АГЕНТАМ ━━━</b>
+<i>(создаёт задачу агенту и будит его)</i>
+
+<b>Продажи:</b>
+/hunter — Найти новых клиентов
+/sdr — Написать/отправить cold email
+/closer — Подготовить brief для звонка
+
+<b>Управление:</b>
+/ceo — Главный координатор (или просто пишите без команды)
+/staff — Вопросы про систему и агентов
+
+<b>Контракты и деньги:</b>
+/contract — Контракты, renewals, продления
+/finance — Инвойсы, оплаты, MRR
+/onboard — Онбординг нового клиента
+
+<b>Другое:</b>
+/gov — Гос. тендеры (SAM.gov, NY/NJ)
+/proposal — Написать proposal или КП
+/legal — Юридическая проверка`);
+
+  await sendTelegram(`<b>━━━ 💡 ПРИМЕРЫ ━━━</b>
+<i>(копируйте и вставляйте)</i>
+
+<b>Хочу найти клиентов:</b>
+<code>/hunter найди стоматологии в Bergen County NJ</code>
+<code>/hunter юрфирмы с плохим IT в Manhattan</code>
+
+<b>Хочу отправить email:</b>
+<code>/sdr напиши email для ABC Dental</code>
+<code>/sdr отправь follow-up всем кто не ответил</code>
+
+<b>Клиент ответил на email:</b>
+<code>/closer подготовь brief для звонка с ABC Corp</code>
+
+<b>Новый клиент подписал контракт:</b>
+<code>/onboard запусти онбординг для XYZ Law</code>
+
+<b>Вопрос по системе:</b>
+<code>/staff что умеет Hunter?</code>
+<code>/staff сколько лидов нашли за неделю?</code>
+
+<b>Что-то сломалось:</b>
+<code>/fix агенты не отвечают</code>
+<code>/fix CRM не грузится</code>
+
+<b>Просто написать координатору:</b>
+<code>добавь эту компанию в приоритет: ABC Inc</code>
+<i>(без команды = идёт к CEO)</i>
+
+<b>━━━ ⚠️ ВАЖНО ━━━</b>
+📋 <b>CRM надо вести!</b> Агенты работают на данных из CRM.
+• @ikberik — внеси клиентов, подтверждай решения
+• @UlaAmri — записывай результаты звонков
+Без данных штаб работает вслепую 🙈`);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -218,8 +393,25 @@ const server = http.createServer(async (req, res) => {
         const member = resolveTeamMember(message);
         const from = `${member.name} (${member.role}, ${member.handle})`;
 
-        if (text.toLowerCase().startsWith("/help") || text.toLowerCase().startsWith("/start")) {
+        const lower = text.toLowerCase().trim();
+        if (lower.startsWith("/help") || lower.startsWith("/start")) {
           await handleHelp();
+        } else if (lower === "/status") {
+          await handleStatus();
+        } else if (lower === "/pipeline") {
+          await handlePipeline();
+        } else if (lower === "/leads") {
+          await handleLeads();
+        } else if (lower.startsWith("/fix")) {
+          const issue = text.slice(4).trim();
+          if (issue) {
+            // Route to IT Chef (or Staff Manager as fallback)
+            const itChefSlug = agentMap["it-chef"] ? "it-chef" : "staff-manager";
+            const cmd = { agent: itChefSlug, emoji: "🔧", name: "IT Chef" };
+            await createTaskAndWake(itChefSlug, cmd, from, `[TECH-ISSUE] ${issue}`, member);
+          } else {
+            await sendTelegram("🔧 Напиши проблему после /fix\nПример: <code>/fix CRM не отвечает</code>");
+          }
         } else {
           const { slug, message: agentMsg, cmd } = parseCommand(text);
           if (agentMsg) {
