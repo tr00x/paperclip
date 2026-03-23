@@ -97,6 +97,14 @@ function parseLeadFromDescription(title, description) {
     return m ? m[1].replace(/\s*[—-]\s*\*\*Source.*/i, "").trim() : null;
   }
 
+  // Clean URL for CRM Links field
+  function cleanUrl(url) {
+    if (!url) return null;
+    let clean = url.replace(/[)>"'\],;]+$/, "").trim();
+    if (!clean.match(/^https?:\/\//)) clean = "https://" + clean;
+    try { new URL(clean); return clean; } catch { return null; }
+  }
+
   const lines = description.split("\n");
   for (const line of lines) {
     const l = line.trim();
@@ -122,20 +130,10 @@ function parseLeadFromDescription(title, description) {
 
     // Website — handle both full URLs and bare domains
     if (bold("Website").test(l)) {
-      const url = l.match(/https?:\/\/[^\s)]+/);
-      if (url) {
-        lead.website = { primaryLinkUrl: url[0], primaryLinkLabel: "" };
-      } else {
-        // Try bare domain: "harwoodlloyd.com" without protocol
-        const domain = l.match(/\*\*\s*([\w.-]+\.\w{2,})/);
-        if (!domain) {
-          const val = extract(l, "Website");
-          if (val && val.match(/[\w.-]+\.\w{2,}/)) {
-            lead.website = { primaryLinkUrl: "https://" + val.trim(), primaryLinkLabel: "" };
-          }
-        } else {
-          lead.website = { primaryLinkUrl: "https://" + domain[1], primaryLinkLabel: "" };
-        }
+      const urlMatch = l.match(/https?:\/\/[^\s)>"]+/) || l.match(/([\w.-]+\.\w{2,})/);
+      if (urlMatch) {
+        const cleaned = cleanUrl(urlMatch[0]);
+        if (cleaned) lead.website = { primaryLinkUrl: cleaned, primaryLinkLabel: "" };
       }
     }
 
@@ -159,7 +157,7 @@ function parseLeadFromDescription(title, description) {
     // DM Title
     if (bold("Title").test(l) && !l.match(/Job Title/i)) {
       const title = extract(l, "Title");
-      if (title) lead.dmTitle = title;
+      // dmTitle field doesn't exist in CRM Lead schema — skip
     }
 
     // DM Email
@@ -178,8 +176,11 @@ function parseLeadFromDescription(title, description) {
 
     // DM LinkedIn
     if (bold("LinkedIn").test(l) && l.match(/https?:\/\//)) {
-      const url = l.match(/https?:\/\/[^\s)]+/);
-      if (url) lead.decisionMakerLinkedin = { primaryLinkUrl: url[0], primaryLinkLabel: "" };
+      const urlMatch = l.match(/https?:\/\/[^\s)>"]+/);
+      if (urlMatch) {
+        const cleaned = cleanUrl(urlMatch[0]);
+        if (cleaned) lead.decisionMakerLinkedin = { primaryLinkUrl: cleaned, primaryLinkLabel: "" };
+      }
     }
 
     // Confidence → source
