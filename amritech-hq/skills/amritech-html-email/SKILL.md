@@ -159,7 +159,7 @@ Email-safe HTML с table layout, inline styles, logo AmriTech. Работает 
     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
       <tr>
         <td style="background-color:#003D8F; background:linear-gradient(to bottom right,#003D8F,#1474C4); border-radius:6px; padding:13px 32px;">
-          <a href="https://calendly.com/amritech/15-min-it-discovery-call" style="color:#FFFFFF; text-decoration:none; font-size:15px; font-weight:bold; font-family:Arial,Helvetica,sans-serif; display:inline-block;">Book a 15-min Phone Call</a>
+          <a href="https://calendly.com/amritech/15-min-it-discovery-call" style="color:#FFFFFF; text-decoration:none; font-size:15px; font-weight:bold; font-family:Arial,Helvetica,sans-serif; display:inline-block;"><span style="color:#FFFFFF;">Book a 15-min Phone Call</span></a>
         </td>
       </tr>
     </table>
