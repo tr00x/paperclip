@@ -118,6 +118,140 @@ function parseCommand(text) {
   return { slug: "ceo", message: text, cmd: COMMANDS["/ceo"] };
 }
 
+// ---------- File handling ----------
+
+const FILE_DIR = "/tmp/amritech-tg-files";
+import fs from "node:fs";
+import path from "node:path";
+
+// Ensure file directory exists
+try { fs.mkdirSync(FILE_DIR, { recursive: true }); } catch {}
+
+async function downloadTelegramFile(fileId) {
+  try {
+    // Step 1: getFile to get file_path
+    const fileRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`);
+    const fileData = await fileRes.json();
+    if (!fileData.ok || !fileData.result?.file_path) return null;
+
+    const filePath = fileData.result.file_path;
+    const fileName = path.basename(filePath);
+    const localPath = path.join(FILE_DIR, `${Date.now()}-${fileName}`);
+
+    // Step 2: Download file
+    const downloadRes = await fetch(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${filePath}`);
+    const buffer = Buffer.from(await downloadRes.arrayBuffer());
+    fs.writeFileSync(localPath, buffer);
+
+    console.log(`  Downloaded: ${localPath} (${buffer.length} bytes)`);
+    return { localPath, fileName, size: buffer.length, tgPath: filePath };
+  } catch (err) {
+    console.error(`  File download error: ${err.message}`);
+    return null;
+  }
+}
+
+async function handleIncomingFile(message, member, from) {
+  let fileId = null;
+  let fileType = "file";
+  let caption = message.caption || "";
+
+  // Photo: array of sizes, take largest (last)
+  if (message.photo?.length) {
+    fileId = message.photo[message.photo.length - 1].file_id;
+    fileType = "photo";
+  }
+  // Document
+  else if (message.document) {
+    fileId = message.document.file_id;
+    fileType = message.document.mime_type?.startsWith("image/") ? "photo" : "document";
+    caption = caption || message.document.file_name || "file";
+  }
+  // Voice
+  else if (message.voice) {
+    fileId = message.voice.file_id;
+    fileType = "voice";
+  }
+  // Video
+  else if (message.video) {
+    fileId = message.video.file_id;
+    fileType = "video";
+  }
+  // Sticker (ignore)
+  else if (message.sticker) {
+    return;
+  }
+
+  if (!fileId) return;
+
+  const file = await downloadTelegramFile(fileId);
+  if (!file) {
+    await sendTelegram(`❌ Не удалось скачать файл`);
+    return;
+  }
+
+  // Determine which agent to route to
+  const { slug, message: agentMsg, cmd } = parseCommand(caption);
+  const taskText = agentMsg || caption || `[${fileType.toUpperCase()}] от ${member.name}`;
+
+  const agentId = agentMap[slug];
+  if (!agentId) {
+    await sendTelegram(`❌ Агент "${slug}" не найден`);
+    return;
+  }
+
+  const ts = new Date().toISOString().slice(0, 16);
+  console.log(`[${ts}] ${from} → ${cmd.emoji} ${cmd.name}: [${fileType}] ${caption.slice(0, 60)}`);
+
+  // Create task with file reference
+  try {
+    const description = [
+      `**${fileType === "photo" ? "Фото" : "Файл"} из Telegram от ${from}:**\n`,
+      caption ? `**Подпись:** ${caption}\n` : "",
+      `**Файл:** \`${file.localPath}\``,
+      `**Имя:** ${file.fileName}`,
+      `**Размер:** ${(file.size / 1024).toFixed(1)} KB`,
+      `**Тип:** ${fileType}`,
+      `\n---\n_Получено: ${ts}_`,
+      `\n_Агент может прочитать файл по пути выше через Read tool или Bash._`,
+    ].join("\n");
+
+    const res = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/issues`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `[TG-${fileType.toUpperCase()}] ${taskText.slice(0, 80)}`,
+        description,
+        priority: "medium",
+        assigneeAgentId: agentId,
+        status: "todo",
+      }),
+    });
+    const task = await res.json();
+    console.log(`  → Task created: ${task.identifier || "?"}`);
+  } catch (err) {
+    console.error(`  → Task creation failed: ${err.message}`);
+  }
+
+  // Wake agent
+  try {
+    await fetch(`${PAPERCLIP_URL}/api/agents/${agentId}/wakeup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reason: "telegram_file",
+        context: `${fileType} from ${from}: ${file.localPath}`,
+      }),
+    });
+    const emoji = fileType === "photo" ? "📸" : "📎";
+    await sendTelegram(`${emoji} ${cmd.emoji} <b>${cmd.name}</b> получил ${fileType === "photo" ? "фото" : "файл"} от <b>${member.name}</b>\n\n<i>${caption.slice(0, 200) || file.fileName}</i>`);
+  } catch (err) {
+    console.error(`  → Wakeup error: ${err.message}`);
+  }
+}
+
+// ---------- Task creation ----------
+
 async function createTaskAndWake(agentSlug, cmd, from, text, member) {
   const agentId = agentMap[agentSlug];
   if (!agentId) {
@@ -389,10 +523,17 @@ const server = http.createServer(async (req, res) => {
         if (chatId && message.chat?.id !== chatId) { res.writeHead(200).end("ok"); return; }
         if (isDuplicate(message.message_id)) { res.writeHead(200).end("ok"); return; }
 
-        const text = message.text || "";
         const member = resolveTeamMember(message);
         const from = `${member.name} (${member.role}, ${member.handle})`;
 
+        // Handle files/photos FIRST (before text processing)
+        if (message.photo || message.document || message.voice || message.video) {
+          await handleIncomingFile(message, member, from);
+          res.writeHead(200).end("ok");
+          return;
+        }
+
+        const text = message.text || "";
         const lower = text.toLowerCase().trim();
         if (lower.startsWith("/help") || lower.startsWith("/start")) {
           await handleHelp();

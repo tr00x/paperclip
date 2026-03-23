@@ -21,6 +21,12 @@ TUNNEL_URL_FILE="/tmp/paperclip-tunnel-url"
 
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/timur/.local/bin:$PATH"
 
+# Prevent sleep — keeps system awake even with lid closed (if on power)
+# -s = prevent sleep on AC power, -i = prevent idle sleep
+if ! pgrep -f "caffeinate -si" > /dev/null 2>&1; then
+  caffeinate -si &
+fi
+
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') $1" >> "$LOG"
 }
