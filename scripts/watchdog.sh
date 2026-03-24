@@ -182,85 +182,43 @@ ensure_crm_sync() {
 }
 
 # ---------------------------------------------------------------------------
-# 7. Cloudflare tunnel → auto-update Telegram webhook URL
+# 7. Named Cloudflare tunnels (static URLs — no more random trycloudflare)
+#    dispatch.amritech.us → localhost:4444 (Paperclip)
+#    tg.amritech.us       → localhost:3088 (TG webhook)
+#    crm.amritech.us      → localhost:5555 (Twenty CRM)
 # ---------------------------------------------------------------------------
-ensure_cloudflare_tunnel() {
-  TUNNEL_HEALTHY=false
+DISPATCH_TOKEN="eyJhIjoiODkxOTI1ZjM0MWFkODk1M2ExNDI2ODM3MjFjNTM4YWQiLCJzIjoiTVdVNFpUQTVOVEF0TlRBM01DMDBNbU0yTFRrNFptTXRaRFEyTVRWaE5tRTNZVFZtIiwidCI6ImJlMTVhZDE4LTlkNmYtNDZiOS1iMDc1LThmZjBiOTY4YWUyNiJ9"
+TG_TUNNEL_TOKEN="eyJhIjoiODkxOTI1ZjM0MWFkODk1M2ExNDI2ODM3MjFjNTM4YWQiLCJzIjoiWlRJMk1EUmtaV010Wm1RMFppMDBOak14TFRneU5HTXROR0UwWldFNE1qazNMVFk0WXpndE5Ea3dOUzA1TW1GaExUQTBaamxoTXpBMU1qSTVOQT09IiwidCI6ImE0ZWE4Mjk3LTY4YzgtNDkwNS05MmFhLTA0ZjlhMzA1MjI5NCJ9"
 
-  # Check 1: process alive?
-  if pgrep -f "cloudflared tunnel" >/dev/null 2>&1; then
-    CURRENT_URL=$(cat "$TUNNEL_URL_FILE" 2>/dev/null)
-    if [ -n "$CURRENT_URL" ]; then
-      # Check 2: ask Telegram if webhook is healthy (catches 530 errors)
-      TG_WEBHOOK_ERROR=$(curl -s "https://api.telegram.org/bot${TG_BOT_TOKEN}/getWebhookInfo" 2>/dev/null \
-        | python3 -c "import json,sys; r=json.load(sys.stdin).get('result',{}); e=r.get('last_error_message',''); d=r.get('last_error_date',0); import time; age=int(time.time())-d if d else 99999; print(f'{e}|{age}')" 2>/dev/null)
-      TG_ERROR_MSG=$(echo "$TG_WEBHOOK_ERROR" | cut -d'|' -f1)
-      TG_ERROR_AGE=$(echo "$TG_WEBHOOK_ERROR" | cut -d'|' -f2)
+ensure_named_tunnel() {
+  local NAME="$1"
+  local TOKEN="$2"
+  local CHECK_URL="$3"
+  local LOG_FILE="/tmp/cloudflared-${NAME}.log"
 
-      # If Telegram reports 530 error in the last 5 minutes — tunnel is dead
-      if echo "$TG_ERROR_MSG" | grep -q "530" && [ "$TG_ERROR_AGE" -lt 300 ] 2>/dev/null; then
-        log "Tunnel stale — Telegram reports 530 error (${TG_ERROR_AGE}s ago). Restarting..."
-        pkill -f "cloudflared tunnel" 2>/dev/null
-        sleep 2
-      else
-        # Check 3: probe tunnel directly as fallback
-        PROBE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$CURRENT_URL/health" 2>/dev/null)
-        if [ "$PROBE_CODE" = "200" ]; then
-          TUNNEL_HEALTHY=true
-        else
-          log "Tunnel process alive but returning HTTP $PROBE_CODE — restarting..."
-          pkill -f "cloudflared tunnel" 2>/dev/null
-          sleep 2
-        fi
-      fi
-    else
-      log "Tunnel process alive but no saved URL — restarting..."
-      pkill -f "cloudflared tunnel" 2>/dev/null
-      sleep 2
+  # Check if this specific tunnel is running
+  if pgrep -f "run --token.*${NAME}" >/dev/null 2>&1 || pgrep -f "tunnel.*${TOKEN:0:20}" >/dev/null 2>&1; then
+    # Probe to verify it's actually working
+    PROBE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$CHECK_URL" 2>/dev/null)
+    if [ "$PROBE" = "200" ]; then
+      return 0
     fi
-  fi
-
-  if $TUNNEL_HEALTHY; then
-    return 0
-  fi
-
-  log "Cloudflare tunnel down, restarting..."
-  # Clear old log to capture new URL
-  > /tmp/cloudflared-new.log
-  nohup cloudflared tunnel --url "http://localhost:$WEBHOOK_PORT" >> /tmp/cloudflared-new.log 2>&1 &
-  log "Cloudflare tunnel started (PID: $!)"
-
-  # Wait for tunnel URL
-  for i in $(seq 1 15); do
+    log "${NAME} tunnel process alive but probe returned $PROBE — restarting..."
+    # Kill only this tunnel's process
+    pkill -f "${TOKEN:0:20}" 2>/dev/null
     sleep 2
-    NEW_URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' /tmp/cloudflared-new.log 2>/dev/null | tail -1)
-    if [ -n "$NEW_URL" ]; then
-      break
-    fi
-  done
-
-  if [ -z "$NEW_URL" ]; then
-    log "ERROR: Could not get tunnel URL"
-    return 1
   fi
 
-  OLD_URL=$(cat "$TUNNEL_URL_FILE" 2>/dev/null)
-  echo "$NEW_URL" > "$TUNNEL_URL_FILE"
-  log "Tunnel URL: $NEW_URL"
+  log "${NAME} tunnel down, starting..."
+  nohup cloudflared tunnel --no-autoupdate run --token "$TOKEN" >> "$LOG_FILE" 2>&1 &
+  log "${NAME} tunnel started (PID: $!)"
+  sleep 3
+}
 
-  # Always update Telegram webhook after tunnel restart
-  log "Updating Telegram webhook to $NEW_URL..."
-  for attempt in $(seq 1 6); do
-    sleep $((attempt * 10))
-    WEBHOOK_RESULT=$(curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/setWebhook" \
-      -H "Content-Type: application/json" \
-      -d "{\"url\":\"${NEW_URL}/webhook\"}" 2>/dev/null)
-    log "Telegram webhook attempt $attempt: $WEBHOOK_RESULT"
-    echo "$WEBHOOK_RESULT" | grep -q '"ok":true' && break
-  done
-
-  # Append new log to main cloudflared log
-  cat /tmp/cloudflared-new.log >> /tmp/cloudflared.log
+ensure_cloudflare_tunnels() {
+  ensure_named_tunnel "dispatch" "$DISPATCH_TOKEN" "https://dispatch.amritech.us/api/health"
+  ensure_named_tunnel "tg" "$TG_TUNNEL_TOKEN" "https://tg.amritech.us/health"
+  # CRM tunnel runs separately via crm-amritech.yml (already managed)
 }
 
 # ---------------------------------------------------------------------------
@@ -431,7 +389,7 @@ while true; do
   ensure_twenty
   ensure_telegram_webhook
   ensure_crm_sync
-  ensure_cloudflare_tunnel
+  ensure_cloudflare_tunnels
   check_agent_health
   sleep "$CHECK_INTERVAL"
 done

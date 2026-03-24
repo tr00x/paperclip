@@ -12,6 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: ["dispatch.amritech.us", "crm.amritech.us", "tg.amritech.us"],
     proxy: {
       "/api": {
         target: "http://localhost:3100",
