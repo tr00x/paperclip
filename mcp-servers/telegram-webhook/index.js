@@ -494,6 +494,9 @@ const MENUS = {
 Нажмите на раздел 👇`,
     buttons: [
       [
+        { text: "✍️ Написать агенту", callback_data: "menu:agents" },
+      ],
+      [
         { text: "📈 Продажи", callback_data: "menu:sales" },
         { text: "📊 CRM", callback_data: "menu:crm" },
       ],
@@ -636,6 +639,43 @@ const MENUS = {
       [{ text: "← Назад", callback_data: "menu:main" }],
     ],
   },
+  agents: {
+    text: `✍️ <b>Написать агенту</b>
+
+Выбери кому нужна задача.
+Бот спросит что сделать — напиши и агент приступит!`,
+    buttons: [
+      [
+        { text: "🔍 Hunter — найти клиентов", callback_data: "agent:hunter" },
+      ],
+      [
+        { text: "📧 SDR — отправить email", callback_data: "agent:sdr" },
+      ],
+      [
+        { text: "🤝 Closer — подготовить звонок", callback_data: "agent:closer" },
+      ],
+      [
+        { text: "👑 CEO — координатор", callback_data: "agent:ceo" },
+        { text: "🛟 Staff — вопрос", callback_data: "agent:staff" },
+      ],
+      [
+        { text: "📋 Контракты", callback_data: "agent:contract" },
+        { text: "💰 Финансы", callback_data: "agent:finance" },
+      ],
+      [
+        { text: "⚖️ Юрист", callback_data: "agent:legal" },
+        { text: "🚀 Онбординг", callback_data: "agent:onboard" },
+      ],
+      [
+        { text: "🏛️ Тендеры", callback_data: "agent:gov" },
+        { text: "📝 Proposal", callback_data: "agent:proposal" },
+      ],
+      [
+        { text: "🔧 IT Chef", callback_data: "agent:chef" },
+      ],
+      [{ text: "← Главное меню", callback_data: "menu:main" }],
+    ],
+  },
   crm: {
     text: `📊 <b>CRM — вся база</b>
 
@@ -705,6 +745,8 @@ const AGENT_PROMPTS = {
   finance: { emoji: "💰", name: "Finance Tracker", prompt: "Что нужно? (инвойс, MRR, отчёт):" },
   legal: { emoji: "⚖️", name: "Legal Assistant", prompt: "Что проверить? (MSA, NDA, compliance):" },
   onboard: { emoji: "🚀", name: "Onboarding", prompt: "Какого клиента онбордим?" },
+  staff: { emoji: "🛟", name: "Staff Manager", prompt: "Какой вопрос по системе или агентам?" },
+  chef: { emoji: "🔧", name: "IT Chef", prompt: "Что починить или проверить?" },
 };
 
 const INPUT_PROMPTS = {
