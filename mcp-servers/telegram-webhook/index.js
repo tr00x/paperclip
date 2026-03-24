@@ -108,14 +108,15 @@ const COMMANDS = {
 };
 
 function parseCommand(text) {
-  if (!text) return { slug: "ceo", message: "", cmd: COMMANDS["/ceo"] };
+  if (!text) return null;
   const lower = text.toLowerCase().trim();
   for (const [prefix, cmd] of Object.entries(COMMANDS)) {
     if (lower.startsWith(prefix)) {
       return { slug: cmd.agent, message: text.slice(prefix.length).trim(), cmd };
     }
   }
-  return { slug: "ceo", message: text, cmd: COMMANDS["/ceo"] };
+  // No command prefix → show menu instead of sending to CEO
+  return null;
 }
 
 // ---------- File handling ----------
@@ -230,7 +231,12 @@ async function handleIncomingFile(message, member, from) {
   }
 
   // Determine which agent to route to
-  const { slug, message: agentMsg, cmd } = parseCommand(caption);
+  const parsed = parseCommand(caption);
+  if (!parsed) {
+    await sendTelegram(`📎 Файл получен! Добавь команду в подпись чтобы отправить агенту.\n💡 <i>Пример: /hunter визитка клиента</i>`);
+    return;
+  }
+  const { slug, message: agentMsg, cmd } = parsed;
   const taskText = agentMsg || caption || `[${fileType.toUpperCase()}] от ${member.name}`;
 
   const agentId = agentMap[slug];
@@ -485,29 +491,26 @@ const MENUS = {
     text: `🤖 <b>AmriTech AI Штаб</b>
 
 12 AI-агентов работают на вас 24/7.
-Управляйте всем прямо из Telegram!
-
-💡 <i>Нажмите на раздел чтобы продолжить</i>`,
+Нажмите на раздел 👇`,
     buttons: [
       [
-        { text: "📈 Продажи и лиды", callback_data: "menu:sales" },
+        { text: "📈 Продажи", callback_data: "menu:sales" },
+        { text: "📊 CRM", callback_data: "menu:crm" },
       ],
       [
-        { text: "📋 Мои задачи", callback_data: "menu:tasks" },
+        { text: "📋 Задачи", callback_data: "menu:tasks" },
+        { text: "💰 Финансы", callback_data: "menu:finance" },
       ],
       [
-        { text: "💰 Финансы и контракты", callback_data: "menu:finance" },
-      ],
-      [
-        { text: "🏛️ Гос. тендеры", callback_data: "menu:gov" },
+        { text: "🏛️ Тендеры", callback_data: "menu:gov" },
         { text: "📝 Документы", callback_data: "menu:docs" },
       ],
       [
-        { text: "📊 Статус системы", callback_data: "action:status" },
-        { text: "🔧 Что-то сломалось", callback_data: "menu:fix" },
+        { text: "📊 Статус", callback_data: "action:status" },
+        { text: "🔧 Починить", callback_data: "menu:fix" },
       ],
       [
-        { text: "❓ Помощь и примеры", callback_data: "menu:help" },
+        { text: "❓ Помощь", callback_data: "menu:help" },
       ],
     ],
   },
@@ -633,6 +636,39 @@ const MENUS = {
       [{ text: "← Назад", callback_data: "menu:main" }],
     ],
   },
+  crm: {
+    text: `📊 <b>CRM — вся база</b>
+
+Лиды, клиенты, счета — всё тут.
+Не нужно заходить на сайт!
+
+<b>Что значат статусы:</b>
+⬜ new — Hunter нашёл, ждёт SDR
+📧 contacted — SDR отправил email
+💬 engaged — клиент ответил
+✅ closed_won — стал клиентом!`,
+    buttons: [
+      [
+        { text: "📈 Вся воронка", callback_data: "crm:pipeline" },
+      ],
+      [
+        { text: "🔥 Лучшие лиды (высокий шанс)", callback_data: "crm:hot" },
+      ],
+      [
+        { text: "📧 Кому отправили email", callback_data: "crm:outreach" },
+      ],
+      [
+        { text: "🆕 Новые (ждут первый email)", callback_data: "crm:new" },
+      ],
+      [
+        { text: "🔍 Найти компанию", callback_data: "input:search_lead" },
+      ],
+      [
+        { text: "👥 Наши клиенты", callback_data: "crm:clients" },
+      ],
+      [{ text: "← Главное меню", callback_data: "menu:main" }],
+    ],
+  },
   help: {
     text: `❓ <b>Помощь</b>
 
@@ -678,6 +714,7 @@ const INPUT_PROMPTS = {
   assign: "Напиши: AMRA-123 имя_агента (например: AMRA-123 hunter)",
   comment: "Напиши: AMRA-123 текст комментария",
   fix: "Опиши проблему — IT Chef разберётся:",
+  search_lead: "Напиши название компании (или часть названия):",
 };
 
 async function sendMainMenu(chatId) {
@@ -708,6 +745,100 @@ async function editMenu(chatId, messageId, menuKey) {
       reply_markup: { inline_keyboard: menu.buttons },
     }),
   });
+}
+
+async function handleCrmQuery(type, targetChatId) {
+  if (!TWENTY_API_KEY) { await sendTelegram("❌ CRM не настроен"); return; }
+
+  try {
+    if (type === "hot") {
+      const data = await crmQuery(`{ leads(filter: { icpScore: { gte: 70 } }, first: 15, orderBy: { icpScore: DescNullsLast }) { edges { node { id name companyName status icpScore industry decisionMaker } } } }`);
+      const leads = data?.data?.leads?.edges || [];
+      if (!leads.length) { await sendTelegram("Нет лидов с оценкой 70+"); return; }
+      let msg = `🔥 <b>Лучшие лиды</b> <i>(оценка совместимости 70+)</i>\n\n`;
+      for (const { node: l } of leads) {
+        msg += `<b>${l.icpScore}⭐</b> ${l.name}\n`;
+        msg += `   ${l.industry || "?"} | ${l.status || "new"} | DM: ${l.decisionMaker || "?"}\n\n`;
+      }
+      msg += `💡 <i>Оценка = насколько компания подходит нам как клиент. 100 = идеальный клиент.</i>`;
+      await sendTelegram(msg);
+    }
+
+    else if (type === "outreach") {
+      const data = await crmQuery(`{ leads(filter: { status: { eq: "contacted" } }, first: 20) { edges { node { id name outreachStatus lastContactDate } } } }`);
+      const leads = data?.data?.leads?.edges || [];
+      if (!leads.length) { await sendTelegram("Нет лидов в рассылке"); return; }
+      const icons = { email_sent: "📧", follow_up_1: "📧📧", follow_up_2: "📧📧📧", replied_interested: "🔥", replied_question: "❓", not_interested: "❌", no_response: "😶" };
+      let msg = `📧 <b>Кому отправили email</b>\n\n`;
+      for (const { node: l } of leads) {
+        const icon = icons[l.outreachStatus] || "▪️";
+        const ago = l.lastContactDate ? Math.round((Date.now() - new Date(l.lastContactDate)) / 86400000) : "?";
+        msg += `${icon} <b>${l.name}</b> — ${ago}д назад\n`;
+      }
+      msg += `\n💡 <i>📧=первое письмо, 📧📧=follow-up, 🔥=ответил!</i>`;
+      await sendTelegram(msg);
+    }
+
+    else if (type === "new") {
+      const data = await crmQuery(`{ leads(filter: { status: { eq: "new" } }, first: 20, orderBy: { createdAt: DescNullsLast }) { edges { node { id name icpScore industry createdAt } } } }`);
+      const leads = data?.data?.leads?.edges || [];
+      if (!leads.length) { await sendTelegram("✅ Нет новых лидов — SDR всё разобрал!"); return; }
+      let msg = `🆕 <b>Новые лиды</b> <i>(ждут первый email от SDR)</i>\n\n`;
+      for (const { node: l } of leads) {
+        msg += `⬜ <b>${l.name}</b> — ${l.industry || "?"} — ⭐${l.icpScore || "?"}\n`;
+      }
+      msg += `\n💡 <i>SDR напишет им персональный email. Hunter нашёл их.</i>`;
+      await sendTelegram(msg);
+    }
+
+    else if (type === "clients") {
+      const data = await crmQuery(`{ clients(first: 20) { edges { node { id name services createdAt } } } }`);
+      const clients = data?.data?.clients?.edges || [];
+      if (!clients.length) { await sendTelegram("Пока нет клиентов в CRM.\n💡 <i>Berik — внеси текущих клиентов! Без них агенты работают вслепую.</i>"); return; }
+      let msg = `👥 <b>Наши клиенты</b>\n\n`;
+      for (const { node: c } of clients) {
+        msg += `✅ <b>${c.name}</b>${c.services ? ` — ${c.services}` : ""}\n`;
+      }
+      await sendTelegram(msg);
+    }
+
+    else if (type === "search") {
+      // handled via pendingInputs
+    }
+  } catch (err) {
+    await sendTelegram(`❌ Ошибка CRM: ${err.message}`);
+  }
+}
+
+async function handleCrmSearch(query, targetChatId) {
+  if (!TWENTY_API_KEY) { await sendTelegram("❌ CRM не настроен"); return; }
+  try {
+    const data = await crmQuery(`{ leads(filter: { name: { like: "%${query}%" } }, first: 10) { edges { node { id name companyName status outreachStatus icpScore industry decisionMaker decisionMakerEmail phone { primaryPhoneNumber } lastContactDate notes createdAt } } } }`);
+    const leads = data?.data?.leads?.edges || [];
+    if (!leads.length) {
+      await sendTelegram(`🔍 По запросу "<b>${query}</b>" ничего не найдено.\n💡 <i>Попробуй другое название или часть слова.</i>`);
+      return;
+    }
+    for (const { node: l } of leads) {
+      const statusRu = { new: "🆕 Новый", contacted: "📧 Отправили email", engaged: "💬 Ответил", qualified: "✅ Подходит", closed_won: "🎉 Клиент!", closed_lost: "❌ Отказ", nurture: "💤 На паузе" };
+      let card = `🔍 <b>${l.name}</b>\n\n`;
+      card += `📊 <b>Оценка:</b> ${l.icpScore || "?"}/100\n`;
+      card += `📁 <b>Ниша:</b> ${l.industry || "не указана"}\n`;
+      card += `📌 <b>Статус:</b> ${statusRu[l.status] || l.status || "?"}\n`;
+      if (l.decisionMaker) card += `👤 <b>Контакт:</b> ${l.decisionMaker}\n`;
+      if (l.decisionMakerEmail) card += `📧 <b>Email:</b> ${l.decisionMakerEmail}\n`;
+      if (l.phone?.primaryPhoneNumber) card += `📞 <b>Телефон:</b> ${l.phone.primaryPhoneNumber}\n`;
+      if (l.lastContactDate) {
+        const ago = Math.round((Date.now() - new Date(l.lastContactDate)) / 86400000);
+        card += `📅 <b>Последний контакт:</b> ${ago}д назад\n`;
+      }
+      if (l.notes) card += `\n📝 <b>Заметки:</b>\n<i>${l.notes.slice(0, 300)}</i>\n`;
+      card += `\n💡 <i>ID: ${l.id.slice(0, 8)}...</i>`;
+      await sendTelegram(card);
+    }
+  } catch (err) {
+    await sendTelegram(`❌ Ошибка поиска: ${err.message}`);
+  }
 }
 
 async function handleHelp(msgChatId) {
@@ -888,6 +1019,28 @@ const server = http.createServer(async (req, res) => {
           await createTaskAndWake(itChefSlug, cmd, `${member.name} (via menu)`, `[TECH-ISSUE] ${issues[issue] || issue}`, member);
         }
 
+        // CRM queries: crm:pipeline, crm:hot, crm:outreach, crm:new, crm:clients
+        else if (cbData.startsWith("crm:")) {
+          const crmAction = cbData.slice(4);
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ callback_query_id: cb.id, text: "⏳ Загружаю..." }),
+          });
+
+          if (crmAction === "pipeline") {
+            await handlePipeline();
+          } else if (crmAction === "hot") {
+            await handleCrmQuery("hot", cb.message.chat.id);
+          } else if (crmAction === "outreach") {
+            await handleCrmQuery("outreach", cb.message.chat.id);
+          } else if (crmAction === "new") {
+            await handleCrmQuery("new", cb.message.chat.id);
+          } else if (crmAction === "clients") {
+            await handleCrmQuery("clients", cb.message.chat.id);
+          }
+        }
+
         // Priority change: priority:urgent:{taskId}
         else if (cbData.startsWith("priority:")) {
           const parts = cbData.split(":");
@@ -986,6 +1139,8 @@ const server = http.createServer(async (req, res) => {
             const itChefSlug = agentMap["it-chef"] ? "it-chef" : "staff-manager";
             const cmd = { agent: itChefSlug, emoji: "🔧", name: "IT Chef" };
             await createTaskAndWake(itChefSlug, cmd, from, `[TECH-ISSUE] ${text}`, member);
+          } else if (inputType === "search_lead") {
+            await handleCrmSearch(text.trim(), message.chat.id);
           }
           res.writeHead(200).end("ok");
           return;
@@ -1176,11 +1331,14 @@ const server = http.createServer(async (req, res) => {
             await sendTelegram("🔧 Напиши проблему после /fix\nПример: <code>/fix CRM не отвечает</code>");
           }
         } else {
-          const { slug, message: agentMsg, cmd } = parseCommand(text);
-          if (agentMsg) {
-            await createTaskAndWake(slug, cmd, from, agentMsg, member);
+          const parsed = parseCommand(text);
+          if (parsed && parsed.message) {
+            await createTaskAndWake(parsed.slug, parsed.cmd, from, parsed.message, member);
+          } else if (parsed && !parsed.message) {
+            await sendTelegram(`${parsed.cmd.emoji} Напиши сообщение после команды.\nПример: <code>${Object.keys(COMMANDS).find(k => COMMANDS[k].agent === parsed.slug)} текст задачи</code>`);
           } else {
-            await sendTelegram(`${cmd.emoji} Напиши сообщение после команды.\nПример: <code>${Object.keys(COMMANDS).find(k => COMMANDS[k].agent === slug)} текст задачи</code>`);
+            // No command → show main menu
+            await sendMainMenu(message.chat.id);
           }
         }
       }
