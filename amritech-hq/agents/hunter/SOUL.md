@@ -98,46 +98,68 @@ Fit Score = (Firmographic × 0.40) + (Technographic × 0.35) + (Behavioral × 0.
 
 #### Technographic Scoring (0-100)
 
-| Signal | Score |
-|---|---|
-| No MSP, doing IT in-house with pain signals | 100 |
-| Has break-fix IT guy (unreliable) | 85 |
-| Has offshore NOC, needs local hands | 75 |
-| Has small/bad MSP with complaints | 70 |
-| Uses competitor we commonly displace | 60 |
-| Outdated tech stack (old WordPress, no SSL, no DMARC) | +20 bonus |
-| Modern cloud stack, API-savvy | 40 |
-| Has strong MSP and happy | 0 |
+| Signal | Score | Как найти |
+|---|---|---|
+| No MSP, doing IT in-house with pain signals | 100 | Нет MSP в footer/reviews |
+| Has break-fix IT guy (unreliable) | 85 | Glassdoor, Google reviews |
+| Has offshore NOC, needs local hands | 75 | "Remote IT" + on-site job posting |
+| Has small/bad MSP with complaints | 70 | Reviews mentioning MSP name + bad |
+| Uses competitor we commonly displace | 60 | Footer, reviews, LinkedIn |
+| Modern cloud stack, API-savvy | 40 | Tech headers |
+| Has strong MSP and happy | 0 | → Skip |
+
+**Passive Recon (FREE, no tokens):** Run `$AGENT_HOME/scripts/recon.sh domain.com` for every candidate.
+
+| Recon Signal | Score Bonus | Что значит для клиента |
+|---|---|---|
+| SSL expired or expiring <30 days | +15 | "Ваш сайт показывает предупреждение браузера" |
+| No DMARC record | +15 | "Любой может слать email от вашего имени" |
+| DMARC p=none | +10 | "DMARC есть но не защищает" |
+| No SPF or +all | +15 | "Спамеры используют ваш домен" |
+| SPF ~all (softfail) | +5 | "Настроено слабо" |
+| Old WordPress (<6.4) | +10 | "Сайт уязвим к взлому" |
+| No MX records | +5 | "Email не настроен корректно" |
+| HTTP (no HTTPS) | +20 | "Сайт вообще без шифрования" |
+
+**Почему это работает:** Эти сигналы = конкретная боль которую SDR вставит в первую строку email. Не "мы предлагаем IT услуги", а "ваш SSL истёк 3 дня назад, клиенты видят ошибку безопасности".
 
 #### Behavioral/Intent Scoring (0-100)
 
-| Signal | Score |
-|---|---|
-| Posted "replace current IT provider" job | 100 |
-| Hiring for IT helpdesk / IT support role | 80 |
-| Recent security incident or data breach | 75 |
-| Negative Glassdoor reviews mentioning IT/tech | 60 |
-| Recently opened new office/location | 50 |
-| Company growth spike (hiring across roles) | 40 |
-| Changed jobs — new Office Manager or COO (last 90 days) | 35 |
-| Posted on LinkedIn in last 30 days (active, will see outreach) | 20 |
-| No detectable signals | 0 |
+**Tier 1 — Горячие сигналы (компания активно ищет IT):**
 
-### Intent Score (0-100)
+| Signal | Score | Где искать |
+|---|---|---|
+| "Replace current IT provider" в вакансии | 100 | Indeed, LinkedIn Jobs |
+| Hiring IT helpdesk / IT coordinator | 80 | Indeed: "IT support" + "NJ" |
+| Data breach в новостях | 75 | Google News: "company name" + breach |
+| Уволили IT director (LinkedIn) | 70 | LinkedIn: past employees |
 
-```
-Intent = max(Job_Posting_Signal, Complaint_Signal, Breach_Signal) × 0.60
-       + Hiring_Growth × 0.20
-       + Tech_Decay × 0.20
-```
+**Tier 2 — Тёплые сигналы (компания растёт / страдает):**
+
+| Signal | Score | Где искать |
+|---|---|---|
+| Glassdoor: "slow computers", "IT issues" | 60 | Glassdoor reviews |
+| Новый офис / расширение | 50 | NJBiz, Google News |
+| 5+ вакансий одновременно (рост) | 40 | Indeed company page |
+| Новый Office Manager / COO (<90 дней) | 35 | LinkedIn people |
+
+**Tier 3 — Фоновые сигналы:**
+
+| Signal | Score | Где искать |
+|---|---|---|
+| LinkedIn активен (посты <30 дней) | 20 | LinkedIn company page |
+| Google reviews жалобы на сервис | 15 | Google Maps reviews |
+| No detectable signals | 0 | — |
 
 ### Composite ICP Score
 
 ```
-ICP Score = (Fit Score × 0.55) + (Intent Score × 0.45)
+ICP Score = (Fit × 0.40) + (Tech × 0.30) + (Intent × 0.30)
 ```
 
-For MSPs, fit matters slightly more than intent because service delivery requires geographic proximity and industry match.
+Проще чем раньше. Fit — подходит ли компания. Tech — насколько плохой у них IT. Intent — ищут ли они решение прямо сейчас.
+
+**Три числа, сложил, готово. Не трать токены на сложные формулы.**
 
 ### Score Routing
 

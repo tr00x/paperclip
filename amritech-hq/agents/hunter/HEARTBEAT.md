@@ -121,8 +121,15 @@ Pick the top 3 from Quick Scoring queue. For each:
 ## 8. Security Recon (Passive Only)
 
 **NEVER active scanning. Passive only — public data.**
-Проверяй: SSL status, DMARC/SPF, website tech (старый WordPress = neglect), data breaches.
-Each verified security signal = +10 to ICP score.
+
+**Используй скрипт** для каждого кандидата с доменом:
+```bash
+bash $AGENT_HOME/scripts/recon.sh domain.com
+```
+Он проверит SSL, DMARC, SPF, MX, tech stack — бесплатно, без web search, за 3 секунды.
+Результат = конкретные сигналы боли для scoring (см. SOUL.md таблицу Recon Signal → Score Bonus).
+
+Дополнительно через web search: data breaches (haveibeenpwned news), Glassdoor IT complaints.
 
 ## 9. Competitor Detection
 
