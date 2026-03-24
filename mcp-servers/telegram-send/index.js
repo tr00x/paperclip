@@ -32,18 +32,22 @@ function saveTaskMap(map) {
 
 server.tool(
   "send_message",
-  "Send a message to the AmriTech Telegram group chat. If task_id is provided, team can reply to this message to comment on that task.",
+  "Send a message to the AmriTech Telegram group chat. ALWAYS pass task_id when your message relates to a Paperclip task — this adds action buttons (Done, Block, Comment, Urgent) and links replies to the task. Without task_id, the message has no buttons and replies go nowhere. If you don't have a task_id, consider adding a comment to the task instead of sending a separate TG message.",
   {
     text: z.string().describe("Message text (supports HTML: <b>, <i>, <code>)"),
     chat_id: z.string().optional().describe("Chat ID (defaults to group)"),
-    task_id: z.string().optional().describe("Paperclip task ID — links this TG message to the task so team replies become comments"),
+    task_id: z.string().optional().describe("ALWAYS provide when message relates to a task. Adds inline buttons and links replies to comments. Use the Paperclip issue UUID."),
     buttons: z.string().optional().describe("Button preset: 'berik_decision' (approve lead), 'ula_call' (call result), 'berik_pricing' (pricing approval)"),
   },
   async ({ text, chat_id, task_id, buttons }) => {
     const targetChat = chat_id || CHAT_ID;
     if (!targetChat) return { content: [{ type: "text", text: "No chat_id" }], isError: true };
 
-    const payload = { chat_id: targetChat, text, parse_mode: "HTML" };
+    // Add reply hint to messages with task_id
+    const msgText = task_id
+      ? text + `\n\n<i>↩ Reply = комментарий к задаче</i>`
+      : text;
+    const payload = { chat_id: targetChat, text: msgText, parse_mode: "HTML" };
 
     // Add inline buttons if task_id provided
     if (task_id) {

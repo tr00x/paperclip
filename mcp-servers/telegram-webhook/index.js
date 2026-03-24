@@ -402,7 +402,7 @@ async function createTaskAndWake(agentSlug, cmd, from, text, member) {
 
     if (res.ok) {
       // Send with task buttons so user can track/manage right from TG
-      const confirmText = `${cmd.emoji} <b>${cmd.name}</b> принял задачу от <b>${member.name}</b>\n\n<i>${text.slice(0, 200)}</i>`;
+      const confirmText = `${cmd.emoji} <b>${cmd.name}</b> принял задачу от <b>${member.name}</b>\n\n<i>${text.slice(0, 200)}</i>\n\n<i>↩ Reply = комментарий · Кнопки = действия</i>`;
       const buttons = taskId ? [
         [
           { text: "💬 Комментарий", callback_data: `comment:${taskId}` },
