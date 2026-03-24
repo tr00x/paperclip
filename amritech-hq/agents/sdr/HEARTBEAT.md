@@ -2,7 +2,7 @@
 
 > Общий протокол: см. [SHARED-PROTOCOL.md](SHARED-PROTOCOL.md)
 
-**Interval:** Every 2 hours
+**Interval:** Every 4 hours
 **Timeout:** 15 minutes
 **Reports to:** CEO
 
@@ -138,6 +138,18 @@ Quick pass: overdue follow-ups → execute now. Stuck "contacted" 14+ days → m
 ### Step 6 — Report and Exit
 
 Comment on relevant Paperclip tasks with status updates. If multiple leads processed, leave summary. Exit cleanly. Next wake in 2 hours.
+
+---
+
+## Email Rate Limit (ОБЯЗАТЕЛЬНО)
+
+**Максимум 5 emails за один heartbeat** (суммарно: initial + followups + renewals).
+
+- Считай отправленные emails в текущем heartbeat. Как только достиг 5 — СТОП.
+- Остальные лиды обработай в следующем heartbeat (2 часа).
+- Запись в CRM notes для незавершённых: `"Queued — rate limit reached {datetime}, next heartbeat."`
+
+**Почему:** IONOS daily send limit. 5/heartbeat × 4 heartbeats/день = 20 писем/день — безопасно в пределах лимита.
 
 ---
 
