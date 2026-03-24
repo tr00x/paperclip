@@ -623,6 +623,10 @@ const MENUS = {
         { text: "📝 Документы", callback_data: "menu:docs" },
       ],
       [
+        { text: "📬 Одобрения", callback_data: "action:approvals" },
+        { text: "⚠️ Ошибки", callback_data: "action:failed" },
+      ],
+      [
         { text: "🔧 Починить", callback_data: "menu:fix" },
         { text: "❓ Справка", callback_data: "menu:help" },
       ],
@@ -1379,6 +1383,56 @@ async function handleTasksInline(chtId, msgId, page = 1) {
   }
 }
 
+async function handleApprovalsInline(chtId, msgId) {
+  try {
+    const res = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/approvals?status=pending`);
+    const approvals = await res.json();
+    if (!Array.isArray(approvals) || approvals.length === 0) {
+      await editOrSend(chtId, msgId, "✅ Нет ожидающих одобрений", [[{ text: "« Главное меню", callback_data: "menu:main" }]]);
+      return;
+    }
+    const typeRu = { hire_agent: "Найм агента", approve_ceo_strategy: "Стратегия CEO", budget_override_required: "Превышение бюджета" };
+    let msg = `<b>Ожидают одобрения</b> (${approvals.length})\n\n`;
+    const btns = [];
+    for (const a of approvals.slice(0, 5)) {
+      const type = typeRu[a.type] || a.type;
+      const who = a.requestedByAgentName || "агент";
+      const payload = a.payload || {};
+      const desc = payload.description || payload.reason || payload.agentName || JSON.stringify(payload).slice(0, 80);
+      msg += `<b>${type}</b> от ${who}\n${desc}\n\n`;
+      btns.push([
+        { text: "✅ Одобрить", callback_data: `approve:${a.id}` },
+        { text: "❌ Отклонить", callback_data: `reject:${a.id}` },
+      ]);
+    }
+    btns.push([{ text: "« Главное меню", callback_data: "menu:main" }]);
+    await editOrSend(chtId, msgId, msg, btns);
+  } catch (err) {
+    await editOrSend(chtId, msgId, `❌ ${err.message}`, [[{ text: "« Главное меню", callback_data: "menu:main" }]]);
+  }
+}
+
+async function handleFailedRunsInline(chtId, msgId) {
+  try {
+    const res = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/heartbeat-runs?status=error&limit=5`);
+    const runs = await res.json();
+    if (!Array.isArray(runs) || runs.length === 0) {
+      await editOrSend(chtId, msgId, "✅ Нет упавших запусков", [[{ text: "« Главное меню", callback_data: "menu:main" }]]);
+      return;
+    }
+    let msg = `<b>Последние ошибки</b>\n\n`;
+    for (const r of runs.slice(0, 5)) {
+      const name = r.agentName || r.agent?.name || "?";
+      const ago = r.createdAt ? Math.round((Date.now() - new Date(r.createdAt)) / 60000) : "?";
+      const err = (r.error || "unknown").slice(0, 80);
+      msg += `<b>${name}</b> — ${ago}м назад\n<code>${err}</code>\n\n`;
+    }
+    await editOrSend(chtId, msgId, msg, [[{ text: "« Главное меню", callback_data: "menu:main" }]]);
+  } catch (err) {
+    await editOrSend(chtId, msgId, `❌ ${err.message}`, [[{ text: "« Главное меню", callback_data: "menu:main" }]]);
+  }
+}
+
 async function handleHelp(msgChatId) {
   await sendMainMenu(msgChatId || chatId);
 }
@@ -1647,6 +1701,42 @@ const server = http.createServer(async (req, res) => {
           } catch (err) {
             console.error("Priority change error:", err.message);
           }
+        }
+
+        // Approval: approve:{approvalId} / reject:{approvalId}
+        else if (cbData.startsWith("approve:") || cbData.startsWith("reject:")) {
+          const action = cbData.startsWith("approve:") ? "approve" : "reject";
+          const approvalId = cbData.slice(action.length + 1);
+          try {
+            const aRes = await fetch(`${PAPERCLIP_URL}/api/approvals/${approvalId}/${action}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ decisionNote: `${action === "approve" ? "Approved" : "Rejected"} via Telegram`, decidedByUserId: "board" }),
+            });
+            if (aRes.ok) {
+              const emoji = action === "approve" ? "✅" : "❌";
+              await answerCb(cb.id, `${emoji} ${action === "approve" ? "Одобрено" : "Отклонено"}`);
+              const origText = cb.message?.text || cb.message?.caption || "";
+              await editOrSend(cb.message.chat.id, cb.message.message_id,
+                origText + `\n\n${emoji} <b>${action === "approve" ? "Одобрено" : "Отклонено"}</b> — ${member.name}`, []);
+            } else {
+              await answerCb(cb.id, "❌ Ошибка", true);
+            }
+          } catch (err) { console.error("Approval error:", err.message); }
+        }
+
+        // Approvals list: show pending approvals
+        else if (cbData === "action:approvals") {
+          await answerCb(cb.id, "⏳ Загрузка...");
+          await sendChatAction(cb.message.chat.id);
+          await handleApprovalsInline(cb.message.chat.id, cb.message.message_id);
+        }
+
+        // Failed runs list
+        else if (cbData === "action:failed") {
+          await answerCb(cb.id, "⏳ Загрузка...");
+          await sendChatAction(cb.message.chat.id);
+          await handleFailedRunsInline(cb.message.chat.id, cb.message.message_id);
         }
 
         res.writeHead(200).end("ok");
