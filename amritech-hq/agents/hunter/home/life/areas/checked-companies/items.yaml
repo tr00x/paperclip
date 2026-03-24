@@ -1,0 +1,9 @@
+# Checked Companies — уже проверенные, не тратить время повторно
+# Hunter добавляет каждую проверенную компанию (даже если skip)
+#
+# Формат:
+# - company: "Name"
+#   domain: "example.com"
+#   checked: 2026-03-24
+#   result: skip | nurture | qualified | enriched
+#   reason: "too small" | "already has MSP" | "ICP 45"

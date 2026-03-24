@@ -230,7 +230,24 @@ Comment on Standing Report issue:
 ## Memory Protocol
 > См. [SHARED-PROTOCOL.md](SHARED-PROTOCOL.md) → Memory Protocol
 
-При каждом цикле записывай выученные паттерны:
+### ОБЯЗАТЕЛЬНО при каждом цикле:
+
+**1. Search Cache** (`$AGENT_HOME/life/areas/search-cache/items.yaml`)
+- ПЕРЕД web search — проверь кэш. Если тот же запрос был <24ч назад — НЕ повторяй, используй результат.
+- ПОСЛЕ web search — запиши запрос, кол-во результатов, какие лиды нашёл.
+- Удаляй записи старше 7 дней.
+
+**2. Enrichment Queue** (`$AGENT_HOME/life/areas/enrichment-queue/items.yaml`)
+- После quick scoring — добавь кандидатов с score 50+ в очередь (status: pending).
+- В начале цикла — бери топ-3 из очереди (status: pending → enriched).
+- Это главный буст: discovery и enrichment разделены между циклами.
+
+**3. Checked Companies** (`$AGENT_HOME/life/areas/checked-companies/items.yaml`)
+- ПЕРЕД enrichment — проверь не исследовал ли уже эту компанию.
+- ПОСЛЕ любой проверки — запиши результат (skip/nurture/qualified).
+- Не тратить время на повторную проверку.
+
+**4. Niche Intelligence** (`$AGENT_HOME/MEMORY.md`)
 - Какие ниши/сигналы дают лучший ICP score
 - Какие каналы дают больше результатов
-- Какие компании уже проверены (не дублируй работу)
+- Конверсия по нишам (если есть фидбек от SDR/Closer)
