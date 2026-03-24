@@ -51,6 +51,11 @@ const TEAM_MEMBERS = {
   "UlaAmri": { name: "Ula", role: "Account Manager", handle: "@UlaAmri" },
 };
 
+// Initialize global state (survives within process, resets on restart)
+globalThis.pendingAgentTasks = globalThis.pendingAgentTasks || {};
+globalThis.pendingInputs = globalThis.pendingInputs || {};
+globalThis.pendingComments = globalThis.pendingComments || {};
+
 function resolveTeamMember(tgMessage) {
   const username = tgMessage.from?.username;
   if (username && TEAM_MEMBERS[username]) {
@@ -357,6 +362,26 @@ async function sendTelegram(text) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+    });
+  } catch {}
+}
+
+async function sendChatAction(targetChatId, action = "typing") {
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendChatAction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: targetChatId || chatId, action }),
+    });
+  } catch {}
+}
+
+async function answerCb(cbId, text = "", showAlert = false) {
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callback_query_id: cbId, text, show_alert: showAlert }),
     });
   } catch {}
 }
@@ -758,13 +783,37 @@ const INPUT_PROMPTS = {
   search_lead: "Напиши название компании (или часть названия):",
 };
 
-async function sendMainMenu(chatId) {
+async function sendMainMenu(targetChatId, messageId = null) {
   const menu = MENUS.main;
+  if (messageId) {
+    // Try to edit existing message to photo+caption (handles back-to-main)
+    const capRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageCaption`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: targetChatId,
+        message_id: messageId,
+        caption: menu.text,
+        parse_mode: "HTML",
+        reply_markup: { inline_keyboard: menu.buttons },
+      }),
+    });
+    const capData = await capRes.json();
+    if (capData.ok) return;
+    // If edit fails, delete and re-send
+    try {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: targetChatId, message_id: messageId }),
+      });
+    } catch {}
+  }
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      chat_id: chatId,
+      chat_id: targetChatId,
       photo: "https://amritech.us/assets/images/logo.png",
       caption: menu.text,
       parse_mode: "HTML",
@@ -773,20 +822,61 @@ async function sendMainMenu(chatId) {
   });
 }
 
-async function editMenu(chatId, messageId, menuKey) {
+async function editMenu(targetChatId, messageId, menuKey) {
   const menu = MENUS[menuKey];
   if (!menu) return;
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+
+  // Try editMessageText first
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      chat_id: chatId,
+      chat_id: targetChatId,
       message_id: messageId,
       text: menu.text,
       parse_mode: "HTML",
       reply_markup: { inline_keyboard: menu.buttons },
     }),
   });
+  const data = await res.json();
+
+  if (!data.ok) {
+    // Photo message can't be edited to text — try editMessageCaption
+    const capRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageCaption`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: targetChatId,
+        message_id: messageId,
+        caption: menu.text,
+        parse_mode: "HTML",
+        reply_markup: { inline_keyboard: menu.buttons },
+      }),
+    });
+    const capData = await capRes.json();
+
+    if (!capData.ok) {
+      // Last resort: delete old message and send fresh
+      try {
+        await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: targetChatId, message_id: messageId }),
+        });
+      } catch {}
+      // Send new text message
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: targetChatId,
+          text: menu.text,
+          parse_mode: "HTML",
+          reply_markup: { inline_keyboard: menu.buttons },
+        }),
+      });
+    }
+  }
 }
 
 const CRM_PAGE_SIZE = 10;
@@ -1074,7 +1164,8 @@ async function editOrSend(targetChatId, messageId, text, buttons) {
 async function handleCrmSearch(query, targetChatId) {
   if (!TWENTY_API_KEY) { await sendTelegram("❌ CRM не настроен"); return; }
   try {
-    const data = await crmQuery(`{ leads(filter: { name: { like: "%${query}%" } }, first: 10) { edges { node { id name companyName status outreachStatus icpScore industry decisionMaker decisionMakerEmail phone { primaryPhoneNumber } lastContactDate notes createdAt } } } }`);
+    const safeQuery = query.replace(/["\\\n\r]/g, "");
+    const data = await crmQuery(`{ leads(filter: { name: { like: "%${safeQuery}%" } }, first: 10) { edges { node { id name companyName status outreachStatus icpScore industry decisionMaker decisionMakerEmail phone { primaryPhoneNumber } lastContactDate notes createdAt } } } }`);
     const leads = data?.data?.leads?.edges || [];
     if (!leads.length) {
       await sendTelegram(`🔍 По запросу "<b>${query}</b>" ничего не найдено.\n💡 <i>Попробуй другое название или часть слова.</i>`);
@@ -1126,9 +1217,13 @@ async function handleStatusInline(chtId, msgId) {
     pipeline = Object.entries(byStatus).map(([k, v]) => `  ${k}: ${v}`).join("\n") || "пусто";
   }
 
+  const now = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" });
   await editOrSend(chtId, msgId,
-    `📊 <b>Статус штаба</b>\n\n<b>Агенты:</b>\n${agentStatus}\n<b>Pipeline:</b>\n${pipeline}`,
-    [[{ text: "← Главное меню", callback_data: "menu:main" }]]
+    `📊 <b>Статус штаба</b>\n\n<b>Агенты:</b>\n${agentStatus}\n<b>Pipeline:</b>\n${pipeline}\n<i>Обновлено: ${now} ET</i>`,
+    [
+      [{ text: "🔄 Обновить", callback_data: "action:status" }],
+      [{ text: "← Главное меню", callback_data: "menu:main" }],
+    ]
   );
 }
 
@@ -1154,7 +1249,7 @@ async function handlePipelineInline(chtId, msgId) {
   }
   msg += `<b>Всего:</b> ${leads.length} лидов`;
   await editOrSend(chtId, msgId, msg, [
-    [{ text: "📊 CRM", callback_data: "menu:crm" }, { text: "← Главное меню", callback_data: "menu:main" }]
+    [{ text: "🔄 Обновить", callback_data: "action:pipeline" }, { text: "📊 CRM", callback_data: "menu:crm" }, { text: "← Главное меню", callback_data: "menu:main" }]
   ]);
 }
 
@@ -1176,8 +1271,43 @@ async function handleLeadsInline(chtId, msgId) {
   }
   msg += `\n📧 С email: ${withEmail} | Без email: ${withoutEmail}\n<b>Всего:</b> ${leads.length}`;
   await editOrSend(chtId, msgId, msg, [
-    [{ text: "📊 CRM", callback_data: "menu:crm" }, { text: "← Главное меню", callback_data: "menu:main" }]
+    [{ text: "🔄 Обновить", callback_data: "action:leads" }, { text: "📊 CRM", callback_data: "menu:crm" }, { text: "← Главное меню", callback_data: "menu:main" }]
   ]);
+}
+
+async function handleTasksInline(chtId, msgId, page = 1) {
+  const TASKS_PAGE_SIZE = 10;
+  try {
+    const tasksRes = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/issues?status=todo,in_progress,blocked&limit=100`);
+    const allTasks = await tasksRes.json();
+    if (!Array.isArray(allTasks) || allTasks.length === 0) {
+      await editOrSend(chtId, msgId, "✅ Нет открытых задач!", [[{ text: "← Главное меню", callback_data: "menu:main" }]]);
+      return;
+    }
+    const total = allTasks.length;
+    const pages = Math.ceil(total / TASKS_PAGE_SIZE);
+    const offset = (page - 1) * TASKS_PAGE_SIZE;
+    const tasks = allTasks.slice(offset, offset + TASKS_PAGE_SIZE);
+
+    const si = { todo: "⬜", in_progress: "🔄", blocked: "🚫", backlog: "📥" };
+    const pi = { urgent: "🔴", high: "🟠", medium: "🟡", low: "⚪" };
+    let msg = `📋 <b>Открытые задачи</b> (стр. ${page}/${pages})\n<i>Всего: ${total}</i>\n\n`;
+    for (const t of tasks) {
+      const assignee = t.assignee?.name || "—";
+      msg += `${si[t.status]||"▪️"}${pi[t.priority]||""} <b>${t.identifier}</b> ${(t.title||"").slice(0,40)}\n   → ${assignee}\n`;
+    }
+    const btns = [];
+    const nav = [];
+    if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `tasks:page:${page-1}` });
+    nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+    if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `tasks:page:${page+1}` });
+    if (nav.length > 1) btns.push(nav);
+    btns.push([{ text: "🔄 Обновить", callback_data: "tasks:page:" + page }]);
+    btns.push([{ text: "← Задачи", callback_data: "menu:tasks" }, { text: "← Главное", callback_data: "menu:main" }]);
+    await editOrSend(chtId, msgId, msg, btns);
+  } catch (err) {
+    await editOrSend(chtId, msgId, `❌ Ошибка: ${err.message}`, [[{ text: "← Главное меню", callback_data: "menu:main" }]]);
+  }
 }
 
 async function handleHelp(msgChatId) {
@@ -1201,14 +1331,9 @@ const server = http.createServer(async (req, res) => {
 
         if (cbData.startsWith("comment:")) {
           const taskId = cbData.slice(8);
-          if (!globalThis.pendingComments) globalThis.pendingComments = {};
           globalThis.pendingComments[cb.from.id] = taskId;
 
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ callback_query_id: cb.id, text: "Напиши комментарий ↓" }),
-          });
+          await answerCb(cb.id, "Напиши комментарий ↓");
           await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1234,19 +1359,11 @@ const server = http.createServer(async (req, res) => {
             });
             const statusEmoji = { done: "✅", in_progress: "🔄", blocked: "🚫", todo: "📋" };
             if (patchRes.ok) {
-              await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ callback_query_id: cb.id, text: `${statusEmoji[newStatus] || "✓"} Статус → ${newStatus}` }),
-              });
+              await answerCb(cb.id, `${statusEmoji[newStatus] || "✓"} Статус → ${newStatus}`);
               // Add comment about status change
               await addCommentToTask(taskId, `Статус изменён → **${newStatus}**`, `${member.name} (via Telegram)`);
             } else {
-              await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ callback_query_id: cb.id, text: "❌ Ошибка", show_alert: true }),
-              });
+              await answerCb(cb.id, "❌ Ошибка", true);
             }
           } catch (err) {
             console.error("Status change error:", err.message);
@@ -1256,12 +1373,12 @@ const server = http.createServer(async (req, res) => {
         // Menu navigation: menu:sales, menu:tasks, etc.
         else if (cbData.startsWith("menu:")) {
           const menuKey = cbData.slice(5);
-          await editMenu(cb.message.chat.id, cb.message.message_id, menuKey);
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ callback_query_id: cb.id }),
-          });
+          if (menuKey === "main") {
+            await sendMainMenu(cb.message.chat.id, cb.message.message_id);
+          } else {
+            await editMenu(cb.message.chat.id, cb.message.message_id, menuKey);
+          }
+          await answerCb(cb.id);
         }
 
         // Action: execute quick command (status, pipeline, leads, tasks)
@@ -1269,11 +1386,8 @@ const server = http.createServer(async (req, res) => {
           const action = cbData.slice(7);
           const msgId = cb.message.message_id;
           const chtId = cb.message.chat.id;
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ callback_query_id: cb.id, text: "⏳ Загрузка..." }),
-          });
+          await answerCb(cb.id, "⏳ Загрузка...");
+          await sendChatAction(chtId);
 
           if (action === "status") {
             await handleStatusInline(chtId, msgId);
@@ -1282,22 +1396,16 @@ const server = http.createServer(async (req, res) => {
           } else if (action === "leads") {
             await handleLeadsInline(chtId, msgId);
           } else if (action === "tasks") {
-            try {
-              const tasksRes = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/issues?status=todo,in_progress,blocked&limit=15`);
-              const tasks = await tasksRes.json();
-              const si = { todo: "⬜", in_progress: "🔄", blocked: "🚫", backlog: "📥" };
-              const pi = { urgent: "🔴", high: "🟠", medium: "🟡", low: "⚪" };
-              let msg = "📋 <b>Открытые задачи</b>\n\n";
-              if (Array.isArray(tasks) && tasks.length > 0) {
-                for (const t of tasks.slice(0, 15)) {
-                  msg += `${si[t.status]||"▪️"}${pi[t.priority]||""} <b>${t.identifier}</b> ${(t.title||"").slice(0,45)}\n`;
-                }
-              } else {
-                msg = "✅ Нет открытых задач!";
-              }
-              await editOrSend(chtId, msgId, msg, [[{ text: "← Главное меню", callback_data: "menu:main" }]]);
-            } catch { await editOrSend(chtId, msgId, "❌ Ошибка загрузки задач", [[{ text: "← Главное меню", callback_data: "menu:main" }]]); }
+            await handleTasksInline(chtId, msgId, 1);
           }
+        }
+
+        // Task pagination
+        else if (cbData.startsWith("tasks:page:")) {
+          const page = parseInt(cbData.split(":")[2]) || 1;
+          await answerCb(cb.id, "⏳ Загрузка...");
+          await sendChatAction(cb.message.chat.id);
+          await handleTasksInline(cb.message.chat.id, cb.message.message_id, page);
         }
 
         // Agent: ask for task text, then create
@@ -1305,13 +1413,8 @@ const server = http.createServer(async (req, res) => {
           const agentKey = cbData.slice(6);
           const ap = AGENT_PROMPTS[agentKey];
           if (ap) {
-            if (!globalThis.pendingAgentTasks) globalThis.pendingAgentTasks = {};
             globalThis.pendingAgentTasks[cb.from.id] = agentKey;
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id }),
-            });
+            await answerCb(cb.id);
             await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1330,13 +1433,8 @@ const server = http.createServer(async (req, res) => {
           const inputType = cbData.slice(6);
           const prompt = INPUT_PROMPTS[inputType];
           if (prompt) {
-            if (!globalThis.pendingInputs) globalThis.pendingInputs = {};
             globalThis.pendingInputs[cb.from.id] = inputType;
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id }),
-            });
+            await answerCb(cb.id);
             await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1356,25 +1454,18 @@ const server = http.createServer(async (req, res) => {
           const issues = { agents: "Агенты не отвечают / зависли", crm: "CRM (Twenty) не грузится", email: "Email не отправляется" };
           const itChefSlug = agentMap["it-chef"] ? "it-chef" : "staff-manager";
           const cmd = { agent: itChefSlug, emoji: "🔧", name: "IT Chef" };
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ callback_query_id: cb.id, text: "🔧 IT Chef на связи!" }),
-          });
+          await answerCb(cb.id, "🔧 IT Chef на связи!");
           await createTaskAndWake(itChefSlug, cmd, `${member.name} (via menu)`, `[TECH-ISSUE] ${issues[issue] || issue}`, member);
         }
 
         // CRM queries: crm:pipeline, crm:hot, crm:outreach, crm:new, crm:clients
         else if (cbData.startsWith("crm:")) {
           const crmAction = cbData.slice(4);
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ callback_query_id: cb.id, text: "⏳ Загружаю..." }),
-          });
+          await answerCb(cb.id, "⏳ Загружаю...");
+          await sendChatAction(cb.message.chat.id);
 
           if (crmAction === "pipeline") {
-            await handlePipeline();
+            await handlePipelineInline(cb.message.chat.id, cb.message.message_id);
           } else {
             const parts = crmAction.split(":");
             const queryType = parts[0];
@@ -1403,10 +1494,7 @@ const server = http.createServer(async (req, res) => {
               });
             }
             await addCommentToTask(taskId, decisionText[decision] || decision, `${member.name} (via Telegram)`);
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id, text: decisionText[decision]?.slice(0, 50) || "✓" }),
-            });
+            await answerCb(cb.id, decisionText[decision]?.slice(0, 50) || "✓");
             // Notify in chat
             await sendTelegram(decisionText[decision] + `\n<i>— ${member.name}</i>`);
           } catch (err) { console.error("Decision error:", err.message); }
@@ -1420,12 +1508,8 @@ const server = http.createServer(async (req, res) => {
 
           if (result === "done") {
             // Ask for call notes
-            if (!globalThis.pendingComments) globalThis.pendingComments = {};
             globalThis.pendingComments[cb.from.id] = taskId;
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id, text: "Напиши результат звонка ↓" }),
-            });
+            await answerCb(cb.id, "Напиши результат звонка ↓");
             await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -1437,35 +1521,22 @@ const server = http.createServer(async (req, res) => {
             });
           } else if (result === "miss") {
             await addCommentToTask(taskId, "📞 Не дозвонился. Перезвоню.", `${member.name} (via Telegram)`);
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id, text: "📞 Не дозвонился — записано" }),
-            });
+            await answerCb(cb.id, "📞 Не дозвонился — записано");
           } else if (result === "later") {
             await addCommentToTask(taskId, "⏰ Перезвоню позже.", `${member.name} (via Telegram)`);
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id, text: "⏰ Окей, перезвонишь позже" }),
-            });
+            await answerCb(cb.id, "⏰ Окей, перезвонишь позже");
           } else if (result === "won") {
             await addCommentToTask(taskId, "🎉 КЛИЕНТ СОГЛАСЕН! Закрываем!", `${member.name} (via Telegram)`);
             await fetch(`${PAPERCLIP_URL}/api/issues/${taskId}`, {
               method: "PATCH", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ status: "done" }),
             });
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id, text: "🎉 Поздравляем!!!" }),
-            });
+            await answerCb(cb.id, "🎉 Поздравляем!!!");
             await sendTelegram(`🎉🎉🎉 <b>НОВЫЙ КЛИЕНТ!</b>\n\n<b>${member.name}</b> закрыл сделку!\n\n💡 <i>Onboarding и Contract Manager запустятся автоматически.</i>`);
           } else if (result === "lost") {
             // Ask for reason
-            if (!globalThis.pendingComments) globalThis.pendingComments = {};
             globalThis.pendingComments[cb.from.id] = taskId;
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id, text: "Напиши причину отказа ↓" }),
-            });
+            await answerCb(cb.id, "Напиши причину отказа ↓");
             await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -1480,10 +1551,7 @@ const server = http.createServer(async (req, res) => {
 
         // Noop (pagination current page indicator)
         else if (cbData === "noop") {
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ callback_query_id: cb.id }),
-          });
+          await answerCb(cb.id);
         }
 
         // Priority change: priority:urgent:{taskId}
@@ -1497,11 +1565,7 @@ const server = http.createServer(async (req, res) => {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ priority: newPriority }),
             });
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ callback_query_id: cb.id, text: `⚡ Приоритет → ${newPriority}` }),
-            });
+            await answerCb(cb.id, `⚡ Приоритет → ${newPriority}`);
             await addCommentToTask(taskId, `Приоритет изменён → **${newPriority}**`, `${member.name} (via Telegram)`);
           } catch (err) {
             console.error("Priority change error:", err.message);
@@ -1525,7 +1589,6 @@ const server = http.createServer(async (req, res) => {
         const lower = text.toLowerCase().trim().replace(/@\w+bot\b/i, "").trim();
 
         // ─── Handle pending agent task (after menu agent button) ───
-        if (!globalThis.pendingAgentTasks) globalThis.pendingAgentTasks = {};
         if (globalThis.pendingAgentTasks[message.from?.id] && message.reply_to_message) {
           const agentKey = globalThis.pendingAgentTasks[message.from.id];
           delete globalThis.pendingAgentTasks[message.from.id];
@@ -1537,7 +1600,6 @@ const server = http.createServer(async (req, res) => {
         }
 
         // ─── Handle pending input (done, block, assign, comment, fix) ───
-        if (!globalThis.pendingInputs) globalThis.pendingInputs = {};
         if (globalThis.pendingInputs[message.from?.id] && message.reply_to_message) {
           const inputType = globalThis.pendingInputs[message.from.id];
           delete globalThis.pendingInputs[message.from.id];
@@ -1592,7 +1654,6 @@ const server = http.createServer(async (req, res) => {
         }
 
         // ─── Check for pending comment (after button press) ───
-        if (!globalThis.pendingComments) globalThis.pendingComments = {};
         const pendingTaskId = globalThis.pendingComments[message.from?.id];
         if (pendingTaskId && message.reply_to_message) {
           delete globalThis.pendingComments[message.from.id];
@@ -1753,7 +1814,6 @@ const server = http.createServer(async (req, res) => {
 
         // Handle files/photos — route to pending agent if selected via menu
         if (message.photo || message.document || message.voice || message.video) {
-          if (!globalThis.pendingAgentTasks) globalThis.pendingAgentTasks = {};
           const pendingAgent = globalThis.pendingAgentTasks[message.from?.id];
           if (pendingAgent) {
             // User selected agent via menu, then sent a file — route it there
@@ -1791,8 +1851,22 @@ const server = http.createServer(async (req, res) => {
             await createTaskAndWake(parsed.slug, parsed.cmd, from, parsed.message, member);
           } else if (parsed && !parsed.message) {
             await sendTelegram(`${parsed.cmd.emoji} Напиши сообщение после команды.\nПример: <code>${Object.keys(COMMANDS).find(k => COMMANDS[k].agent === parsed.slug)} текст задачи</code>`);
-          } else {
-            // No command → ignore, do nothing
+          } else if (text.trim()) {
+            // Unknown text → show menu with hint
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: message.chat.id,
+                text: `💡 <b>${member.name}</b>, используй кнопки меню или команды.\n\nНапиши /menu для главного меню или /help для справки.`,
+                parse_mode: "HTML",
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: "📋 Меню", callback_data: "menu:main" }, { text: "✍️ Написать агенту", callback_data: "menu:agents" }],
+                  ],
+                },
+              }),
+            });
           }
         }
       }
@@ -1809,6 +1883,28 @@ const server = http.createServer(async (req, res) => {
 });
 
 await loadAgents();
+
+// Register bot commands for Telegram autocomplete
+try {
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      commands: [
+        { command: "menu", description: "Главное меню" },
+        { command: "status", description: "Статус агентов и pipeline" },
+        { command: "tasks", description: "Открытые задачи" },
+        { command: "hunter", description: "Найти клиентов" },
+        { command: "sdr", description: "Отправить email" },
+        { command: "chef", description: "Починить что-то" },
+        { command: "done", description: "Закрыть задачу (AMRA-123)" },
+        { command: "help", description: "Помощь" },
+      ],
+    }),
+  });
+  console.log("   Bot commands registered ✓");
+} catch {}
+
 server.listen(Number(PORT), "127.0.0.1", () => {
   console.log(`\n🤖 AmriTech Telegram Command Router`);
   console.log(`   Port: ${PORT} | Agents: ${Object.keys(agentMap).length}`);
