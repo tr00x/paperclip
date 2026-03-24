@@ -1059,6 +1059,84 @@ async function handleCrmSearch(query, targetChatId) {
   }
 }
 
+// Inline versions (edit in place with back button)
+async function handleStatusInline(chtId, msgId) {
+  let agentStatus = "";
+  try {
+    const res = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/agents`);
+    const agents = await res.json();
+    for (const a of agents) {
+      const lastHb = a.lastHeartbeatAt ? new Date(a.lastHeartbeatAt) : null;
+      const ago = lastHb ? Math.round((Date.now() - lastHb) / 60000) : null;
+      const icon = !ago ? "⚪" : ago < 60 ? "🟢" : ago < 240 ? "🟡" : "🔴";
+      const agoStr = ago ? `${ago}м назад` : "никогда";
+      agentStatus += `${icon} ${a.name || a.urlKey} — ${agoStr}\n`;
+    }
+  } catch { agentStatus = "❌ Paperclip недоступен\n"; }
+
+  let pipeline = "";
+  if (TWENTY_API_KEY) {
+    const data = await crmQuery(`{ leads { edges { node { status } } } }`);
+    const leads = data?.data?.leads?.edges || [];
+    const byStatus = {};
+    for (const { node } of leads) byStatus[node.status] = (byStatus[node.status] || 0) + 1;
+    pipeline = Object.entries(byStatus).map(([k, v]) => `  ${k}: ${v}`).join("\n") || "пусто";
+  }
+
+  await editOrSend(chtId, msgId,
+    `📊 <b>Статус штаба</b>\n\n<b>Агенты:</b>\n${agentStatus}\n<b>Pipeline:</b>\n${pipeline}`,
+    [[{ text: "← Главное меню", callback_data: "menu:main" }]]
+  );
+}
+
+async function handlePipelineInline(chtId, msgId) {
+  if (!TWENTY_API_KEY) { await editOrSend(chtId, msgId, "❌ CRM не настроен", [[{ text: "← Назад", callback_data: "menu:main" }]]); return; }
+  const data = await crmQuery(`{ leads { edges { node { name status icpScore } } } }`);
+  const leads = data?.data?.leads?.edges || [];
+  const stages = {};
+  for (const { node } of leads) {
+    const s = node.status || "new";
+    if (!stages[s]) stages[s] = [];
+    stages[s].push(node.name);
+  }
+  const icons = { new: "⬜", qualified: "🟦", contacted: "📧", engaged: "💬", meeting_set: "📞", closed_won: "✅", closed_lost: "❌", nurture: "💤" };
+  let msg = "📈 <b>Воронка продаж</b>\n\n";
+  for (const [stage, names] of Object.entries(stages)) {
+    if (names.length > 0) {
+      msg += `${icons[stage] || "▪️"} <b>${stage}</b> (${names.length}):\n`;
+      for (const n of names.slice(0, 5)) msg += `  • ${n}\n`;
+      if (names.length > 5) msg += `  ... и ещё ${names.length - 5}\n`;
+      msg += "\n";
+    }
+  }
+  msg += `<b>Всего:</b> ${leads.length} лидов`;
+  await editOrSend(chtId, msgId, msg, [
+    [{ text: "📊 CRM", callback_data: "menu:crm" }, { text: "← Главное меню", callback_data: "menu:main" }]
+  ]);
+}
+
+async function handleLeadsInline(chtId, msgId) {
+  if (!TWENTY_API_KEY) { await editOrSend(chtId, msgId, "❌ CRM не настроен", [[{ text: "← Назад", callback_data: "menu:main" }]]); return; }
+  const data = await crmQuery(`{ leads { edges { node { outreachStatus decisionMakerEmail } } } }`);
+  const leads = data?.data?.leads?.edges || [];
+  const byOutreach = {};
+  let withEmail = 0, withoutEmail = 0;
+  for (const { node } of leads) {
+    const s = node.outreachStatus || "pending";
+    byOutreach[s] = (byOutreach[s] || 0) + 1;
+    if (node.decisionMakerEmail) withEmail++; else withoutEmail++;
+  }
+  const icons = { pending: "⬜", email_sent: "📧", follow_up_1: "📧📧", follow_up_2: "📧📧📧", replied_interested: "🔥", replied_question: "❓", replied_objection: "🤔", not_interested: "❌", no_response: "😶", meeting_scheduled: "📞" };
+  let msg = "📋 <b>Статус рассылки</b>\n\n";
+  for (const [status, count] of Object.entries(byOutreach)) {
+    msg += `${icons[status] || "▪️"} ${status}: <b>${count}</b>\n`;
+  }
+  msg += `\n📧 С email: ${withEmail} | Без email: ${withoutEmail}\n<b>Всего:</b> ${leads.length}`;
+  await editOrSend(chtId, msgId, msg, [
+    [{ text: "📊 CRM", callback_data: "menu:crm" }, { text: "← Главное меню", callback_data: "menu:main" }]
+  ]);
+}
+
 async function handleHelp(msgChatId) {
   await sendMainMenu(msgChatId || chatId);
 }
@@ -1145,31 +1223,36 @@ const server = http.createServer(async (req, res) => {
         // Action: execute quick command (status, pipeline, leads, tasks)
         else if (cbData.startsWith("action:")) {
           const action = cbData.slice(7);
+          const msgId = cb.message.message_id;
+          const chtId = cb.message.chat.id;
           await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ callback_query_id: cb.id, text: "⏳ Загрузка..." }),
           });
-          if (action === "status") await handleStatus();
-          else if (action === "pipeline") await handlePipeline();
-          else if (action === "leads") await handleLeads();
-          else if (action === "tasks") {
-            // Inline task list
+
+          if (action === "status") {
+            await handleStatusInline(chtId, msgId);
+          } else if (action === "pipeline") {
+            await handlePipelineInline(chtId, msgId);
+          } else if (action === "leads") {
+            await handleLeadsInline(chtId, msgId);
+          } else if (action === "tasks") {
             try {
               const tasksRes = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/issues?status=todo,in_progress,blocked&limit=15`);
               const tasks = await tasksRes.json();
+              const si = { todo: "⬜", in_progress: "🔄", blocked: "🚫", backlog: "📥" };
+              const pi = { urgent: "🔴", high: "🟠", medium: "🟡", low: "⚪" };
+              let msg = "📋 <b>Открытые задачи</b>\n\n";
               if (Array.isArray(tasks) && tasks.length > 0) {
-                const si = { todo: "⬜", in_progress: "🔄", blocked: "🚫", backlog: "📥" };
-                const pi = { urgent: "🔴", high: "🟠", medium: "🟡", low: "⚪" };
-                let msg = "📋 <b>Открытые задачи</b>\n\n";
-                for (const t of tasks) {
+                for (const t of tasks.slice(0, 15)) {
                   msg += `${si[t.status]||"▪️"}${pi[t.priority]||""} <b>${t.identifier}</b> ${(t.title||"").slice(0,45)}\n`;
                 }
-                await sendTelegram(msg);
               } else {
-                await sendTelegram("✅ Нет открытых задач!");
+                msg = "✅ Нет открытых задач!";
               }
-            } catch { await sendTelegram("❌ Ошибка загрузки задач"); }
+              await editOrSend(chtId, msgId, msg, [[{ text: "← Главное меню", callback_data: "menu:main" }]]);
+            } catch { await editOrSend(chtId, msgId, "❌ Ошибка загрузки задач", [[{ text: "← Главное меню", callback_data: "menu:main" }]]); }
           }
         }
 
