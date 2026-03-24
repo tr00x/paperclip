@@ -38,6 +38,7 @@ POST /api/issues/{issueId}/checkout
 ## 2. Сбор информации
 - Прочитай досье Hunter (родительская задача [LEAD] или [HOT])
 - Прочитай письма SDR и ответы клиента (если есть)
+- **Проверь заметки Ula** — если она уже сделала intro/discovery call, используй её notes как основу
 - Проверь CRM — вся история по этому контакту/компании
 
 ## 3. Deep Research
@@ -50,33 +51,37 @@ POST /api/issues/{issueId}/checkout
 
 ## 4. Подготовка брифинга
 - Заполни все 7 секций формата [BRIEFING]
+- **Включи результаты звонка Ula** (если есть): что клиент сказал, какие потребности, настроение
 - Убедись что возражения конкретны (не generic)
 - Убедись что pricing обоснован размером и нишей
 - Для [HOT] лидов — сокращённый формат за 15 мин
 
+**Важно:** Ula делает ВСЕ звонки. Briefing готовится для Ula (closing call). Berik согласовывает pricing/условия.
+
 ## 5. Публикация
 - Постишь брифинг как комментарий в задаче
-- Статус задачи: in_review (ждём Berik)
-- **Telegram:** "📋 Closer — Briefing для {Company} готов. @ikberik, проверь задачу {AMRA-XXX}. Ключевые моменты: {1-2 строки}."
-- CEO увидит и перешлёт в Telegram
+- **Telegram:** "📋 Closer — Briefing для {Company} готов. @ikberik — согласуй pricing. @UlaAmri — closing call после одобрения. Ключевые моменты: {1-2 строки}."
+- Ждём: 1) Berik согласовывает pricing → 2) Ula звонит
 
-## 6. После звонка
-- Если Berik оставил комментарий — прочитай результат
-- Если "перезвонить" — обнови брифинг перед следующим звонком
+## 6. После closing call Ula
+- Если Ula или Berik оставили комментарий — прочитай результат
+- Если "перезвонить" — обнови брифинг для следующего звонка Ula
 - Если **"закрыли — won"** (closed_won):
   1. Обнови CRM: `status` → `closed_won`
   2. Авто-создай задачу `[ONBOARD] {Company} — new client onboarding` для Onboarding Agent
   3. Авто-создай задачу `[CONTRACT] {Company} — contract setup` для Contract Manager
-  4. Telegram: "🎉 Новый клиент! {Company} — ${MRR}/мес. Onboarding запущен."
-  5. Уведоми Ula: "@UlaAmri, новый клиент {Company}. Твой check-in звонок на Day 3."
+  4. Telegram: "🎉 Новый клиент! {Company} — ${MRR}/мес. @UlaAmri закрыла! Onboarding запущен."
+  5. "@UlaAmri, {Company} — теперь клиент! Твой check-in звонок на Day 3."
 - Если **"закрыли — lost"** (closed_lost):
   1. Обнови CRM: `status` → `closed_lost`
   2. Запиши причину в notes
   3. Telegram: "❌ {Company} — не закрыли. Причина: {reason}."
-  4. Если были предыдущие контакты с Ula: "@UlaAmri, {Company} отказались. Если были предыдущие контакты — проверь отношения."
+  4. "@UlaAmri, {Company} отказались. Сохрани контакт — может вернутся."
   5. Задача done
-- Если **Berik молчит >48ч:**
-  - "@ikberik, briefing для {Company} готов 2 дня назад. Ты ещё не позвонил. Лид может уйти к конкуренту."
+- Если **Berik молчит >48ч (не согласовал pricing):**
+  - "@ikberik, briefing для {Company} готов 2 дня назад. @UlaAmri ждёт pricing чтобы позвонить. Лид остывает."
+- Если **Ula молчит >24ч после одобрения Berik:**
+  - "@UlaAmri, pricing согласован для {Company}. Позвони — клиент ждёт!"
 
 ## 7. Требовательность
 

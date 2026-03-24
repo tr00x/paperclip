@@ -20,7 +20,7 @@ Day 3 → SDR шлёт follow-up #1 (автоматом)
 Day 7 → SDR шлёт follow-up #2 (автоматом)
     ↓
 Лид ответил?
-    ├── ДА (положительно) → SDR уведомляет в TG → Berik решает → Closer готовит briefing → Berik звонит
+    ├── ДА (положительно) → SDR уведомляет → Berik одобряет → Ula intro call + Closer briefing → Berik pricing → Ula closing call
     ├── ДА (вопрос) → SDR готовит ответ → Berik одобряет → SDR отправляет
     ├── ДА (отказ) → SDR закрывает вежливо → архив
     └── НЕТ → Day 14 → финальное письмо → nurture (вернёмся через 90 дней)
@@ -31,13 +31,17 @@ Day 7 → SDR шлёт follow-up #2 (автоматом)
 1. **SDR** видит ответ в IMAP
 2. **SDR** классифицирует: "positive interest"
 3. **SDR** обновляет CRM: `outreachStatus → replied_interested`
-4. **SDR** пишет в TG: "📧 Лид ответил! Ждём решения"
-5. **SDR** автоматом создаёт задачу **Closer'у**
-6. **Berik** видит в TG → одобряет ответ
-7. **Closer** готовит briefing (BANT, конкуренты, pricing)
-8. **Closer** пишет в TG: "Briefing готов для ABC Corp"
-9. **Berik** звонит клиенту
-10. Если закрыли → **Onboarding** + **Contract Manager** + **Finance** запускаются автоматом
+4. **SDR** пишет в TG: "📧 Лид ответил! Ждём решения @ikberik"
+5. **Berik** видит в TG → одобряет: "звоните"
+6. **SDR** создаёт 2 задачи: **Closer** (briefing) + **Ula** (intro call)
+7. **Ula** звонит клиенту — знакомство, потребности, rapport. Записывает в CRM.
+8. **Closer** готовит briefing с учётом заметок Ula (BANT, конкуренты, pricing)
+9. **Closer** пишет в TG: "Briefing готов. @UlaAmri — closing call. Pricing и условия согласованы с @ikberik."
+10. **Berik** согласовывает pricing/условия (в TG или CRM)
+11. **Ula** делает closing call — презентует цену, условия, закрывает сделку
+12. Если закрыли → **Onboarding** + **Contract Manager** + **Finance** запускаются автоматом
+
+**Правило:** Ula = ВСЕ звонки (intro, closing, check-in, renewal). Berik = решения (pricing, одобрения, стратегия).
 
 ## Что происходит при renewal
 
@@ -71,12 +75,19 @@ Day 7 → SDR шлёт follow-up #2 (автоматом)
 
 Агенты не ждут молча. Если нужно действие от человека — они напоминают:
 
-### SDR → Berik (ответы лидов)
+### SDR → Berik (одобрение по лидам)
 | Прошло | Сообщение |
 |--------|----------|
-| 2ч | "Лид ответил 2ч назад. @ikberik, решение?" |
-| 4ч | "⚠️ Лид остывает!" |
+| 2ч | "Лид ответил 2ч назад. @ikberik, решение — звоним?" |
+| 4ч | "⚠️ Лид остывает! @ikberik одобри — @UlaAmri ждёт" |
 | 8ч | "🔴 СРОЧНО @ikberik @tr00x!" |
+
+### Closer → Ula (closing calls)
+| Прошло | Сообщение |
+|--------|----------|
+| 24ч после одобрения Berik | "@UlaAmri, pricing согласован. Позвони {company}!" |
+| 48ч | "⚠️ @UlaAmri, {company} ждёт 2 дня!" |
+| 72ч | "🔴 @UlaAmri @ikberik @tr00x — closing call не сделан 3 дня" |
 
 ### Contract Manager → Ula (renewals)
 | До истечения | Сообщение |

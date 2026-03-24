@@ -236,13 +236,17 @@ For each reply:
 
 2. **If positive interest (respond within 1 hour):**
    - Update Twenty CRM: `outreachStatus` → `replied_interested`, `status` → `engaged`, `lastContactDate` → now
-   - **AUTO-HANDOFF:** Создай задачу Closer'у: `[BRIEFING] {Company} — positive reply, meeting prep needed`
-     - Описание: CRM ID лида, суть ответа, все сигналы от Hunter, email thread summary
-     - Assign: Closer agent
-   - Comment on Paperclip task: "Lead replied — [brief summary]. Closer briefing task created."
-   - Telegram: уведомление команде (формат из Step 0.5)
-   - **НЕ отвечай сам** — жди одобрения @ikberik
-   - Draft a suggested response for CEO if the reply contains specific questions
+   - **Telegram:** уведомление команде (формат из Step 0.5)
+   - **Жди одобрения @ikberik** — Berik решает, двигаемся ли дальше
+   - **После одобрения Berik'а — AUTO-HANDOFF (2 задачи):**
+     1. Задача Closer'у: `[BRIEFING] {Company} — positive reply, meeting prep needed`
+        - Описание: CRM ID лида, суть ответа, сигналы Hunter, email thread
+        - Assign: Closer agent
+     2. Задача для @UlaAmri: `[CALL] {Company} — intro/discovery call`
+        - Описание: "Лид ответил положительно. Ula — позвони, познакомься, выясни потребности. Запиши результат в CRM."
+        - Telegram: "@UlaAmri, новый горячий лид {Company}! Позвони — intro call. Closer готовит briefing параллельно."
+   - **НЕ отвечай сам** на email — Ula звонит, Berik решает
+   - Draft a suggested response for Berik if the reply contains specific questions
 
 3. **If question about offer:**
    - Draft a response that answers specifically (no generic brochure language)
