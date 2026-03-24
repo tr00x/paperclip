@@ -25,6 +25,26 @@
 - **Prevention:** Добавить rate limit в SDR (макс 3-5/heartbeat). Перейти на SendGrid для outbound outreach. IONOS оставить для входящих.
 - **Auto-fixable:** Частично — account name фикс. SMTP provider — бизнес-решение Tim'а.
 
+### 2026-03-24 — Cloudflare Named Tunnels (static subdomains)
+- **Architecture:** 3 named tunnels, all managed by watchdog
+  - `dispatch.amritech.us` → `localhost:4444` (Paperclip UI + API)
+  - `tg.amritech.us` → `localhost:3088` (Telegram webhook)
+  - `crm.amritech.us` → `localhost:5555` (Twenty CRM)
+- **How they run:** `cloudflared tunnel --no-autoupdate run --token $TOKEN`
+- **Tokens:** in `scripts/watchdog.sh` (DISPATCH_TOKEN, TG_TUNNEL_TOKEN, CRM_TUNNEL_TOKEN)
+- **Monitoring:** watchdog probes each URL every 60s, restarts if probe fails
+- **TG Webhook:** permanently set to `https://tg.amritech.us/webhook` (no more random trycloudflare URLs)
+- **Auth:** Cloudflare Access on dispatch + crm (Zero Trust, email OTP). TG has no auth (Telegram needs raw access)
+- **If tunnel dies:** watchdog restarts automatically. If watchdog is also down → manually run:
+  ```bash
+  cloudflared tunnel --no-autoupdate run --token "$(cloudflared tunnel token dispatch)" &
+  cloudflared tunnel --no-autoupdate run --token "$(cloudflared tunnel token tg)" &
+  cloudflared tunnel --no-autoupdate run --token "$(cloudflared tunnel token crm)" &
+  ```
+- **If DNS broken:** Check Cloudflare dashboard → Tunnels → verify routes exist with correct hostnames
+- **Logs:** `/tmp/cloudflared-dispatch.log`, `/tmp/cloudflared-tg.log`, `/tmp/cloudflared-crm.log`
+- **Auto-fixable:** Yes — watchdog handles restart. DNS/route issues need dashboard.
+
 ### 2026-03-22 — Duplicate key errors в Paperclip
 - **Симптом:** "duplicate key" errors в логах при создании heartbeat_run_events
 - **Root Cause:** Ручной restore бэкапа БД с данными которые уже существуют
