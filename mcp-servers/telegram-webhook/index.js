@@ -568,211 +568,222 @@ async function handleLeads() {
 
 const MENUS = {
   main: {
-    text: `<b>AmriTech AI HQ</b>  ·  Панель управления
+    text: `🤖 <b>AmriTech AI HQ</b>
 
-Выбери раздел:`,
+12 агентов на связи 24/7. Выбери раздел:`,
     buttons: [
       [
-        { text: "Написать агенту", callback_data: "menu:agents" },
-        { text: "Статус системы", callback_data: "action:status" },
+        { text: "✍️ Написать агенту", callback_data: "menu:agents" },
+        { text: "📊 Статус", callback_data: "action:status" },
       ],
       [
-        { text: "Продажи", callback_data: "menu:sales" },
-        { text: "CRM", callback_data: "menu:crm" },
+        { text: "📈 Продажи", callback_data: "menu:sales" },
+        { text: "📋 CRM", callback_data: "menu:crm" },
       ],
       [
-        { text: "Задачи", callback_data: "menu:tasks" },
-        { text: "Финансы", callback_data: "menu:finance" },
+        { text: "🗂 Задачи", callback_data: "menu:tasks" },
+        { text: "💰 Финансы", callback_data: "menu:finance" },
       ],
       [
-        { text: "Тендеры", callback_data: "menu:gov" },
-        { text: "Документы", callback_data: "menu:docs" },
+        { text: "🏛 Тендеры", callback_data: "menu:gov" },
+        { text: "📝 Документы", callback_data: "menu:docs" },
       ],
       [
-        { text: "Починить", callback_data: "menu:fix" },
-        { text: "Справка", callback_data: "menu:help" },
+        { text: "🔧 Починить", callback_data: "menu:fix" },
+        { text: "❓ Справка", callback_data: "menu:help" },
       ],
     ],
   },
   sales: {
-    text: `<b>Продажи</b>
+    text: `📈 <b>Продажи</b>
 
 <b>Hunter</b> — находит компании, которым нужен IT
 <b>SDR</b> — отправляет персональные cold email
-<b>Closer</b> — готовит брифинг перед звонком`,
+<b>Closer</b> — готовит брифинг перед звонком
+
+Дай задачу агенту или посмотри данные:`,
     buttons: [
       [
-        { text: "Воронка продаж", callback_data: "action:pipeline" },
-        { text: "Статус рассылки", callback_data: "action:leads" },
+        { text: "📊 Воронка", callback_data: "action:pipeline" },
+        { text: "📋 Рассылка", callback_data: "action:leads" },
       ],
       [
-        { text: "Найти клиентов", callback_data: "agent:hunter" },
-        { text: "Cold email", callback_data: "agent:sdr" },
+        { text: "🔍 Найти клиентов", callback_data: "agent:hunter" },
+        { text: "📧 Cold email", callback_data: "agent:sdr" },
       ],
       [
-        { text: "Подготовить звонок", callback_data: "agent:closer" },
-        { text: "Координатору", callback_data: "agent:ceo" },
+        { text: "🤝 Подготовить звонок", callback_data: "agent:closer" },
+        { text: "👑 Координатору", callback_data: "agent:ceo" },
       ],
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
   tasks: {
-    text: `<b>Задачи</b>
+    text: `🗂 <b>Задачи</b>
 
-Все задачи агентов в одном месте.
+Все задачи агентов. Статусы:
+⬜ todo · 🔄 в работе · 🚫 блок · ✅ done
 
-<code>⬜ todo</code>  ждёт работы
-<code>🔄 work</code>  агент работает
-<code>🚫 block</code> ждёт вашего решения
-<code>✅ done</code>  выполнена`,
+Нажми чтобы посмотреть или изменить:`,
     buttons: [
-      [{ text: "Открытые задачи", callback_data: "action:tasks" }],
+      [{ text: "📋 Открытые задачи", callback_data: "action:tasks" }],
       [
-        { text: "Закрыть", callback_data: "input:done" },
-        { text: "Блок", callback_data: "input:block" },
-        { text: "Переназначить", callback_data: "input:assign" },
+        { text: "✅ Закрыть", callback_data: "input:done" },
+        { text: "🚫 Блок", callback_data: "input:block" },
+        { text: "🔄 Переназначить", callback_data: "input:assign" },
       ],
-      [{ text: "Комментарий к задаче", callback_data: "input:comment" }],
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "💬 Комментарий к задаче", callback_data: "input:comment" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
   finance: {
-    text: `<b>Финансы и контракты</b>
+    text: `💰 <b>Финансы и контракты</b>
 
-Выбери агента — он получит задачу.`,
+Выбери агента — он получит задачу:
+
+<b>Finance</b> — инвойсы, MRR, просрочки
+<b>Contract</b> — контракты, renewals, SLA
+<b>Legal</b> — MSA, NDA, compliance
+<b>Onboarding</b> — первые 30 дней клиента`,
     buttons: [
       [
-        { text: "Инвойсы / MRR", callback_data: "agent:finance" },
-        { text: "Контракты", callback_data: "agent:contract" },
+        { text: "💰 Инвойсы / MRR", callback_data: "agent:finance" },
+        { text: "📋 Контракты", callback_data: "agent:contract" },
       ],
       [
-        { text: "Юридическая проверка", callback_data: "agent:legal" },
-        { text: "Онбординг", callback_data: "agent:onboard" },
+        { text: "⚖️ Юридическая проверка", callback_data: "agent:legal" },
+        { text: "🚀 Онбординг", callback_data: "agent:onboard" },
       ],
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
   gov: {
-    text: `<b>Гос. тендеры</b>
+    text: `🏛 <b>Гос. тендеры</b>
 
-Sam.gov, HBITS и другие контракты.`,
+Sam.gov, HBITS и другие контракты.
+Gov Scout найдёт, Proposal Writer напишет.`,
     buttons: [
       [
-        { text: "Найти тендеры", callback_data: "agent:gov" },
-        { text: "Написать proposal", callback_data: "agent:proposal" },
+        { text: "🔍 Найти тендеры", callback_data: "agent:gov" },
+        { text: "📝 Написать proposal", callback_data: "agent:proposal" },
       ],
-      [
-        { text: "Список тендеров в CRM", callback_data: "crm:tenders" },
-      ],
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "📋 Тендеры в CRM", callback_data: "crm:tenders" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
   fix: {
-    text: `<b>Что-то не работает?</b>
+    text: `🔧 <b>Что-то сломалось?</b>
 
-IT Chef разберётся. Выбери проблему или опиши свою.`,
+IT Chef — наш DevOps. Починит CRM, email, агентов.
+Выбери проблему или опиши свою:`,
     buttons: [
       [
-        { text: "Агенты зависли", callback_data: "quickfix:agents" },
-        { text: "CRM не грузится", callback_data: "quickfix:crm" },
+        { text: "🤖 Агенты зависли", callback_data: "quickfix:agents" },
+        { text: "📊 CRM не грузится", callback_data: "quickfix:crm" },
       ],
       [
-        { text: "Email не уходит", callback_data: "quickfix:email" },
-        { text: "Другое...", callback_data: "input:fix" },
+        { text: "📧 Email не уходит", callback_data: "quickfix:email" },
+        { text: "🔧 Другое...", callback_data: "input:fix" },
       ],
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
   docs: {
-    text: `<b>Документы</b>
+    text: `📝 <b>Документы</b>
 
-Агенты подготовят нужный документ.`,
+Агенты подготовят нужный документ:`,
     buttons: [
       [
-        { text: "Proposal / КП", callback_data: "agent:proposal" },
-        { text: "MSA / NDA", callback_data: "agent:legal" },
+        { text: "📝 Proposal / КП", callback_data: "agent:proposal" },
+        { text: "⚖️ MSA / NDA", callback_data: "agent:legal" },
       ],
-      [{ text: "Контракт", callback_data: "agent:contract" }],
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "📋 Контракт", callback_data: "agent:contract" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
   agents: {
-    text: `<b>Написать агенту</b>
+    text: `✍️ <b>Написать агенту</b>
 
-Нажми на агента — затем напиши задачу текстом.`,
+Нажми на агента — потом напиши задачу текстом в чат.
+Агент проснётся и сразу возьмёт в работу.`,
     buttons: [
       [
-        { text: "Hunter — клиенты", callback_data: "agent:hunter" },
-        { text: "SDR — email", callback_data: "agent:sdr" },
+        { text: "🔍 Hunter — клиенты", callback_data: "agent:hunter" },
+        { text: "📧 SDR — email", callback_data: "agent:sdr" },
       ],
       [
-        { text: "Closer — звонки", callback_data: "agent:closer" },
-        { text: "CEO — координация", callback_data: "agent:ceo" },
+        { text: "🤝 Closer — звонки", callback_data: "agent:closer" },
+        { text: "👑 CEO — координация", callback_data: "agent:ceo" },
       ],
       [
-        { text: "Контракты", callback_data: "agent:contract" },
-        { text: "Финансы", callback_data: "agent:finance" },
+        { text: "📋 Контракты", callback_data: "agent:contract" },
+        { text: "💰 Финансы", callback_data: "agent:finance" },
       ],
       [
-        { text: "Юрист", callback_data: "agent:legal" },
-        { text: "Онбординг", callback_data: "agent:onboard" },
+        { text: "⚖️ Юрист", callback_data: "agent:legal" },
+        { text: "🚀 Онбординг", callback_data: "agent:onboard" },
       ],
       [
-        { text: "Тендеры", callback_data: "agent:gov" },
-        { text: "Proposal", callback_data: "agent:proposal" },
+        { text: "🏛 Тендеры", callback_data: "agent:gov" },
+        { text: "📝 Proposal", callback_data: "agent:proposal" },
       ],
       [
-        { text: "Staff Manager", callback_data: "agent:staff" },
-        { text: "IT Chef", callback_data: "agent:chef" },
+        { text: "🛟 Staff Manager", callback_data: "agent:staff" },
+        { text: "🔧 IT Chef", callback_data: "agent:chef" },
       ],
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
   crm: {
-    text: `<b>CRM</b>  ·  Вся база лидов
+    text: `📋 <b>CRM</b> · Вся база лидов
 
-Данные из Twenty CRM — без захода на сайт.`,
+Данные из Twenty CRM — без захода на сайт.
+Нажми чтобы посмотреть:`,
     buttons: [
       [
-        { text: "Воронка", callback_data: "crm:pipeline" },
-        { text: "Статистика", callback_data: "crm:stats" },
+        { text: "📈 Воронка", callback_data: "crm:pipeline" },
+        { text: "📊 Статистика", callback_data: "crm:stats" },
       ],
       [
-        { text: "Лучшие 70+", callback_data: "crm:hot" },
-        { text: "Ответили", callback_data: "crm:replied" },
+        { text: "🔥 Лучшие 70+", callback_data: "crm:hot" },
+        { text: "💬 Ответили", callback_data: "crm:replied" },
       ],
       [
-        { text: "В рассылке", callback_data: "crm:outreach" },
-        { text: "Новые", callback_data: "crm:new" },
+        { text: "📧 В рассылке", callback_data: "crm:outreach" },
+        { text: "🆕 Новые", callback_data: "crm:new" },
       ],
       [
-        { text: "На паузе", callback_data: "crm:nurture" },
-        { text: "Отказы", callback_data: "crm:lost" },
+        { text: "💤 На паузе", callback_data: "crm:nurture" },
+        { text: "❌ Отказы", callback_data: "crm:lost" },
       ],
+      [{ text: "🔍 Найти компанию", callback_data: "input:search_lead" }],
       [
-        { text: "Найти компанию", callback_data: "input:search_lead" },
+        { text: "👥 Клиенты", callback_data: "crm:clients" },
+        { text: "🏛 Тендеры", callback_data: "crm:tenders" },
       ],
-      [
-        { text: "Клиенты", callback_data: "crm:clients" },
-        { text: "Тендеры", callback_data: "crm:tenders" },
-      ],
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
   help: {
-    text: `<b>Справка</b>
+    text: `❓ <b>Справка</b>
 
 <b>Кнопки</b> — всё управление через это меню
 <b>Reply</b> на сообщение агента = комментарий к задаче
-<b>Текстом:</b> <code>/hunter найди стоматологии NJ</code>
 
-<b>Быстрые команды:</b>
-<code>/done AMRA-123</code> закрыть
-<code>/block AMRA-123 причина</code> заблокировать
-<code>/assign AMRA-123 hunter</code> переназначить
-<code>/c AMRA-123 текст</code> комментарий`,
+<b>Команды текстом:</b>
+<code>/hunter найди стоматологии NJ</code>
+<code>/sdr напиши email для ABC Dental</code>
+<code>/chef CRM тормозит</code>
+
+<b>Управление задачами:</b>
+<code>/done AMRA-123</code> — закрыть
+<code>/block AMRA-123 причина</code> — заблокировать
+<code>/assign AMRA-123 hunter</code> — переназначить
+<code>/c AMRA-123 текст</code> — комментарий
+
+💡 Кнопки под сообщениями агентов — меняй статус одним тапом!`,
     buttons: [
-      [{ text: "« Назад", callback_data: "menu:main" }],
+      [{ text: "« Главное меню", callback_data: "menu:main" }],
     ],
   },
 };
