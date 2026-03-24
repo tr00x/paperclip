@@ -149,5 +149,5 @@ Steps 4-5 are important but recoverable. If CRM or Paperclip is temporarily down
 | Gmail MCP | Auth error | Stop. Return checkpoint for human action (re-auth needed). |
 | Gmail MCP | Send error | Retry once. If fails, save draft, report in task comment. |
 | Twenty CRM | Unreachable | Skip CRM updates. Note in task comment. Continue. |
-| Twenty CRM | Company not found | Create new company record with available data. |
+| Twenty CRM | Client not found | Comment on task requesting CEO to create client record. |
 | Paperclip API | Cannot create sub-task | Note in task comment. CEO or human will create manually. |

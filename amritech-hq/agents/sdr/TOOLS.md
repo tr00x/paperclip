@@ -128,32 +128,22 @@ Every piece of research should directly inform the email. If you can't find a sp
 
 **Purpose:** Track all leads, contacts, email activities, and pipeline status. Single source of truth for sales operations.
 
-**Key Operations:**
+**Available CRM Tools:** `get_lead`, `search_leads`, `update_lead`, `get_contact`
 
-| Operation | When to Use |
-|-----------|-------------|
-| Create contact | New lead received from Hunter |
-| Update contact | Enrich with research data, update status |
-| Log activity | Every email sent, every reply received |
-| Search contacts | Find leads due for follow-up |
-| Update deal/opportunity | Track pipeline progression |
+| Tool | When to Use |
+|------|-------------|
+| `search_leads` | Find leads by status, outreach status, email, or follow-up date |
+| `get_lead` | Get full lead details by ID |
+| `update_lead` | Update status, outreachStatus, notes, lastContactDate after each action |
+| `get_contact` | Look up contact/person details by ID |
 
-**Contact Record Structure:**
+**Note:** Hunter creates leads — SDR only updates them. If lead data is incomplete, comment on Paperclip task asking Hunter.
 
-When creating or updating a contact in Twenty CRM, include:
-
-- **Name:** Full name of the contact
-- **Title:** Job title
-- **Company:** Company name
-- **Email:** Primary email
-- **Phone:** If available
-- **City:** Office location relevant to AmriTech (NJ/NY focus)
-- **Source:** "Hunter agent"
-- **Status:** `new` | `contacted` | `replied` | `interested` | `not_interested` | `cold` | `closed`
-- **Pain Point:** Specific pain point identified (free text)
-- **Sequence Position:** `1` | `2` | `3` | `complete`
-- **Next Follow-up Date:** Date of next scheduled email
-- **Notes:** Any relevant context from research
+**Lead Update Fields:**
+- **status:** `new` → `contacted` → `engaged` → `closed`
+- **outreachStatus:** `email_sent` → `follow_up_1` → `follow_up_2` → `replied_interested` / `cold`
+- **lastContactDate:** ISO date of last email sent/received
+- **notes:** Append research findings, email subjects, reply summaries
 
 **Activity Logging:**
 
@@ -267,5 +257,5 @@ Keep comments concise and actionable:
 | Web Search | Unavailable | Use Hunter's data as-is, send with available info |
 | Web Search | No results | Ask Hunter for more research via Paperclip comment |
 | Twenty CRM | Unavailable | Send emails anyway, create backfill task for CRM |
-| Twenty CRM | Contact not found | Create new contact record |
+| Twenty CRM | Lead not found | Comment on task asking Hunter to create the lead |
 | Paperclip | API error | Log locally, retry on next heartbeat |

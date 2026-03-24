@@ -85,50 +85,39 @@ Step 4: extract_content → pull full page from interesting results
 
 Your system of record for all prospect data.
 
+**Available CRM Tools:** `create_lead`, `search_leads`, `update_lead`, `create_company`, `search_companies`
+
 ### Before Creating Any Lead
 
 Always search first to prevent duplicates:
+`search_leads(query: "company name")` + `search_companies(query: "company name")`
 
-1. Search by company name (exact and partial match)
-2. Search by domain/website
-3. Search by decision maker name
-
-### Company Records
-
-**Required fields when creating:**
-- Company name
-- Industry/niche
-- Location (city, state)
-- Website URL
-- Employee count (or estimate)
-- Lead source: "Hunter Agent - {channel}" (e.g., "Hunter Agent - Google Maps")
-- ICP score
-
-**Optional but valuable:**
-- Phone number
-- Annual revenue estimate
-- Technologies observed
-- IT pain signals (in notes)
-
-### Person Records (Decision Makers)
+### Lead Records (`create_lead`)
 
 **Required fields:**
-- Full name
-- Title/role
-- Company (linked)
-- Confidence level: Verified / Likely / Unverified
+- name — Company/lead name
+- companyName — Company name
+- industry — Niche tag: law-firm, auto-dealer, accounting, cre, architecture, medical, dental, veterinary, hands-and-feet
+- icpScore — ICP score 0-100
+- source — "Hunter Agent - {channel}" (e.g., "Hunter Agent - Google Maps")
+- signalSources — All signals found with source URLs
 
-**Optional:**
-- Email (only if publicly available)
-- LinkedIn URL
-- Phone (only if publicly available)
+**Optional but valuable:**
+- website — Company website URL
+- phone — Phone number
+- employeeCount — Number of employees
+- notes — Decision maker name/title, IT pain signals, technologies observed
 
-### Notes and Activity
+### Company Records (`create_company`)
 
-- Add detailed notes with all signals found, each with source URL
-- Tag with niche: `law-firm`, `auto-dealer`, `accounting`, `cre`, `architecture`, `medical`, `dental`, `veterinary`, `hands-and-feet`
-- Tag with signal count: `signals-2`, `signals-3`, `signals-5+`
-- Update records when new intelligence is found -- do not create duplicate notes
+- name — Company name
+- domainName — Website domain
+- employees — Employee count
+
+### Updating Leads (`update_lead`)
+
+- Update notes when new intelligence is found — do not create duplicates
+- Update icpScore if signals change
 
 ### CRM Hygiene Tasks
 

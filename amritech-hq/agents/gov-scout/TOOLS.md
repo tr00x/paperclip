@@ -23,27 +23,27 @@
 
 ---
 
-### 2. Twenty CRM
+### 2. Twenty CRM — `create_tender`, `search_tenders`, `create_company`, `search_companies`
 
 **Purpose:** Log and track all reviewed government opportunities.
 
-**Use for:**
-- Creating opportunity records for every solicitation reviewed (regardless of score).
-- Adding scoring notes and recommendations to opportunity records.
-- Updating opportunity status: found, scored, submitted to CEO, GO, NO-GO, expired.
-- Tracking deadlines and milestones for active pursuits.
-- Linking opportunities to related contacts or companies (government agencies).
+| Tool | When |
+|------|------|
+| `search_tenders` | Check for existing tender before creating |
+| `create_tender` | Log every solicitation reviewed |
+| `search_companies` | Check if agency exists |
+| `create_company` | Create agency record if new |
 
-**Record structure for each opportunity:**
-- Title: `[GOV] {Agency} -- {Solicitation Title}`
-- Fields: portal, solicitation number, NAICS, estimated value, deadline, score, recommendation
-- Status: `found` -> `scored` -> `pending_review` -> `go` / `no_go` / `expired`
-- Notes: scoring breakdown, risks, CEO decision, outcome
+**Tender record:**
+- name: `[GOV] {Agency} — {Solicitation Title}`
+- status: `found` → `scored` → `pending_review` → `go` / `no_go` / `expired`
+- setAside: SBA type if applicable
+- notes: scoring breakdown, NAICS, estimated value, deadline, recommendation
 
 **Rules:**
-- Every opportunity you review gets a CRM record. No exceptions.
-- Update existing records rather than creating duplicates.
-- When a deadline passes without action, update status to `expired`.
+- Every opportunity gets a tender record. No exceptions.
+- `search_tenders` before creating — no duplicates.
+- Update status to `expired` when deadline passes.
 
 ---
 

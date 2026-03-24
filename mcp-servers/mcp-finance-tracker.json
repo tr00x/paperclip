@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "twenty-crm": {
+      "command": "node",
+      "args": [
+        "/Users/timur/paperclip/mcp-servers/twenty-crm-lite/index.js",
+        "--role=finance-tracker"
+      ],
+      "env": {
+        "TWENTY_API_KEY": "YOUR_TWENTY_API_KEY",
+        "TWENTY_BASE_URL": "http://localhost:5555"
+      }
+    },
+    "telegram": {
+      "command": "node",
+      "args": [
+        "/Users/timur/paperclip/mcp-servers/telegram-send/index.js"
+      ],
+      "env": {
+        "TELEGRAM_BOT_TOKEN": "YOUR_TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID": "YOUR_TELEGRAM_CHAT_ID"
+      }
+    }
+  }
+}

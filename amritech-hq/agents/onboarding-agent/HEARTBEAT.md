@@ -273,7 +273,7 @@ Create sub-tasks via Paperclip API:
 
 По завершении 30-дневного онбординга (все чекпоинты пройдены):
 1. Создай задачу `[INVOICE] {Company} — first month MRR ${amount}` для Finance Tracker
-2. Обнови CRM: создай Client record из Lead данных (если ещё нет)
+2. Обнови CRM: `update_client` — статус "Active" (если client record нет — создай demand для CEO)
 3. Telegram: "✅ Onboarding {Company} завершён. Finance — первый invoice."
 4. Обнови Lead в CRM: `status` → `closed_won` (если ещё не)
 

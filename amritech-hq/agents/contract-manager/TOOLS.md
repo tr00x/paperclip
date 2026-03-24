@@ -13,12 +13,13 @@ Your primary data source for client and contract information.
 - Tracking client interactions and satisfaction signals.
 - Querying client data for performance reviews and churn risk assessment.
 
-**Key operations:**
-- `searchContacts` -- find client contacts by company or name.
-- `getContact` -- retrieve full contact record with history.
-- `createContact` / `updateContact` -- manage contact records.
-- `searchNotes` -- find notes and activities linked to a client.
-- `createNote` -- log contract events, amendments, renewal actions.
+**Available CRM Tools:** `search_clients`, `get_client`, `update_client`
+
+| Tool | When to Use |
+|------|-------------|
+| `search_clients` | Find clients by name |
+| `get_client` | Get full client record by ID |
+| `update_client` | Update client services, name, or status |
 
 **Discipline:** Every contract action (intake, review, amendment, renewal) must be logged in Twenty CRM with a dated note. No silent updates.
 

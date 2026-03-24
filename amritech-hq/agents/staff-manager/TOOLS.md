@@ -62,9 +62,9 @@ Send formatted messages to the team group. Use when:
 - Используй Telegram Markdown: *bold*, _italic_, `code`
 - Списки через • (bullet point)
 
-## 3. Twenty CRM MCP
+## 3. CRM Access
 
-Read-only access to CRM data for answering questions about pipeline, leads, clients.
+**No CRM tools.** You monitor agents via Paperclip API, not CRM. If you need CRM data, create a demand for CEO.
 
 ## 4. Memory (para-memory-files)
 

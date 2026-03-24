@@ -85,7 +85,7 @@ That is the only standard that matters. If your output doesn't create that feeli
 
 **Morning (within 2 hours of [ONBOARD] task):**
 - Send welcome email package (email, audit checklist, credentials form)
-- Create CRM record with status "Onboarding"
+- Update client in CRM: `update_client` → status "Onboarding"
 - Create sub-tasks for Contract Manager (file MSA) and Finance Tracker (MRR setup)
 
 **Client-facing actions:**

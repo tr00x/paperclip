@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "twenty-crm": {
+      "command": "npx",
+      "args": ["twenty-mcp-server", "start"],
+      "env": {
+        "TWENTY_API_KEY": "YOUR_TWENTY_API_KEY",
+        "TWENTY_BASE_URL": "http://localhost:5555"
+      }
+    },
+    "telegram": {
+      "command": "node",
+      "args": ["/Users/timur/paperclip/mcp-servers/telegram-send/index.js"],
+      "env": {
+        "TELEGRAM_BOT_TOKEN": "YOUR_TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID": "YOUR_TELEGRAM_CHAT_ID"
+      }
+    },
+    "email": {
+      "command": "npx",
+      "args": ["@codefuturist/email-mcp", "stdio"],
+      "env": {
+        "MCP_EMAIL_ADDRESS": "agent@amritech.us",
+        "MCP_EMAIL_PASSWORD": "YOUR_SMTP_PASSWORD",
+        "MCP_EMAIL_IMAP_HOST": "imap.ionos.com",
+        "MCP_EMAIL_IMAP_PORT": "993",
+        "MCP_EMAIL_IMAP_TLS": "true",
+        "MCP_EMAIL_SMTP_HOST": "smtp.ionos.com",
+        "MCP_EMAIL_SMTP_PORT": "587",
+        "MCP_EMAIL_SMTP_TLS": "false",
+        "MCP_EMAIL_SMTP_STARTTLS": "true",
+        "MCP_EMAIL_ACCOUNT_NAME": "amritech",
+        "MCP_EMAIL_FULL_NAME": "AmriTech IT Solutions"
+      }
+    },
+    "web-search": {
+      "command": "npx",
+      "args": ["-y", "@zhafron/mcp-web-search"]
+    },
+    "serena": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context=claude-code", "--project-from-cwd"]
+    }
+  }
+}

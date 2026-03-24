@@ -43,42 +43,22 @@ Execute these steps in order every heartbeat. Skip steps that have no actionable
 
 **Before ANYTHING else**, query Twenty CRM for leads needing action right now. This is your work queue.
 
-Use Twenty CRM MCP tools to run these queries:
+Use `search_leads` MCP tool with these filters:
 
 **1. Day 3 follow-ups due:**
-```graphql
-leads(filter: { outreachStatus: { eq: "email_sent" }, lastContactDate: { lt: "{3 business days ago, ISO format}" } }) {
-  edges { node { id name decisionMaker decisionMakerEmail lastContactDate notes } }
-}
-```
+`search_leads(outreachStatus: "email_sent", lastContactBefore: "{3 business days ago, ISO}")`
 
 **2. Day 7 follow-ups due:**
-```graphql
-leads(filter: { outreachStatus: { eq: "follow_up_1" }, lastContactDate: { lt: "{4 business days ago, ISO format}" } }) {
-  edges { node { id name decisionMaker decisionMakerEmail lastContactDate notes } }
-}
-```
+`search_leads(outreachStatus: "follow_up_1", lastContactBefore: "{4 business days ago, ISO}")`
 
 **3. Day 14 breakup emails due:**
-```graphql
-leads(filter: { outreachStatus: { eq: "follow_up_2" }, lastContactDate: { lt: "{7 business days ago, ISO format}" } }) {
-  edges { node { id name decisionMaker decisionMakerEmail lastContactDate notes } }
-}
-```
+`search_leads(outreachStatus: "follow_up_2", lastContactBefore: "{7 business days ago, ISO}")`
 
 **4. Stale leads (no action 14+ days):**
-```graphql
-leads(filter: { status: { eq: "contacted" }, lastContactDate: { lt: "{14 days ago, ISO format}" } }) {
-  edges { node { id name lastContactDate } }
-}
-```
+`search_leads(status: "contacted", lastContactBefore: "{14 days ago, ISO}")`
 
 **5. Leads awaiting reply decision (demand check):**
-```graphql
-leads(filter: { outreachStatus: { in: ["replied_interested", "replied_question"] } }) {
-  edges { node { id name lastContactDate decisionMaker } }
-}
-```
+`search_leads(outreachStatus: "replied_interested")` + `search_leads(outreachStatus: "replied_question")`
 → For each: calculate hours since `lastContactDate`. If >2h, send demand to @ikberik (see Demand Escalation below).
 
 Add all results to your work queue. Process them BEFORE checking Paperclip inbox.
@@ -89,10 +69,10 @@ Add all results to your work queue. Process them BEFORE checking Paperclip inbox
 
 Check IMAP inbox for replies to outreach emails:
 
-1. Use Email MCP tool: `list_emails(account: "default", mailbox: "INBOX")`
+1. Use Email MCP tool: `list_emails(account: "amritech", mailbox: "INBOX")`
 2. For each email received since last heartbeat:
    - Extract sender email address
-   - Search Twenty CRM: `leads(filter: { decisionMakerEmail: { eq: "{sender_email}" } })`
+   - Search Twenty CRM: `search_leads(email: "{sender_email}")`
    - If match found → this is a reply to our outreach!
    - Classify the reply (7 categories — see Step 4)
    - **IMMEDIATELY update CRM:**
@@ -139,11 +119,10 @@ For each new lead:
    - Look for recent news, job postings, office locations in NJ/NY
    - Identify the specific pain point Hunter flagged
 
-2. **Create/update contact in Twenty CRM:**
-   - Full name, title, company, email
-   - Company size, industry, location
-   - Pain point identified
-   - Source: "Hunter agent"
+2. **Update lead in Twenty CRM** (Hunter already created the lead — use `update_lead`):
+   - Update notes with research findings
+   - Set lastContactDate when emailing
+   - Source already set by Hunter
 
 3. **Write the initial email (Day 0):**
    - Follow ALL email rules from AGENTS.md
@@ -230,8 +209,8 @@ Query Twenty CRM for leads with follow-up dates due today or overdue.
    - `outreachStatus` → "no_response"
    - `status` → "nurture"
 
-Используй Twenty CRM MCP tool `updateLead` с ID лида.
-Если не знаешь ID лида — найди через `searchLeads` по имени компании.
+Используй Twenty CRM MCP tool `update_lead` с ID лида.
+Если не знаешь ID лида — найди через `search_leads` по имени компании.
 
 ⚠️ Без обновления CRM — работа считается НЕ выполненной!
 

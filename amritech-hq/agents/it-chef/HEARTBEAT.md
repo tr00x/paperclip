@@ -170,24 +170,31 @@ lsof -i :3089 -sTCP:LISTEN || echo "CRM sync DOWN"
 
 ---
 
-## Step 5 — CRM Hygiene Check
+## Step 5 — Full System Health Check
 
-Быстрая проверка CRM на inconsistencies:
+У тебя полный доступ: CRM, Email, Telegram, Web, Serena (code), bash.
 
-```graphql
-# Лиды с broken state (отправлен email но CRM не обновлён)
-leads(filter: { status: { eq: "new" }, outreachStatus: { eq: "pending" } }) {
-  edges { node { id name lastContactDate } }
-}
+**CRM (Twenty):**
+```bash
+docker ps | grep twenty-server
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5555/api
+docker logs twenty-server-1 --tail 20 2>&1 | grep -i error
 ```
+Если упал → restart. Если данные битые → почини (дубли, broken state). Перед массовыми изменениями — demand @tr00x.
 
-Если найдены лиды в `new/pending` но с `lastContactDate` заполненной → status не обновился после email. Логируй и сообщи SDR.
-
-```graphql
-# Дубли по имени
-leads { edges { node { id name } } }
+**Email (IONOS SMTP/IMAP):**
+```bash
+curl -s smtp.ionos.com:587
 ```
-Если есть дубли → мержи или помечай.
+Проверь deliverability, bounce'ы.
+
+**Telegram bot:**
+Проверь что webhook active, бот отвечает.
+
+**Paperclip:**
+```bash
+curl -s http://localhost:4444/api/health
+```
 
 ---
 

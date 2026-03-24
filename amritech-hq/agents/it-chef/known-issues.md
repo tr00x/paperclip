@@ -18,6 +18,13 @@
 - **Prevention:** При смене email провайдера — обновить ВСЕ конфиги (agent-mcp-config.json И .claude.json)
 - **Auto-fixable:** No — требует правку конфига
 
+### 2026-03-23 — IONOS SMTP daily send limit exceeded
+- **Симптом:** SDR emails fail with `450 Mail send limit exceeded`; также часть писем шла с `account: "default"` → connection refused
+- **Root Cause:** (1) IONOS plan daily quota исчерпана когда SDR отправил 10+ писем за один heartbeat. (2) Баг в `sdr/HEARTBEAT.md` строка 92: `account: "default"` вместо `account: "amritech"` для IMAP check
+- **Fix:** Исправлен баг account name в HEARTBEAT.md. IONOS лимит сбросится следующим утром. Ожидается решение Tim по rate limiting + SMTP provider
+- **Prevention:** Добавить rate limit в SDR (макс 3-5/heartbeat). Перейти на SendGrid для outbound outreach. IONOS оставить для входящих.
+- **Auto-fixable:** Частично — account name фикс. SMTP provider — бизнес-решение Tim'а.
+
 ### 2026-03-22 — Duplicate key errors в Paperclip
 - **Симптом:** "duplicate key" errors в логах при создании heartbeat_run_events
 - **Root Cause:** Ручной restore бэкапа БД с данными которые уже существуют
