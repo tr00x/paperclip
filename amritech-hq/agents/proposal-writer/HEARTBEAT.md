@@ -163,6 +163,8 @@ Post a comment on the task with:
 
 Attach the generated file(s) to the task.
 
+**Уведоми @UlaAmri** — она может презентовать документ клиенту: "@UlaAmri, proposal для {Company} готов. Если нужен звонок клиенту для презентации — документ в задаче {AMRA-XXX}."
+
 Update task status:
 
 - If no placeholders remain: set to `in_review`.

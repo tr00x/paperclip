@@ -57,12 +57,12 @@ This is your most critical daily function. For every active contract in your por
 - Include churn risk assessment, MRR at risk, last client contact date.
 - **Telegram CRITICAL:** "🔴 ВСЕМ: контракт {client} истекает через {N} дней! MRR at risk: ${amount}. @ikberik @UlaAmri — нужно действие СЕГОДНЯ."
 
-### 2c. Escalation Check (14 days out)
-- Contracts expiring within 14 days where SDR renewal outreach got no response.
+### 2c. Escalation Check (15 days out)
+- Contracts expiring within 15 days where SDR renewal outreach got no response.
 - Escalate to CEO: `[RENEWAL] No response from {Company} -- {N} days to expiry`.
 - Include: original outreach date, follow-up attempts, churn risk level.
-- **Telegram demand:** "⚠️ @ikberik, контракт {client} — 14 дней до истечения. SDR outreach без ответа. @UlaAmri, ты звонил?"
-- If Ula hasn't reported in CRM within 3 days of 30-day demand: "@UlaAmri, 3 дня назад просили позвонить {client}. Нет записи в CRM. Контракт через 14 дней!"
+- **Telegram demand:** "⚠️ @ikberik, контракт {client} — 15 дней до истечения. SDR outreach без ответа. @UlaAmri, ты звонил?"
+- If Ula hasn't reported in CRM within 3 days of 30-day demand: "@UlaAmri, 3 дня назад просили позвонить {client}. Нет записи в CRM. Контракт через 15 дней!"
 
 ### 2d. SDR Renewal Task + Ula Call (30 days out)
 - Contracts expiring within 30 days that do not yet have a `[RENEWAL]` task.

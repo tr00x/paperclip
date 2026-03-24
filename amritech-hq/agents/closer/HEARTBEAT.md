@@ -68,11 +68,13 @@ POST /api/issues/{issueId}/checkout
   2. Авто-создай задачу `[ONBOARD] {Company} — new client onboarding` для Onboarding Agent
   3. Авто-создай задачу `[CONTRACT] {Company} — contract setup` для Contract Manager
   4. Telegram: "🎉 Новый клиент! {Company} — ${MRR}/мес. Onboarding запущен."
+  5. Уведоми Ula: "@UlaAmri, новый клиент {Company}. Твой check-in звонок на Day 3."
 - Если **"закрыли — lost"** (closed_lost):
   1. Обнови CRM: `status` → `closed_lost`
   2. Запиши причину в notes
   3. Telegram: "❌ {Company} — не закрыли. Причина: {reason}."
-  4. Задача done
+  4. Если были предыдущие контакты с Ula: "@UlaAmri, {Company} отказались. Если были предыдущие контакты — проверь отношения."
+  5. Задача done
 - Если **Berik молчит >48ч:**
   - "@ikberik, briefing для {Company} готов 2 дня назад. Ты ещё не позвонил. Лид может уйти к конкуренту."
 

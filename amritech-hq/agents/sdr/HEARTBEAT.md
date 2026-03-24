@@ -340,7 +340,7 @@ If time is limited within the 15-minute window, prioritize in this order:
 | Часов с ответа лида | Действие | Кому |
 |---|---|---|
 | 0-2ч | Обычное уведомление (уже отправлено в Step 0.5) | Все в TG |
-| 2-4ч | "📧 Лид {company} ответил {N}ч назад. @ikberik, нужно решение — отвечаем?" | @ikberik |
+| 2ч | "📧 Лид {company} ответил 2ч назад. @ikberik, решение — отвечаем?" | @ikberik |
 | 4-8ч | "⚠️ @ikberik, лид остывает! Ответ от {company} ждёт {N} часов." | @ikberik |
 | 8+ч | "🔴 @ikberik @tr00x СРОЧНО: {company} ответил {N} часов назад, нет решения!" | @ikberik + @tr00x |
 
