@@ -89,7 +89,7 @@ Check IMAP inbox for replies to outreach emails:
      Тон: позитивный / вопрос / отказ / referral
      Жду указаний — отвечать?
      ```
-   - **For positive replies: DO NOT respond.** Notify team and wait for @ikberik approval.
+   - **For positive replies: DO NOT respond.** Notify team and wait for @ikberik to confirm next steps.
    - **For "not interested" / "unsubscribe":** Close gracefully yourself, notify in TG after.
 
 3. If no match in CRM → not a lead reply. Ignore or forward to CEO.
@@ -237,8 +237,8 @@ For each reply:
 2. **If positive interest (respond within 1 hour):**
    - Update Twenty CRM: `outreachStatus` → `replied_interested`, `status` → `engaged`, `lastContactDate` → now
    - **Telegram:** уведомление команде (формат из Step 0.5)
-   - **Жди одобрения @ikberik** — Berik решает, двигаемся ли дальше
-   - **После одобрения Berik'а — AUTO-HANDOFF (2 задачи):**
+   - **Жди подтверждения @ikberik** — Berik подтверждает, двигаемся ли дальше
+   - **После подтверждения — AUTO-HANDOFF (2 задачи):**
      1. Задача Closer'у: `[BRIEFING] {Company} — positive reply, meeting prep needed`
         - Описание: CRM ID лида, суть ответа, сигналы Hunter, email thread
         - Assign: Closer agent

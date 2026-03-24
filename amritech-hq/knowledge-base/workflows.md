@@ -20,8 +20,8 @@ Day 3 → SDR шлёт follow-up #1 (автоматом)
 Day 7 → SDR шлёт follow-up #2 (автоматом)
     ↓
 Лид ответил?
-    ├── ДА (положительно) → SDR уведомляет → Berik одобряет → Ula intro call + Closer briefing → Berik pricing → Ula closing call
-    ├── ДА (вопрос) → SDR готовит ответ → Berik одобряет → SDR отправляет
+    ├── ДА (положительно) → SDR уведомляет → Berik подтверждает → Ula intro call + Closer briefing → Berik pricing → Ula closing call
+    ├── ДА (вопрос) → SDR готовит ответ → Berik подтверждает → SDR отправляет
     ├── ДА (отказ) → SDR закрывает вежливо → архив
     └── НЕТ → Day 14 → финальное письмо → nurture (вернёмся через 90 дней)
 ```

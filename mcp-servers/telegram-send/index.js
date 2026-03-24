@@ -37,6 +37,7 @@ server.tool(
     text: z.string().describe("Message text (supports HTML: <b>, <i>, <code>)"),
     chat_id: z.string().optional().describe("Chat ID (defaults to group)"),
     task_id: z.string().optional().describe("Paperclip task ID — links this TG message to the task so team replies become comments"),
+    buttons: z.string().optional().describe("Button preset: 'berik_decision' (approve lead), 'ula_call' (call result), 'berik_pricing' (pricing approval)"),
   },
   async ({ text, chat_id, task_id }) => {
     const targetChat = chat_id || CHAT_ID;
@@ -56,6 +57,48 @@ server.tool(
           [
             { text: "🚫 Block", callback_data: `status:blocked:${task_id}` },
             { text: "⚡ Urgent", callback_data: `priority:urgent:${task_id}` },
+          ],
+        ]
+      };
+    }
+
+    // Special button sets for role-specific messages
+    if (args.buttons === "berik_decision") {
+      payload.reply_markup = {
+        inline_keyboard: [
+          [
+            { text: "✅ Да, звоните!", callback_data: `decide:go:${task_id}` },
+            { text: "❌ Пропускаем", callback_data: `decide:skip:${task_id}` },
+          ],
+          [
+            { text: "💬 Комментарий", callback_data: `comment:${task_id}` },
+          ],
+        ]
+      };
+    } else if (args.buttons === "ula_call") {
+      payload.reply_markup = {
+        inline_keyboard: [
+          [
+            { text: "📞 Позвонил — пишу результат", callback_data: `call:done:${task_id}` },
+          ],
+          [
+            { text: "📞 Не дозвонился", callback_data: `call:miss:${task_id}` },
+            { text: "⏰ Перезвоню позже", callback_data: `call:later:${task_id}` },
+          ],
+          [
+            { text: "✅ Клиент согласен!", callback_data: `call:won:${task_id}` },
+            { text: "❌ Отказ", callback_data: `call:lost:${task_id}` },
+          ],
+        ]
+      };
+    } else if (args.buttons === "berik_pricing") {
+      payload.reply_markup = {
+        inline_keyboard: [
+          [
+            { text: "💰 Pricing готов — Ula звони", callback_data: `decide:priced:${task_id}` },
+          ],
+          [
+            { text: "💬 Вопрос по pricing", callback_data: `comment:${task_id}` },
           ],
         ]
       };

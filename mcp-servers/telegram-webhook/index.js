@@ -747,67 +747,124 @@ async function editMenu(chatId, messageId, menuKey) {
   });
 }
 
-async function handleCrmQuery(type, targetChatId) {
+const CRM_PAGE_SIZE = 5;
+
+async function handleCrmQuery(type, targetChatId, page = 1) {
   if (!TWENTY_API_KEY) { await sendTelegram("❌ CRM не настроен"); return; }
+  const offset = (page - 1) * CRM_PAGE_SIZE;
 
   try {
     if (type === "hot") {
-      const data = await crmQuery(`{ leads(filter: { icpScore: { gte: 70 } }, first: 15, orderBy: { icpScore: DescNullsLast }) { edges { node { id name companyName status icpScore industry decisionMaker } } } }`);
-      const leads = data?.data?.leads?.edges || [];
-      if (!leads.length) { await sendTelegram("Нет лидов с оценкой 70+"); return; }
-      let msg = `🔥 <b>Лучшие лиды</b> <i>(оценка совместимости 70+)</i>\n\n`;
+      const data = await crmQuery(`{ leads(filter: { icpScore: { gte: 70 } }, first: 100, orderBy: { icpScore: DescNullsLast }) { edges { node { id name status icpScore industry decisionMaker } } } }`);
+      const all = data?.data?.leads?.edges || [];
+      if (!all.length) { await sendTelegram("Нет лидов с высокой оценкой"); return; }
+      const total = all.length;
+      const pages = Math.ceil(total / CRM_PAGE_SIZE);
+      const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
+
+      let msg = `🔥 <b>Лучшие лиды</b> (стр. ${page}/${pages})\n<i>Оценка = насколько подходит как клиент</i>\n\n`;
       for (const { node: l } of leads) {
-        msg += `<b>${l.icpScore}⭐</b> ${l.name}\n`;
-        msg += `   ${l.industry || "?"} | ${l.status || "new"} | DM: ${l.decisionMaker || "?"}\n\n`;
+        const statusRu = { new: "🆕новый", contacted: "📧email", engaged: "💬ответил", qualified: "✅подходит", nurture: "💤пауза" };
+        msg += `<b>${l.icpScore}⭐ ${l.name}</b>\n`;
+        msg += `   ${l.industry || "?"} | ${statusRu[l.status] || l.status} | DM: ${l.decisionMaker || "?"}\n`;
+        msg += `   → /lead_${l.id.slice(0,8)}\n\n`;
       }
-      msg += `💡 <i>Оценка = насколько компания подходит нам как клиент. 100 = идеальный клиент.</i>`;
-      await sendTelegram(msg);
+      const btns = [];
+      const nav = [];
+      if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:hot:${page-1}` });
+      nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+      if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:hot:${page+1}` });
+      if (nav.length > 1) btns.push(nav);
+      btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
+      await sendTelegramWithButtons(targetChatId, msg, btns);
     }
 
     else if (type === "outreach") {
-      const data = await crmQuery(`{ leads(filter: { status: { eq: "contacted" } }, first: 20) { edges { node { id name outreachStatus lastContactDate } } } }`);
-      const leads = data?.data?.leads?.edges || [];
-      if (!leads.length) { await sendTelegram("Нет лидов в рассылке"); return; }
+      const data = await crmQuery(`{ leads(filter: { status: { eq: "contacted" } }, first: 100) { edges { node { id name outreachStatus lastContactDate } } } }`);
+      const all = data?.data?.leads?.edges || [];
+      if (!all.length) { await sendTelegram("Нет лидов в рассылке"); return; }
+      const total = all.length;
+      const pages = Math.ceil(total / CRM_PAGE_SIZE);
+      const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
+
       const icons = { email_sent: "📧", follow_up_1: "📧📧", follow_up_2: "📧📧📧", replied_interested: "🔥", replied_question: "❓", not_interested: "❌", no_response: "😶" };
-      let msg = `📧 <b>Кому отправили email</b>\n\n`;
+      let msg = `📧 <b>Email рассылка</b> (стр. ${page}/${pages})\n\n`;
       for (const { node: l } of leads) {
         const icon = icons[l.outreachStatus] || "▪️";
         const ago = l.lastContactDate ? Math.round((Date.now() - new Date(l.lastContactDate)) / 86400000) : "?";
         msg += `${icon} <b>${l.name}</b> — ${ago}д назад\n`;
       }
-      msg += `\n💡 <i>📧=первое письмо, 📧📧=follow-up, 🔥=ответил!</i>`;
-      await sendTelegram(msg);
+      msg += `\n💡 <i>📧=первое, 📧📧=follow-up, 🔥=ответил!</i>`;
+      const btns = [];
+      const nav = [];
+      if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:outreach:${page-1}` });
+      nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+      if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:outreach:${page+1}` });
+      if (nav.length > 1) btns.push(nav);
+      btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
+      await sendTelegramWithButtons(targetChatId, msg, btns);
     }
 
     else if (type === "new") {
-      const data = await crmQuery(`{ leads(filter: { status: { eq: "new" } }, first: 20, orderBy: { createdAt: DescNullsLast }) { edges { node { id name icpScore industry createdAt } } } }`);
-      const leads = data?.data?.leads?.edges || [];
-      if (!leads.length) { await sendTelegram("✅ Нет новых лидов — SDR всё разобрал!"); return; }
-      let msg = `🆕 <b>Новые лиды</b> <i>(ждут первый email от SDR)</i>\n\n`;
+      const data = await crmQuery(`{ leads(filter: { status: { eq: "new" } }, first: 100, orderBy: { createdAt: DescNullsLast }) { edges { node { id name icpScore industry } } } }`);
+      const all = data?.data?.leads?.edges || [];
+      if (!all.length) { await sendTelegram("✅ Нет новых — SDR всё разобрал!"); return; }
+      const total = all.length;
+      const pages = Math.ceil(total / CRM_PAGE_SIZE);
+      const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
+
+      let msg = `🆕 <b>Новые лиды</b> (стр. ${page}/${pages})\n<i>Ждут первый email от SDR</i>\n\n`;
       for (const { node: l } of leads) {
         msg += `⬜ <b>${l.name}</b> — ${l.industry || "?"} — ⭐${l.icpScore || "?"}\n`;
       }
-      msg += `\n💡 <i>SDR напишет им персональный email. Hunter нашёл их.</i>`;
-      await sendTelegram(msg);
+      const btns = [];
+      const nav = [];
+      if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:new:${page-1}` });
+      nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+      if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:new:${page+1}` });
+      if (nav.length > 1) btns.push(nav);
+      btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
+      await sendTelegramWithButtons(targetChatId, msg, btns);
     }
 
     else if (type === "clients") {
-      const data = await crmQuery(`{ clients(first: 20) { edges { node { id name services createdAt } } } }`);
-      const clients = data?.data?.clients?.edges || [];
-      if (!clients.length) { await sendTelegram("Пока нет клиентов в CRM.\n💡 <i>Berik — внеси текущих клиентов! Без них агенты работают вслепую.</i>"); return; }
-      let msg = `👥 <b>Наши клиенты</b>\n\n`;
+      const data = await crmQuery(`{ clients(first: 100) { edges { node { id name services } } } }`);
+      const all = data?.data?.clients?.edges || [];
+      if (!all.length) { await sendTelegram("Пока нет клиентов.\n💡 <i>@ikberik — внеси текущих клиентов!</i>"); return; }
+      const total = all.length;
+      const pages = Math.ceil(total / CRM_PAGE_SIZE);
+      const clients = all.slice(offset, offset + CRM_PAGE_SIZE);
+
+      let msg = `👥 <b>Наши клиенты</b> (стр. ${page}/${pages})\n\n`;
       for (const { node: c } of clients) {
         msg += `✅ <b>${c.name}</b>${c.services ? ` — ${c.services}` : ""}\n`;
       }
-      await sendTelegram(msg);
-    }
-
-    else if (type === "search") {
-      // handled via pendingInputs
+      const btns = [];
+      const nav = [];
+      if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:clients:${page-1}` });
+      nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+      if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:clients:${page+1}` });
+      if (nav.length > 1) btns.push(nav);
+      btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
+      await sendTelegramWithButtons(targetChatId, msg, btns);
     }
   } catch (err) {
     await sendTelegram(`❌ Ошибка CRM: ${err.message}`);
   }
+}
+
+// Send message with inline keyboard
+async function sendTelegramWithButtons(targetChatId, text, buttons) {
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: targetChatId || chatId,
+      text,
+      parse_mode: "HTML",
+      reply_markup: { inline_keyboard: buttons },
+    }),
+  });
 }
 
 async function handleCrmSearch(query, targetChatId) {
@@ -1030,15 +1087,116 @@ const server = http.createServer(async (req, res) => {
 
           if (crmAction === "pipeline") {
             await handlePipeline();
-          } else if (crmAction === "hot") {
-            await handleCrmQuery("hot", cb.message.chat.id);
-          } else if (crmAction === "outreach") {
-            await handleCrmQuery("outreach", cb.message.chat.id);
-          } else if (crmAction === "new") {
-            await handleCrmQuery("new", cb.message.chat.id);
-          } else if (crmAction === "clients") {
-            await handleCrmQuery("clients", cb.message.chat.id);
+          } else {
+            // Parse: hot, hot:2, outreach:3 etc
+            const parts = crmAction.split(":");
+            const queryType = parts[0];
+            const page = parseInt(parts[1]) || 1;
+            if (["hot", "outreach", "new", "clients"].includes(queryType)) {
+              await handleCrmQuery(queryType, cb.message.chat.id, page);
+            }
           }
+        }
+
+        // Berik decisions: decide:go/skip/priced:{taskId}
+        else if (cbData.startsWith("decide:")) {
+          const parts = cbData.split(":");
+          const decision = parts[1];
+          const taskId = parts.slice(2).join(":");
+          const decisionText = {
+            go: "✅ Решение: звоним! Ula — intro call.",
+            skip: "❌ Решение: пропускаем этого лида.",
+            priced: "💰 Pricing согласован. Ula — closing call!",
+          };
+          try {
+            if (decision === "skip") {
+              await fetch(`${PAPERCLIP_URL}/api/issues/${taskId}`, {
+                method: "PATCH", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "done" }),
+              });
+            }
+            await addCommentToTask(taskId, decisionText[decision] || decision, `${member.name} (via Telegram)`);
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ callback_query_id: cb.id, text: decisionText[decision]?.slice(0, 50) || "✓" }),
+            });
+            // Notify in chat
+            await sendTelegram(decisionText[decision] + `\n<i>— ${member.name}</i>`);
+          } catch (err) { console.error("Decision error:", err.message); }
+        }
+
+        // Ula call results: call:done/miss/later/won/lost:{taskId}
+        else if (cbData.startsWith("call:")) {
+          const parts = cbData.split(":");
+          const result = parts[1];
+          const taskId = parts.slice(2).join(":");
+
+          if (result === "done") {
+            // Ask for call notes
+            if (!globalThis.pendingComments) globalThis.pendingComments = {};
+            globalThis.pendingComments[cb.from.id] = taskId;
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ callback_query_id: cb.id, text: "Напиши результат звонка ↓" }),
+            });
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: cb.message.chat.id,
+                text: `📞 <b>${member.name}</b>, напиши результат звонка:\n\n💡 <i>Что обсудили? Какие потребности? Что дальше?</i>`,
+                parse_mode: "HTML",
+                reply_markup: { force_reply: true, selective: true },
+              }),
+            });
+          } else if (result === "miss") {
+            await addCommentToTask(taskId, "📞 Не дозвонился. Перезвоню.", `${member.name} (via Telegram)`);
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ callback_query_id: cb.id, text: "📞 Не дозвонился — записано" }),
+            });
+          } else if (result === "later") {
+            await addCommentToTask(taskId, "⏰ Перезвоню позже.", `${member.name} (via Telegram)`);
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ callback_query_id: cb.id, text: "⏰ Окей, перезвонишь позже" }),
+            });
+          } else if (result === "won") {
+            await addCommentToTask(taskId, "🎉 КЛИЕНТ СОГЛАСЕН! Закрываем!", `${member.name} (via Telegram)`);
+            await fetch(`${PAPERCLIP_URL}/api/issues/${taskId}`, {
+              method: "PATCH", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "done" }),
+            });
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ callback_query_id: cb.id, text: "🎉 Поздравляем!!!" }),
+            });
+            await sendTelegram(`🎉🎉🎉 <b>НОВЫЙ КЛИЕНТ!</b>\n\n<b>${member.name}</b> закрыл сделку!\n\n💡 <i>Onboarding и Contract Manager запустятся автоматически.</i>`);
+          } else if (result === "lost") {
+            // Ask for reason
+            if (!globalThis.pendingComments) globalThis.pendingComments = {};
+            globalThis.pendingComments[cb.from.id] = taskId;
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ callback_query_id: cb.id, text: "Напиши причину отказа ↓" }),
+            });
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: cb.message.chat.id,
+                text: `❌ <b>${member.name}</b>, почему отказали?\n\n💡 <i>Цена? Не нужно? Уже есть IT? Другая причина?</i>`,
+                parse_mode: "HTML",
+                reply_markup: { force_reply: true, selective: true },
+              }),
+            });
+          }
+        }
+
+        // Noop (pagination current page indicator)
+        else if (cbData === "noop") {
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ callback_query_id: cb.id }),
+          });
         }
 
         // Priority change: priority:urgent:{taskId}

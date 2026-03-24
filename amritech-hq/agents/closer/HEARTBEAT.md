@@ -38,7 +38,7 @@ POST /api/issues/{issueId}/checkout
 ## 2. Сбор информации
 - Прочитай досье Hunter (родительская задача [LEAD] или [HOT])
 - Прочитай письма SDR и ответы клиента (если есть)
-- **Проверь заметки Ula** — если она уже сделала intro/discovery call, используй её notes как основу
+- **Проверь заметки Ula** — если он уже сделал intro/discovery call, используй его notes как основу
 - Проверь CRM — вся история по этому контакту/компании
 
 ## 3. Deep Research
@@ -60,7 +60,7 @@ POST /api/issues/{issueId}/checkout
 
 ## 5. Публикация
 - Постишь брифинг как комментарий в задаче
-- **Telegram:** "📋 Closer — Briefing для {Company} готов. @ikberik — согласуй pricing. @UlaAmri — closing call после одобрения. Ключевые моменты: {1-2 строки}."
+- **Telegram:** "📋 Closer — Briefing для {Company} готов. @ikberik — согласуй pricing. @UlaAmri — closing call после согласования. Ключевые моменты: {1-2 строки}."
 - Ждём: 1) Berik согласовывает pricing → 2) Ula звонит
 
 ## 6. После closing call Ula
@@ -80,7 +80,7 @@ POST /api/issues/{issueId}/checkout
   5. Задача done
 - Если **Berik молчит >48ч (не согласовал pricing):**
   - "@ikberik, briefing для {Company} готов 2 дня назад. @UlaAmri ждёт pricing чтобы позвонить. Лид остывает."
-- Если **Ula молчит >24ч после одобрения Berik:**
+- Если **Ula молчит >24ч после согласования pricing:**
   - "@UlaAmri, pricing согласован для {Company}. Позвони — клиент ждёт!"
 
 ## 7. Требовательность
