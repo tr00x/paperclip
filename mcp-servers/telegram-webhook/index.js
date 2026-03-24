@@ -1780,8 +1780,7 @@ const server = http.createServer(async (req, res) => {
           } else if (parsed && !parsed.message) {
             await sendTelegram(`${parsed.cmd.emoji} Напиши сообщение после команды.\nПример: <code>${Object.keys(COMMANDS).find(k => COMMANDS[k].agent === parsed.slug)} текст задачи</code>`);
           } else {
-            // No command → show main menu
-            await sendMainMenu(message.chat.id);
+            // No command → ignore, do nothing
           }
         }
       }
