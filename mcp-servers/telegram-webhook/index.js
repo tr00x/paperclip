@@ -1880,12 +1880,8 @@ const server = http.createServer(async (req, res) => {
             await createTaskAndWake(parsed.slug, parsed.cmd, from, parsed.message, member);
           } else if (parsed && !parsed.message) {
             await sendTelegram(`${parsed.cmd.emoji} Напиши сообщение после команды.\nПример: <code>${Object.keys(COMMANDS).find(k => COMMANDS[k].agent === parsed.slug)} текст задачи</code>`);
-          } else if (text.trim()) {
-            // Unknown text → send to CEO by default (most useful behavior)
-            const ceoCmd = COMMANDS["/ceo"];
-            if (ceoCmd && agentMap[ceoCmd.agent]) {
-              await createTaskAndWake(ceoCmd.agent, ceoCmd, from, text, member);
-            }
+          } else {
+            // Unknown text in group chat → ignore (people just talk)
           }
         }
       }
