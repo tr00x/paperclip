@@ -189,6 +189,7 @@ ensure_crm_sync() {
 # ---------------------------------------------------------------------------
 DISPATCH_TOKEN="eyJhIjoiODkxOTI1ZjM0MWFkODk1M2ExNDI2ODM3MjFjNTM4YWQiLCJzIjoiTVdVNFpUQTVOVEF0TlRBM01DMDBNbU0yTFRrNFptTXRaRFEyTVRWaE5tRTNZVFZtIiwidCI6ImJlMTVhZDE4LTlkNmYtNDZiOS1iMDc1LThmZjBiOTY4YWUyNiJ9"
 TG_TUNNEL_TOKEN="eyJhIjoiODkxOTI1ZjM0MWFkODk1M2ExNDI2ODM3MjFjNTM4YWQiLCJzIjoiWlRJMk1EUmtaV010Wm1RMFppMDBOak14TFRneU5HTXROR0UwWldFNE1qazNMVFk0WXpndE5Ea3dOUzA1TW1GaExUQTBaamxoTXpBMU1qSTVOQT09IiwidCI6ImE0ZWE4Mjk3LTY4YzgtNDkwNS05MmFhLTA0ZjlhMzA1MjI5NCJ9"
+CRM_TUNNEL_TOKEN="eyJhIjoiODkxOTI1ZjM0MWFkODk1M2ExNDI2ODM3MjFjNTM4YWQiLCJzIjoiTlRKak9XRTFaall0Wm1ZeU15MDBabU01TFRrd01XWXRaalkzWWpNMlkyUTBNelZqWW1VeE1qRTBaVGt0TVRkaE5DMDBaV1ZtTFRreVkySXRPRFkyT1RZek5USXpPRGRsIiwidCI6IjBkZWNmMTI1LTlkYzMtNDE3ZS05MjllLWQ1NDllNzAxMzY0NiJ9"
 
 ensure_named_tunnel() {
   local NAME="$1"
@@ -218,7 +219,7 @@ ensure_named_tunnel() {
 ensure_cloudflare_tunnels() {
   ensure_named_tunnel "dispatch" "$DISPATCH_TOKEN" "https://dispatch.amritech.us/api/health"
   ensure_named_tunnel "tg" "$TG_TUNNEL_TOKEN" "https://tg.amritech.us/health"
-  # CRM tunnel runs separately via crm-amritech.yml (already managed)
+  ensure_named_tunnel "crm" "$CRM_TUNNEL_TOKEN" "https://crm.amritech.us/healthz"
 }
 
 # ---------------------------------------------------------------------------
