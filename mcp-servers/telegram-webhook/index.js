@@ -1449,6 +1449,8 @@ const server = http.createServer(async (req, res) => {
         // Menu navigation: menu:sales, menu:tasks, etc.
         else if (cbData.startsWith("menu:")) {
           const menuKey = cbData.slice(5);
+          // Clear any pending state when navigating menus (user cancelled)
+          if (cb.from?.id) clearAllPending(cb.from.id);
           if (menuKey === "main") {
             await sendMainMenu(cb.message.chat.id, cb.message.message_id);
           } else {
@@ -1663,9 +1665,15 @@ const server = http.createServer(async (req, res) => {
         const text = message.text || "";
         const lower = text.toLowerCase().trim().replace(/@\w+bot\b/i, "").trim();
 
+        // If user types /command while pending — cancel pending state
+        if (text.startsWith("/") && message.from?.id) {
+          clearAllPending(message.from.id);
+        }
+
         // ─── Handle pending agent task (after menu agent button) ───
+        // Skip if user typed a /command — they changed their mind
         const pendingAgent = getPending(message.from?.id, "agent");
-        if (pendingAgent) {
+        if (pendingAgent && text.trim() && !text.startsWith("/")) {
           const agentKey = pendingAgent;
           clearAllPending(message.from.id);
           const agentSlug = AGENT_PROMPTS[agentKey]?.name ? (COMMANDS[`/${agentKey}`]?.agent || agentKey) : agentKey;
@@ -1677,7 +1685,7 @@ const server = http.createServer(async (req, res) => {
 
         // ─── Handle pending input (done, block, assign, comment, fix) ───
         const pendingInput = getPending(message.from?.id, "input");
-        if (pendingInput) {
+        if (pendingInput && text.trim() && !text.startsWith("/")) {
           const inputType = pendingInput;
           clearAllPending(message.from.id);
 
@@ -1732,7 +1740,7 @@ const server = http.createServer(async (req, res) => {
 
         // ─── Check for pending comment (after button press) ───
         const pendingTaskId = getPending(message.from?.id, "comment");
-        if (pendingTaskId) {
+        if (pendingTaskId && text.trim() && !text.startsWith("/")) {
           clearAllPending(message.from.id);
           const comment = await addCommentToTask(pendingTaskId, text, from);
           if (comment) {
