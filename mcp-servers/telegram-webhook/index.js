@@ -526,247 +526,211 @@ async function handleLeads() {
 
 const MENUS = {
   main: {
-    text: `🤖 <b>AmriTech AI Штаб</b>
+    text: `<b>AmriTech AI HQ</b>  ·  Панель управления
 
-12 AI-агентов работают на вас 24/7.
-Нажмите на раздел 👇`,
+Выбери раздел:`,
     buttons: [
       [
-        { text: "✍️ Написать агенту", callback_data: "menu:agents" },
+        { text: "Написать агенту", callback_data: "menu:agents" },
+        { text: "Статус системы", callback_data: "action:status" },
       ],
       [
-        { text: "📈 Продажи", callback_data: "menu:sales" },
-        { text: "📊 CRM", callback_data: "menu:crm" },
+        { text: "Продажи", callback_data: "menu:sales" },
+        { text: "CRM", callback_data: "menu:crm" },
       ],
       [
-        { text: "📋 Задачи", callback_data: "menu:tasks" },
-        { text: "💰 Финансы", callback_data: "menu:finance" },
+        { text: "Задачи", callback_data: "menu:tasks" },
+        { text: "Финансы", callback_data: "menu:finance" },
       ],
       [
-        { text: "🏛️ Тендеры", callback_data: "menu:gov" },
-        { text: "📝 Документы", callback_data: "menu:docs" },
+        { text: "Тендеры", callback_data: "menu:gov" },
+        { text: "Документы", callback_data: "menu:docs" },
       ],
       [
-        { text: "📊 Статус", callback_data: "action:status" },
-        { text: "🔧 Починить", callback_data: "menu:fix" },
-      ],
-      [
-        { text: "❓ Помощь", callback_data: "menu:help" },
+        { text: "Починить", callback_data: "menu:fix" },
+        { text: "Справка", callback_data: "menu:help" },
       ],
     ],
   },
   sales: {
-    text: `📈 <b>Продажи</b>
+    text: `<b>Продажи</b>
 
-<b>Как это работает:</b>
-🔍 <b>Hunter</b> ищет компании с плохим IT
-📧 <b>SDR</b> пишет им персональные письма
-🤝 <b>Closer</b> готовит брифинг для звонка Berik'а
-
-Нажми что нужно:`,
+<b>Hunter</b> — находит компании, которым нужен IT
+<b>SDR</b> — отправляет персональные cold email
+<b>Closer</b> — готовит брифинг перед звонком`,
     buttons: [
       [
-        { text: "📊 Воронка продаж", callback_data: "action:pipeline" },
-        { text: "📋 Статус лидов", callback_data: "action:leads" },
+        { text: "Воронка продаж", callback_data: "action:pipeline" },
+        { text: "Статус рассылки", callback_data: "action:leads" },
       ],
       [
-        { text: "🔍 Найти новых клиентов", callback_data: "agent:hunter" },
+        { text: "Найти клиентов", callback_data: "agent:hunter" },
+        { text: "Cold email", callback_data: "agent:sdr" },
       ],
       [
-        { text: "📧 Написать cold email", callback_data: "agent:sdr" },
+        { text: "Подготовить звонок", callback_data: "agent:closer" },
+        { text: "Координатору", callback_data: "agent:ceo" },
       ],
-      [
-        { text: "🤝 Подготовить звонок", callback_data: "agent:closer" },
-      ],
-      [
-        { text: "👑 Вопрос координатору", callback_data: "agent:ceo" },
-      ],
-      [{ text: "← Назад", callback_data: "menu:main" }],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
   tasks: {
-    text: `📋 <b>Задачи</b>
+    text: `<b>Задачи</b>
 
-Каждый агент работает по задачам. Задачи создаются автоматически или вручную.
+Все задачи агентов в одном месте.
 
-<b>Статусы:</b>
-⬜ todo — новая, ждёт работы
-🔄 in progress — агент работает
-🚫 blocked — ждёт вашего решения
-✅ done — выполнена`,
+<code>⬜ todo</code>  ждёт работы
+<code>🔄 work</code>  агент работает
+<code>🚫 block</code> ждёт вашего решения
+<code>✅ done</code>  выполнена`,
     buttons: [
+      [{ text: "Открытые задачи", callback_data: "action:tasks" }],
       [
-        { text: "🔄 Открытые задачи", callback_data: "action:tasks" },
+        { text: "Закрыть", callback_data: "input:done" },
+        { text: "Блок", callback_data: "input:block" },
+        { text: "Переназначить", callback_data: "input:assign" },
       ],
-      [
-        { text: "✅ Закрыть задачу", callback_data: "input:done" },
-        { text: "🚫 Заблокировать", callback_data: "input:block" },
-      ],
-      [
-        { text: "🔄 Переназначить агенту", callback_data: "input:assign" },
-        { text: "💬 Написать комментарий", callback_data: "input:comment" },
-      ],
-      [{ text: "← Назад", callback_data: "menu:main" }],
+      [{ text: "Комментарий к задаче", callback_data: "input:comment" }],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
   finance: {
-    text: `💰 <b>Финансы и контракты</b>
+    text: `<b>Финансы и контракты</b>
 
-<b>Finance Tracker</b> — следит за инвойсами, MRR, просрочками
-<b>Contract Manager</b> — контракты, renewals, SLA
-<b>Legal</b> — MSA, NDA, compliance проверки
-<b>Onboarding</b> — первые 30 дней нового клиента`,
+Выбери агента — он получит задачу.`,
     buttons: [
       [
-        { text: "💰 Инвойсы и MRR", callback_data: "agent:finance" },
+        { text: "Инвойсы / MRR", callback_data: "agent:finance" },
+        { text: "Контракты", callback_data: "agent:contract" },
       ],
       [
-        { text: "📋 Контракты и renewals", callback_data: "agent:contract" },
+        { text: "Юридическая проверка", callback_data: "agent:legal" },
+        { text: "Онбординг", callback_data: "agent:onboard" },
       ],
-      [
-        { text: "⚖️ Юридическая проверка", callback_data: "agent:legal" },
-      ],
-      [
-        { text: "🚀 Онбординг клиента", callback_data: "agent:onboard" },
-      ],
-      [{ text: "← Назад", callback_data: "menu:main" }],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
   gov: {
-    text: "🏛️ <b>Гос. тендеры</b>",
+    text: `<b>Гос. тендеры</b>
+
+Sam.gov, HBITS и другие контракты.`,
     buttons: [
       [
-        { text: "🔍 Найти тендеры", callback_data: "agent:gov" },
-        { text: "📝 Написать proposal", callback_data: "agent:proposal" },
+        { text: "Найти тендеры", callback_data: "agent:gov" },
+        { text: "Написать proposal", callback_data: "agent:proposal" },
       ],
-      [{ text: "← Назад", callback_data: "menu:main" }],
+      [
+        { text: "Список тендеров в CRM", callback_data: "crm:tenders" },
+      ],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
   fix: {
-    text: `🔧 <b>Что-то сломалось?</b>
+    text: `<b>Что-то не работает?</b>
 
-<b>IT Chef</b> — наш DevOps. Он починит всё: CRM, email, агентов, серверы.
-
-Выбери проблему или опиши свою:`,
+IT Chef разберётся. Выбери проблему или опиши свою.`,
     buttons: [
       [
-        { text: "🤖 Агенты не работают", callback_data: "quickfix:agents" },
+        { text: "Агенты зависли", callback_data: "quickfix:agents" },
+        { text: "CRM не грузится", callback_data: "quickfix:crm" },
       ],
       [
-        { text: "📊 CRM не грузится", callback_data: "quickfix:crm" },
+        { text: "Email не уходит", callback_data: "quickfix:email" },
+        { text: "Другое...", callback_data: "input:fix" },
       ],
-      [
-        { text: "📧 Email не уходит", callback_data: "quickfix:email" },
-      ],
-      [
-        { text: "🔧 Другая проблема (напишу)", callback_data: "input:fix" },
-      ],
-      [{ text: "← Назад", callback_data: "menu:main" }],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
   docs: {
-    text: "📝 <b>Документы</b>",
+    text: `<b>Документы</b>
+
+Агенты подготовят нужный документ.`,
     buttons: [
       [
-        { text: "📝 Proposal / КП", callback_data: "agent:proposal" },
-        { text: "⚖️ MSA / NDA", callback_data: "agent:legal" },
+        { text: "Proposal / КП", callback_data: "agent:proposal" },
+        { text: "MSA / NDA", callback_data: "agent:legal" },
       ],
-      [
-        { text: "📋 Контракт", callback_data: "agent:contract" },
-      ],
-      [{ text: "← Назад", callback_data: "menu:main" }],
+      [{ text: "Контракт", callback_data: "agent:contract" }],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
   agents: {
-    text: `✍️ <b>Написать агенту</b>
+    text: `<b>Написать агенту</b>
 
-Выбери кому нужна задача.
-Бот спросит что сделать — напиши и агент приступит!`,
+Нажми на агента — затем напиши задачу текстом.`,
     buttons: [
       [
-        { text: "🔍 Hunter — найти клиентов", callback_data: "agent:hunter" },
+        { text: "Hunter — клиенты", callback_data: "agent:hunter" },
+        { text: "SDR — email", callback_data: "agent:sdr" },
       ],
       [
-        { text: "📧 SDR — отправить email", callback_data: "agent:sdr" },
+        { text: "Closer — звонки", callback_data: "agent:closer" },
+        { text: "CEO — координация", callback_data: "agent:ceo" },
       ],
       [
-        { text: "🤝 Closer — подготовить звонок", callback_data: "agent:closer" },
+        { text: "Контракты", callback_data: "agent:contract" },
+        { text: "Финансы", callback_data: "agent:finance" },
       ],
       [
-        { text: "👑 CEO — координатор", callback_data: "agent:ceo" },
-        { text: "🛟 Staff — вопрос", callback_data: "agent:staff" },
+        { text: "Юрист", callback_data: "agent:legal" },
+        { text: "Онбординг", callback_data: "agent:onboard" },
       ],
       [
-        { text: "📋 Контракты", callback_data: "agent:contract" },
-        { text: "💰 Финансы", callback_data: "agent:finance" },
+        { text: "Тендеры", callback_data: "agent:gov" },
+        { text: "Proposal", callback_data: "agent:proposal" },
       ],
       [
-        { text: "⚖️ Юрист", callback_data: "agent:legal" },
-        { text: "🚀 Онбординг", callback_data: "agent:onboard" },
+        { text: "Staff Manager", callback_data: "agent:staff" },
+        { text: "IT Chef", callback_data: "agent:chef" },
       ],
-      [
-        { text: "🏛️ Тендеры", callback_data: "agent:gov" },
-        { text: "📝 Proposal", callback_data: "agent:proposal" },
-      ],
-      [
-        { text: "🔧 IT Chef", callback_data: "agent:chef" },
-      ],
-      [{ text: "← Главное меню", callback_data: "menu:main" }],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
   crm: {
-    text: `📊 <b>CRM — вся база</b>
+    text: `<b>CRM</b>  ·  Вся база лидов
 
-Лиды, клиенты, счета — всё тут.
-Не нужно заходить на сайт!`,
+Данные из Twenty CRM — без захода на сайт.`,
     buttons: [
       [
-        { text: "📈 Воронка", callback_data: "crm:pipeline" },
-        { text: "📊 Цифры", callback_data: "crm:stats" },
+        { text: "Воронка", callback_data: "crm:pipeline" },
+        { text: "Статистика", callback_data: "crm:stats" },
       ],
       [
-        { text: "🔥 Лучшие (70+⭐)", callback_data: "crm:hot" },
-        { text: "💬 Ответили!", callback_data: "crm:replied" },
+        { text: "Лучшие 70+", callback_data: "crm:hot" },
+        { text: "Ответили", callback_data: "crm:replied" },
       ],
       [
-        { text: "📧 В рассылке", callback_data: "crm:outreach" },
-        { text: "🆕 Новые", callback_data: "crm:new" },
+        { text: "В рассылке", callback_data: "crm:outreach" },
+        { text: "Новые", callback_data: "crm:new" },
       ],
       [
-        { text: "💤 На паузе", callback_data: "crm:nurture" },
-        { text: "❌ Отказы", callback_data: "crm:lost" },
+        { text: "На паузе", callback_data: "crm:nurture" },
+        { text: "Отказы", callback_data: "crm:lost" },
       ],
       [
-        { text: "🔍 Найти компанию", callback_data: "input:search_lead" },
+        { text: "Найти компанию", callback_data: "input:search_lead" },
       ],
       [
-        { text: "👥 Клиенты", callback_data: "crm:clients" },
-        { text: "💰 Тендеры", callback_data: "crm:tenders" },
+        { text: "Клиенты", callback_data: "crm:clients" },
+        { text: "Тендеры", callback_data: "crm:tenders" },
       ],
-      [{ text: "← Главное меню", callback_data: "menu:main" }],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
   help: {
-    text: `❓ <b>Помощь</b>
+    text: `<b>Справка</b>
 
-<b>Как пользоваться:</b>
-• Нажимай кнопки в меню — всё по нажатию
-• Reply на сообщение агента = комментарий к задаче
-• Просто напиши текст = задача для CEO
+<b>Кнопки</b> — всё управление через это меню
+<b>Reply</b> на сообщение агента = комментарий к задаче
+<b>Текстом:</b> <code>/hunter найди стоматологии NJ</code>
 
-<b>Команды (для продвинутых):</b>
-<code>/done AMRA-123</code> — закрыть задачу
-<code>/block AMRA-123 причина</code> — заблокировать
-<code>/assign AMRA-123 hunter</code> — переназначить
-<code>/c AMRA-123 текст</code> — комментарий
-
-<b>Примеры текстом:</b>
-<code>/hunter найди стоматологии в Bergen NJ</code>
-<code>/sdr напиши email для ABC Dental</code>
-
-💡 <i>Кнопки под сообщениями агентов — меняй статус в один тап!</i>`,
+<b>Быстрые команды:</b>
+<code>/done AMRA-123</code> закрыть
+<code>/block AMRA-123 причина</code> заблокировать
+<code>/assign AMRA-123 hunter</code> переназначить
+<code>/c AMRA-123 текст</code> комментарий`,
     buttons: [
-      [{ text: "← Главное меню", callback_data: "menu:main" }],
+      [{ text: "« Назад", callback_data: "menu:main" }],
     ],
   },
 };
@@ -1354,18 +1318,11 @@ const server = http.createServer(async (req, res) => {
         if (cbData.startsWith("comment:")) {
           const taskId = cbData.slice(8);
           globalThis.pendingComments[cb.from.id] = taskId;
-
-          await answerCb(cb.id, "Напиши комментарий ↓");
-          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: cb.message.chat.id,
-              text: `💬 <b>${member.name}</b>, напиши комментарий к задаче:`,
-              parse_mode: "HTML",
-              reply_markup: { force_reply: true, selective: true },
-            }),
-          });
+          await answerCb(cb.id, "Напиши комментарий в чат");
+          const origText = cb.message?.text || cb.message?.caption || "";
+          await editOrSend(cb.message.chat.id, cb.message.message_id,
+            origText + `\n\n<i>Жду комментарий от ${member.name}...</i>`,
+            [[{ text: "Отмена", callback_data: "menu:main" }]]);
         }
 
         // Status change: status:done:{taskId}, status:in_progress:{taskId}, status:blocked:{taskId}
@@ -1435,53 +1392,30 @@ const server = http.createServer(async (req, res) => {
           await handleTasksInline(cb.message.chat.id, cb.message.message_id, page);
         }
 
-        // Agent: ask for task text, then create
+        // Agent: edit menu to prompt, wait for next text message
         else if (cbData.startsWith("agent:")) {
           const agentKey = cbData.slice(6);
           const ap = AGENT_PROMPTS[agentKey];
           if (ap) {
             globalThis.pendingAgentTasks[cb.from.id] = agentKey;
-            await answerCb(cb.id, `${ap.emoji} ${ap.name}`);
-            // Edit menu to show selected agent
+            await answerCb(cb.id, ap.name);
             await editOrSend(cb.message.chat.id, cb.message.message_id,
-              `${ap.emoji} <b>${ap.name}</b> — ожидаю задачу от <b>${member.name}</b>...\n\n💡 <i>Ответь на следующее сообщение</i>`,
-              [[{ text: "✖ Отмена", callback_data: "menu:agents" }]]);
-            // Send force_reply prompt (needed for TG reply UX)
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: cb.message.chat.id,
-                text: `${ap.emoji} <b>${ap.name}</b>\n\n${ap.prompt}`,
-                parse_mode: "HTML",
-                reply_markup: { force_reply: true, selective: true },
-              }),
-            });
+              `<b>${ap.name}</b>\n\n${ap.prompt}\n\n<i>Напиши текст задачи прямо в чат.</i>`,
+              [[{ text: "Отмена", callback_data: "menu:agents" }]]);
           }
         }
 
-        // Input: ask for text input (done, block, assign, comment, fix)
+        // Input: edit menu to prompt, wait for next text message
         else if (cbData.startsWith("input:")) {
           const inputType = cbData.slice(6);
           const prompt = INPUT_PROMPTS[inputType];
           if (prompt) {
             globalThis.pendingInputs[cb.from.id] = inputType;
-            await answerCb(cb.id, "✏️");
-            // Edit menu to show waiting state
+            const cancelMenu = inputType === "search_lead" ? "menu:crm" : inputType === "fix" ? "menu:fix" : "menu:tasks";
+            await answerCb(cb.id);
             await editOrSend(cb.message.chat.id, cb.message.message_id,
-              `✏️ <b>Жду ввод от ${member.name}</b>\n\n${prompt}`,
-              [[{ text: "✖ Отмена", callback_data: "menu:tasks" }]]);
-            // Send force_reply prompt
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: cb.message.chat.id,
-                text: prompt,
-                parse_mode: "HTML",
-                reply_markup: { force_reply: true, selective: true },
-              }),
-            });
+              `${prompt}\n\n<i>Напиши прямо в чат.</i>`,
+              [[{ text: "Отмена", callback_data: cancelMenu }]]);
           }
         }
 
@@ -1550,18 +1484,12 @@ const server = http.createServer(async (req, res) => {
           const taskId = parts.slice(2).join(":");
 
           if (result === "done") {
-            // Ask for call notes
             globalThis.pendingComments[cb.from.id] = taskId;
-            await answerCb(cb.id, "Напиши результат звонка ↓");
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: cb.message.chat.id,
-                text: `📞 <b>${member.name}</b>, напиши результат звонка:\n\n💡 <i>Что обсудили? Какие потребности? Что дальше?</i>`,
-                parse_mode: "HTML",
-                reply_markup: { force_reply: true, selective: true },
-              }),
-            });
+            await answerCb(cb.id, "Напиши результат в чат");
+            const origText = cb.message?.text || cb.message?.caption || "";
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              origText + `\n\n<i>Жду результат звонка от ${member.name}...</i>`,
+              [[{ text: "Отмена", callback_data: "menu:main" }]]);
           } else if (result === "miss") {
             await addCommentToTask(taskId, "📞 Не дозвонился. Перезвоню.", `${member.name} (via Telegram)`);
             await answerCb(cb.id, "📞 Не дозвонился — записано");
@@ -1589,18 +1517,12 @@ const server = http.createServer(async (req, res) => {
               origText + `\n\n🎉🎉🎉 <b>КЛИЕНТ СОГЛАСЕН!</b> — ${member.name}`, []);
             await sendTelegram(`🎉🎉🎉 <b>НОВЫЙ КЛИЕНТ!</b>\n\n<b>${member.name}</b> закрыл сделку!\n\n💡 <i>Onboarding и Contract Manager запустятся автоматически.</i>`);
           } else if (result === "lost") {
-            // Ask for reason
             globalThis.pendingComments[cb.from.id] = taskId;
-            await answerCb(cb.id, "Напиши причину отказа ↓");
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: cb.message.chat.id,
-                text: `❌ <b>${member.name}</b>, почему отказали?\n\n💡 <i>Цена? Не нужно? Уже есть IT? Другая причина?</i>`,
-                parse_mode: "HTML",
-                reply_markup: { force_reply: true, selective: true },
-              }),
-            });
+            await answerCb(cb.id, "Напиши причину в чат");
+            const origText = cb.message?.text || cb.message?.caption || "";
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              origText + `\n\n<i>Почему отказали? Напиши в чат — ${member.name}</i>`,
+              [[{ text: "Отмена", callback_data: "menu:main" }]]);
           }
         }
 
@@ -1652,7 +1574,7 @@ const server = http.createServer(async (req, res) => {
         const lower = text.toLowerCase().trim().replace(/@\w+bot\b/i, "").trim();
 
         // ─── Handle pending agent task (after menu agent button) ───
-        if (globalThis.pendingAgentTasks[message.from?.id] && message.reply_to_message) {
+        if (globalThis.pendingAgentTasks[message.from?.id]) {
           const agentKey = globalThis.pendingAgentTasks[message.from.id];
           delete globalThis.pendingAgentTasks[message.from.id];
           const agentSlug = AGENT_PROMPTS[agentKey]?.name ? (COMMANDS[`/${agentKey}`]?.agent || agentKey) : agentKey;
@@ -1663,7 +1585,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         // ─── Handle pending input (done, block, assign, comment, fix) ───
-        if (globalThis.pendingInputs[message.from?.id] && message.reply_to_message) {
+        if (globalThis.pendingInputs[message.from?.id]) {
           const inputType = globalThis.pendingInputs[message.from.id];
           delete globalThis.pendingInputs[message.from.id];
 
@@ -1718,7 +1640,7 @@ const server = http.createServer(async (req, res) => {
 
         // ─── Check for pending comment (after button press) ───
         const pendingTaskId = globalThis.pendingComments[message.from?.id];
-        if (pendingTaskId && message.reply_to_message) {
+        if (pendingTaskId) {
           delete globalThis.pendingComments[message.from.id];
           const comment = await addCommentToTask(pendingTaskId, text, from);
           if (comment) {
