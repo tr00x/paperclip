@@ -1190,6 +1190,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const update = JSON.parse(body);
+      console.log("[DEBUG] update:", JSON.stringify({id: update.update_id, msg: update.message?.text?.slice(0,30), chat: update.message?.chat?.id, cb: !!update.callback_query}));
 
       // ─── Handle inline button press ───
       if (update.callback_query) {
@@ -1520,7 +1521,7 @@ const server = http.createServer(async (req, res) => {
         const member = resolveTeamMember(message);
         const from = `${member.name} (${member.role}, ${member.handle})`;
         const text = message.text || "";
-        const lower = text.toLowerCase().trim();
+        const lower = text.toLowerCase().trim().replace(/@\w+bot\b/i, "").trim();
 
         // ─── Handle pending agent task (after menu agent button) ───
         if (!globalThis.pendingAgentTasks) globalThis.pendingAgentTasks = {};
@@ -1756,7 +1757,7 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        if (lower.startsWith("/help") || lower.startsWith("/start") || lower === "/menu" || lower === "меню") {
+        if (lower.startsWith("/help") || lower.startsWith("/start") || lower.startsWith("/menu") || lower === "меню") {
           await handleHelp(message.chat.id);
         } else if (lower === "/status") {
           await handleStatus();

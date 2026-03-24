@@ -189,20 +189,31 @@ ensure_cloudflare_tunnel() {
 
   # Check 1: process alive?
   if pgrep -f "cloudflared tunnel" >/dev/null 2>&1; then
-    # Check 2: tunnel actually works? (ask Telegram API for webhook errors)
     CURRENT_URL=$(cat "$TUNNEL_URL_FILE" 2>/dev/null)
     if [ -n "$CURRENT_URL" ]; then
-      # Probe the tunnel directly — if 530 or timeout, it's dead
-      PROBE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$CURRENT_URL/health" 2>/dev/null)
-      if [ "$PROBE_CODE" = "200" ]; then
-        TUNNEL_HEALTHY=true
-      else
-        log "Tunnel process alive but returning HTTP $PROBE_CODE — restarting..."
+      # Check 2: ask Telegram if webhook is healthy (catches 530 errors)
+      TG_WEBHOOK_ERROR=$(curl -s "https://api.telegram.org/bot${TG_BOT_TOKEN}/getWebhookInfo" 2>/dev/null \
+        | python3 -c "import json,sys; r=json.load(sys.stdin).get('result',{}); e=r.get('last_error_message',''); d=r.get('last_error_date',0); import time; age=int(time.time())-d if d else 99999; print(f'{e}|{age}')" 2>/dev/null)
+      TG_ERROR_MSG=$(echo "$TG_WEBHOOK_ERROR" | cut -d'|' -f1)
+      TG_ERROR_AGE=$(echo "$TG_WEBHOOK_ERROR" | cut -d'|' -f2)
+
+      # If Telegram reports 530 error in the last 5 minutes — tunnel is dead
+      if echo "$TG_ERROR_MSG" | grep -q "530" && [ "$TG_ERROR_AGE" -lt 300 ] 2>/dev/null; then
+        log "Tunnel stale — Telegram reports 530 error (${TG_ERROR_AGE}s ago). Restarting..."
         pkill -f "cloudflared tunnel" 2>/dev/null
         sleep 2
+      else
+        # Check 3: probe tunnel directly as fallback
+        PROBE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$CURRENT_URL/health" 2>/dev/null)
+        if [ "$PROBE_CODE" = "200" ]; then
+          TUNNEL_HEALTHY=true
+        else
+          log "Tunnel process alive but returning HTTP $PROBE_CODE — restarting..."
+          pkill -f "cloudflared tunnel" 2>/dev/null
+          sleep 2
+        fi
       fi
     else
-      # No saved URL — something wrong, restart
       log "Tunnel process alive but no saved URL — restarting..."
       pkill -f "cloudflared tunnel" 2>/dev/null
       sleep 2
