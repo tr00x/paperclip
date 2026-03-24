@@ -401,7 +401,41 @@ async function createTaskAndWake(agentSlug, cmd, from, text, member) {
     const data = await res.json();
 
     if (res.ok) {
-      await sendTelegram(`${cmd.emoji} <b>${cmd.name}</b> принял задачу от <b>${member.name}</b>\n\n<i>${text.slice(0, 200)}</i>`);
+      // Send with task buttons so user can track/manage right from TG
+      const confirmText = `${cmd.emoji} <b>${cmd.name}</b> принял задачу от <b>${member.name}</b>\n\n<i>${text.slice(0, 200)}</i>`;
+      const buttons = taskId ? [
+        [
+          { text: "💬 Комментарий", callback_data: `comment:${taskId}` },
+          { text: "✅ Готово", callback_data: `status:done:${taskId}` },
+        ],
+        [
+          { text: "🚫 Блок", callback_data: `status:blocked:${taskId}` },
+          { text: "⚡ Срочно", callback_data: `priority:urgent:${taskId}` },
+        ],
+      ] : [];
+      const sendRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: confirmText,
+          parse_mode: "HTML",
+          reply_markup: buttons.length ? { inline_keyboard: buttons } : undefined,
+        }),
+      });
+      // Save TG message → task mapping for reply-to-comment
+      if (taskId) {
+        try {
+          const sendData = await sendRes.json();
+          if (sendData.ok && sendData.result?.message_id) {
+            const taskMap = loadTaskMap();
+            taskMap[String(sendData.result.message_id)] = taskId;
+            const keys = Object.keys(taskMap);
+            if (keys.length > 500) { for (const k of keys.slice(0, keys.length - 500)) delete taskMap[k]; }
+            fs.writeFileSync(TG_TASK_MAP_FILE, JSON.stringify(taskMap));
+          }
+        } catch {}
+      }
     } else {
       await sendTelegram(`⚠️ ${cmd.name}: ${data.error || "ошибка"}`);
     }
