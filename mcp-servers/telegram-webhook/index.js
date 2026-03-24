@@ -760,12 +760,13 @@ const INPUT_PROMPTS = {
 
 async function sendMainMenu(chatId) {
   const menu = MENUS.main;
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: menu.text,
+      photo: "https://amritech.us/assets/images/logo.png",
+      caption: menu.text,
       parse_mode: "HTML",
       reply_markup: { inline_keyboard: menu.buttons },
     }),
