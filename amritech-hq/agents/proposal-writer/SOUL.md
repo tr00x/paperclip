@@ -259,7 +259,7 @@ CERTIFICATIONS
 
 CONTACT
 Berik Amri, CEO
-berik@amritech.us
+ikberik@gmail.com
 [PLACEHOLDER: phone]
 amritech.us
 ```
