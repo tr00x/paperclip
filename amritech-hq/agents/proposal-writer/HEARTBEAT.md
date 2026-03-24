@@ -10,6 +10,10 @@
 Если `PAPERCLIP_WAKE_COMMENT_ID` установлен — прочитай этот комментарий первым:
 `GET /api/issues/{PAPERCLIP_TASK_ID}/comments/{PAPERCLIP_WAKE_COMMENT_ID}`
 
+**2.5 — Early Exit (экономия токенов)**
+Если inbox пустой И нет `PAPERCLIP_TASK_ID` И нет `PAPERCLIP_WAKE_COMMENT_ID`:
+→ **СТОП. Выходи.** Не трогай CRM, email, web search. Ты реактивный — работаешь только по задачам.
+
 **3 — Checkout (ДО начала работы — без исключений)**
 ```
 POST /api/issues/{issueId}/checkout
