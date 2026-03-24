@@ -640,31 +640,30 @@ const MENUS = {
     text: `📊 <b>CRM — вся база</b>
 
 Лиды, клиенты, счета — всё тут.
-Не нужно заходить на сайт!
-
-<b>Что значат статусы:</b>
-⬜ new — Hunter нашёл, ждёт SDR
-📧 contacted — SDR отправил email
-💬 engaged — клиент ответил
-✅ closed_won — стал клиентом!`,
+Не нужно заходить на сайт!`,
     buttons: [
       [
-        { text: "📈 Вся воронка", callback_data: "crm:pipeline" },
+        { text: "📈 Воронка", callback_data: "crm:pipeline" },
+        { text: "📊 Цифры", callback_data: "crm:stats" },
       ],
       [
-        { text: "🔥 Лучшие лиды (высокий шанс)", callback_data: "crm:hot" },
+        { text: "🔥 Лучшие (70+⭐)", callback_data: "crm:hot" },
+        { text: "💬 Ответили!", callback_data: "crm:replied" },
       ],
       [
-        { text: "📧 Кому отправили email", callback_data: "crm:outreach" },
+        { text: "📧 В рассылке", callback_data: "crm:outreach" },
+        { text: "🆕 Новые", callback_data: "crm:new" },
       ],
       [
-        { text: "🆕 Новые (ждут первый email)", callback_data: "crm:new" },
+        { text: "💤 На паузе", callback_data: "crm:nurture" },
+        { text: "❌ Отказы", callback_data: "crm:lost" },
       ],
       [
         { text: "🔍 Найти компанию", callback_data: "input:search_lead" },
       ],
       [
-        { text: "👥 Наши клиенты", callback_data: "crm:clients" },
+        { text: "👥 Клиенты", callback_data: "crm:clients" },
+        { text: "💰 Тендеры", callback_data: "crm:tenders" },
       ],
       [{ text: "← Главное меню", callback_data: "menu:main" }],
     ],
@@ -822,6 +821,150 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:new:${page-1}` });
       nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:new:${page+1}` });
+      if (nav.length > 1) btns.push(nav);
+      btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
+      await sendTelegramWithButtons(targetChatId, msg, btns);
+    }
+
+    else if (type === "replied") {
+      const data = await crmQuery(`{ leads(filter: { status: { eq: "engaged" } }, first: 100, orderBy: { lastContactDate: DescNullsLast }) { edges { node { id name icpScore industry decisionMaker lastContactDate outreachStatus notes } } } }`);
+      const all = data?.data?.leads?.edges || [];
+      if (!all.length) { await sendTelegram("Пока никто не ответил на email 😔\n💡 <i>SDR продолжает рассылку.</i>"); return; }
+      const pages = Math.ceil(all.length / CRM_PAGE_SIZE);
+      const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
+
+      let msg = `💬 <b>Ответили на email!</b> (стр. ${page}/${pages})\n<i>Эти лиды ждут звонка или решения</i>\n\n`;
+      for (const { node: l } of leads) {
+        const ago = l.lastContactDate ? Math.round((Date.now() - new Date(l.lastContactDate)) / 3600000) : "?";
+        msg += `🔥 <b>${l.name}</b> — ⭐${l.icpScore || "?"}\n`;
+        msg += `   ${l.industry || "?"} | DM: ${l.decisionMaker || "?"}\n`;
+        msg += `   Ответил ${ago}ч назад\n`;
+        if (l.notes) msg += `   📝 ${l.notes.slice(0, 80)}...\n`;
+        msg += `\n`;
+      }
+      msg += `⚠️ <i>Чем быстрее позвоним — тем выше шанс закрыть!</i>`;
+      const btns = [];
+      const nav = [];
+      if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:replied:${page-1}` });
+      nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+      if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:replied:${page+1}` });
+      if (nav.length > 1) btns.push(nav);
+      btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
+      await sendTelegramWithButtons(targetChatId, msg, btns);
+    }
+
+    else if (type === "nurture") {
+      const data = await crmQuery(`{ leads(filter: { status: { eq: "nurture" } }, first: 100, orderBy: { icpScore: DescNullsLast }) { edges { node { id name icpScore industry lastContactDate } } } }`);
+      const all = data?.data?.leads?.edges || [];
+      if (!all.length) { await sendTelegram("Нет лидов на паузе"); return; }
+      const pages = Math.ceil(all.length / CRM_PAGE_SIZE);
+      const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
+
+      let msg = `💤 <b>На паузе (nurture)</b> (стр. ${page}/${pages})\n<i>Не ответили или "не сейчас". Вернёмся через 30-90 дней.</i>\n\n`;
+      for (const { node: l } of leads) {
+        const ago = l.lastContactDate ? Math.round((Date.now() - new Date(l.lastContactDate)) / 86400000) : "?";
+        msg += `💤 <b>${l.name}</b> — ⭐${l.icpScore || "?"} | ${l.industry || "?"} | ${ago}д назад\n`;
+      }
+      const btns = [];
+      const nav = [];
+      if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:nurture:${page-1}` });
+      nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+      if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:nurture:${page+1}` });
+      if (nav.length > 1) btns.push(nav);
+      btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
+      await sendTelegramWithButtons(targetChatId, msg, btns);
+    }
+
+    else if (type === "lost") {
+      const data = await crmQuery(`{ leads(filter: { status: { eq: "closed" } }, first: 100, orderBy: { updatedAt: DescNullsLast }) { edges { node { id name icpScore industry notes } } } }`);
+      const all = data?.data?.leads?.edges || [];
+      if (!all.length) { await sendTelegram("Нет отказов — отлично!"); return; }
+      const pages = Math.ceil(all.length / CRM_PAGE_SIZE);
+      const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
+
+      let msg = `❌ <b>Отказы</b> (стр. ${page}/${pages})\n<i>Можно вернуться через 6 мес с новым предложением</i>\n\n`;
+      for (const { node: l } of leads) {
+        msg += `❌ <b>${l.name}</b> — ${l.industry || "?"}\n`;
+        if (l.notes) msg += `   📝 ${l.notes.slice(0, 60)}\n`;
+      }
+      const btns = [];
+      const nav = [];
+      if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:lost:${page-1}` });
+      nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+      if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:lost:${page+1}` });
+      if (nav.length > 1) btns.push(nav);
+      btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
+      await sendTelegramWithButtons(targetChatId, msg, btns);
+    }
+
+    else if (type === "stats") {
+      const leadsData = await crmQuery(`{ leads(first: 1000) { edges { node { status outreachStatus icpScore } } } }`);
+      const clientsData = await crmQuery(`{ clients(first: 1000) { edges { node { id } } } }`);
+      const tendersData = await crmQuery(`{ tenders(first: 1000) { edges { node { status } } } }`);
+
+      const leads = leadsData?.data?.leads?.edges?.map(e => e.node) || [];
+      const clients = clientsData?.data?.clients?.edges || [];
+      const tenders = tendersData?.data?.tenders?.edges?.map(e => e.node) || [];
+
+      const byStatus = {};
+      let totalScore = 0, scored = 0;
+      for (const l of leads) {
+        byStatus[l.status || "new"] = (byStatus[l.status || "new"] || 0) + 1;
+        if (l.icpScore) { totalScore += l.icpScore; scored++; }
+      }
+
+      const byOutreach = {};
+      for (const l of leads) {
+        if (l.outreachStatus) byOutreach[l.outreachStatus] = (byOutreach[l.outreachStatus] || 0) + 1;
+      }
+
+      const tendersByStatus = {};
+      for (const t of tenders) {
+        tendersByStatus[t.status || "?"] = (tendersByStatus[t.status || "?"] || 0) + 1;
+      }
+
+      const statusRu = { new: "🆕 Новые", qualified: "✅ Подходят", contacted: "📧 Email отправлен", engaged: "💬 Ответили", closed_won: "🎉 Стали клиентами", closed_lost: "❌ Отказ", nurture: "💤 Пауза", meeting_set: "📞 Звонок назначен" };
+
+      let msg = `📊 <b>Статистика CRM</b>\n\n`;
+      msg += `<b>Всего лидов:</b> ${leads.length}\n`;
+      msg += `<b>Средняя оценка:</b> ${scored ? Math.round(totalScore / scored) : "?"}/100\n`;
+      msg += `<b>Клиентов:</b> ${clients.length}\n`;
+      msg += `<b>Тендеров:</b> ${tenders.length}\n\n`;
+
+      msg += `<b>По статусу:</b>\n`;
+      for (const [s, c] of Object.entries(byStatus).sort((a, b) => b[1] - a[1])) {
+        msg += `${statusRu[s] || s}: <b>${c}</b>\n`;
+      }
+
+      if (Object.keys(byOutreach).length) {
+        msg += `\n<b>Рассылка:</b>\n`;
+        const outreachRu = { pending: "⬜ Ждут", email_sent: "📧 Первое письмо", follow_up_1: "📧📧 Follow-up 1", follow_up_2: "📧📧📧 Follow-up 2", replied_interested: "🔥 Заинтересованы", no_response: "😶 Молчат" };
+        for (const [s, c] of Object.entries(byOutreach).sort((a, b) => b[1] - a[1])) {
+          msg += `${outreachRu[s] || s}: <b>${c}</b>\n`;
+        }
+      }
+
+      await sendTelegramWithButtons(targetChatId, msg, [[{ text: "← CRM меню", callback_data: "menu:crm" }]]);
+    }
+
+    else if (type === "tenders") {
+      const data = await crmQuery(`{ tenders(first: 100, orderBy: { createdAt: DescNullsLast }) { edges { node { id name status setAside createdAt } } } }`);
+      const all = data?.data?.tenders?.edges || [];
+      if (!all.length) { await sendTelegram("Нет тендеров.\n💡 <i>Gov Scout ищет — скоро появятся!</i>"); return; }
+      const pages = Math.ceil(all.length / CRM_PAGE_SIZE);
+      const items = all.slice(offset, offset + CRM_PAGE_SIZE);
+
+      let msg = `🏛️ <b>Тендеры</b> (стр. ${page}/${pages})\n\n`;
+      for (const { node: t } of items) {
+        const statusIcon = { found: "🔍", scored: "📊", go: "✅", no_go: "❌", expired: "⏰" };
+        msg += `${statusIcon[t.status] || "▪️"} <b>${t.name}</b>\n`;
+        msg += `   Статус: ${t.status || "?"} | Set-aside: ${t.setAside || "нет"}\n\n`;
+      }
+      const btns = [];
+      const nav = [];
+      if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:tenders:${page-1}` });
+      nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
+      if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:tenders:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
       await sendTelegramWithButtons(targetChatId, msg, btns);
