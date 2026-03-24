@@ -890,36 +890,36 @@ async function editMenu(targetChatId, messageId, menuKey) {
   const menu = MENUS[menuKey];
   if (!menu) return;
 
-  // Try editMessageText first
-  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+  // Try editMessageCaption first (keeps logo photo visible)
+  const capRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageCaption`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: targetChatId,
       message_id: messageId,
-      text: menu.text,
+      caption: menu.text,
       parse_mode: "HTML",
       reply_markup: { inline_keyboard: menu.buttons },
     }),
   });
-  const data = await res.json();
+  const capData = await capRes.json();
 
-  if (!data.ok) {
-    // Photo message can't be edited to text — try editMessageCaption
-    const capRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageCaption`, {
+  if (!capData.ok) {
+    // Not a photo message — try editMessageText
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: targetChatId,
         message_id: messageId,
-        caption: menu.text,
+        text: menu.text,
         parse_mode: "HTML",
         reply_markup: { inline_keyboard: menu.buttons },
       }),
     });
-    const capData = await capRes.json();
+    const data = await res.json();
 
-    if (!capData.ok) {
+    if (!data.ok) {
       // Last resort: delete old message and send fresh
       try {
         await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMessage`, {
@@ -1194,35 +1194,40 @@ async function handleCrmQuery(type, targetChatId, page = 1, messageId = null) {
   }
 }
 
-// Edit existing message OR send new one (for inline UX — no chat spam)
+// Edit existing message in place — NEVER sends new messages to avoid chat spam
 async function editOrSend(targetChatId, messageId, text, buttons) {
-  if (messageId) {
-    // Try to edit in place
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: targetChatId || chatId,
-        message_id: messageId,
-        text,
-        parse_mode: "HTML",
-        reply_markup: { inline_keyboard: buttons },
-      }),
-    });
-    const data = await res.json();
-    if (data.ok) return;
-    // If edit fails (e.g. message too old), fall through to send
-  }
-  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+  const cid = targetChatId || chatId;
+  const markup = buttons?.length ? { inline_keyboard: buttons } : { inline_keyboard: [] };
+  if (!messageId) return; // No message to edit — silently skip
+
+  // Try caption first (photo messages keep logo)
+  const capRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageCaption`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: targetChatId || chatId,
-      text,
-      parse_mode: "HTML",
-      reply_markup: { inline_keyboard: buttons },
-    }),
+    body: JSON.stringify({ chat_id: cid, message_id: messageId, caption: text, parse_mode: "HTML", reply_markup: markup }),
   });
+  const capData = await capRes.json();
+  if (capData.ok) return;
+
+  // Not a photo — edit as text
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: cid, message_id: messageId, text, parse_mode: "HTML", reply_markup: markup }),
+  });
+}
+
+// Delete a message after delay (cleanup menu after action)
+function deleteMessageLater(targetChatId, messageId, delayMs = 3000) {
+  setTimeout(async () => {
+    try {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: targetChatId, message_id: messageId }),
+      });
+    } catch {}
+  }, delayMs);
 }
 
 async function handleCrmSearch(query, targetChatId) {
@@ -1513,10 +1518,8 @@ const server = http.createServer(async (req, res) => {
           const itChefSlug = agentMap["it-chef"] ? "it-chef" : "staff-manager";
           const cmd = { agent: itChefSlug, emoji: "🔧", name: "IT Chef" };
           await answerCb(cb.id, "🔧 IT Chef на связи!");
-          // Edit menu to show confirmation
-          await editOrSend(cb.message.chat.id, cb.message.message_id,
-            `🔧 <b>IT Chef получил задачу</b>\n\n${issues[issue] || issue}\n\n<i>Задача создана, агент разбудён — ${member.name}</i>`,
-            [[{ text: "← Главное меню", callback_data: "menu:main" }]]);
+          // Delete menu — createTaskAndWake sends its own confirmation with buttons
+          deleteMessageLater(cb.message.chat.id, cb.message.message_id, 500);
           await createTaskAndWake(itChefSlug, cmd, `${member.name} (via menu)`, `[TECH-ISSUE] ${issues[issue] || issue}`, member);
         }
 
@@ -1903,6 +1906,8 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (lower.startsWith("/help") || lower.startsWith("/start") || lower.startsWith("/menu") || lower === "меню") {
+          // Delete the /menu command message to keep chat clean
+          deleteMessageLater(message.chat.id, message.message_id, 500);
           await handleHelp(message.chat.id);
         } else if (lower === "/status") {
           await handleStatus();
