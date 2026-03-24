@@ -746,17 +746,18 @@ async function editMenu(chatId, messageId, menuKey) {
   });
 }
 
-const CRM_PAGE_SIZE = 5;
+const CRM_PAGE_SIZE = 10;
 
-async function handleCrmQuery(type, targetChatId, page = 1) {
-  if (!TWENTY_API_KEY) { await sendTelegram("❌ CRM не настроен"); return; }
+async function handleCrmQuery(type, targetChatId, page = 1, messageId = null) {
+  const backBtn = [[{ text: "← CRM меню", callback_data: "menu:crm" }]];
+  if (!TWENTY_API_KEY) { await editOrSend(targetChatId, messageId, "❌ CRM не настроен", backBtn); return; }
   const offset = (page - 1) * CRM_PAGE_SIZE;
 
   try {
     if (type === "hot") {
       const data = await crmQuery(`{ leads(filter: { icpScore: { gte: 70 } }, first: 100, orderBy: { icpScore: DescNullsLast }) { edges { node { id name status icpScore industry decisionMaker } } } }`);
       const all = data?.data?.leads?.edges || [];
-      if (!all.length) { await sendTelegram("Нет лидов с высокой оценкой"); return; }
+      if (!all.length) { await editOrSend(targetChatId, messageId, "Нет лидов с высокой оценкой", backBtn); return; }
       const total = all.length;
       const pages = Math.ceil(total / CRM_PAGE_SIZE);
       const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
@@ -775,13 +776,13 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:hot:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
-      await sendTelegramWithButtons(targetChatId, msg, btns);
+      await editOrSend(targetChatId, messageId, msg, btns);
     }
 
     else if (type === "outreach") {
       const data = await crmQuery(`{ leads(filter: { status: { eq: "contacted" } }, first: 100) { edges { node { id name outreachStatus lastContactDate } } } }`);
       const all = data?.data?.leads?.edges || [];
-      if (!all.length) { await sendTelegram("Нет лидов в рассылке"); return; }
+      if (!all.length) { await editOrSend(targetChatId, messageId, "Нет лидов в рассылке", backBtn); return; }
       const total = all.length;
       const pages = Math.ceil(total / CRM_PAGE_SIZE);
       const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
@@ -801,13 +802,13 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:outreach:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
-      await sendTelegramWithButtons(targetChatId, msg, btns);
+      await editOrSend(targetChatId, messageId, msg, btns);
     }
 
     else if (type === "new") {
       const data = await crmQuery(`{ leads(filter: { status: { eq: "new" } }, first: 100, orderBy: { createdAt: DescNullsLast }) { edges { node { id name icpScore industry } } } }`);
       const all = data?.data?.leads?.edges || [];
-      if (!all.length) { await sendTelegram("✅ Нет новых — SDR всё разобрал!"); return; }
+      if (!all.length) { await editOrSend(targetChatId, messageId, "✅ Нет новых — SDR всё разобрал!", backBtn); return; }
       const total = all.length;
       const pages = Math.ceil(total / CRM_PAGE_SIZE);
       const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
@@ -823,13 +824,13 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:new:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
-      await sendTelegramWithButtons(targetChatId, msg, btns);
+      await editOrSend(targetChatId, messageId, msg, btns);
     }
 
     else if (type === "replied") {
       const data = await crmQuery(`{ leads(filter: { status: { eq: "engaged" } }, first: 100, orderBy: { lastContactDate: DescNullsLast }) { edges { node { id name icpScore industry decisionMaker lastContactDate outreachStatus notes } } } }`);
       const all = data?.data?.leads?.edges || [];
-      if (!all.length) { await sendTelegram("Пока никто не ответил на email 😔\n💡 <i>SDR продолжает рассылку.</i>"); return; }
+      if (!all.length) { await editOrSend(targetChatId, messageId, "Пока никто не ответил на email 😔\n💡 <i>SDR продолжает рассылку.</i>", backBtn); return; }
       const pages = Math.ceil(all.length / CRM_PAGE_SIZE);
       const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
 
@@ -850,13 +851,13 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:replied:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
-      await sendTelegramWithButtons(targetChatId, msg, btns);
+      await editOrSend(targetChatId, messageId, msg, btns);
     }
 
     else if (type === "nurture") {
       const data = await crmQuery(`{ leads(filter: { status: { eq: "nurture" } }, first: 100, orderBy: { icpScore: DescNullsLast }) { edges { node { id name icpScore industry lastContactDate } } } }`);
       const all = data?.data?.leads?.edges || [];
-      if (!all.length) { await sendTelegram("Нет лидов на паузе"); return; }
+      if (!all.length) { await editOrSend(targetChatId, messageId, "Нет лидов на паузе", backBtn); return; }
       const pages = Math.ceil(all.length / CRM_PAGE_SIZE);
       const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
 
@@ -872,13 +873,13 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:nurture:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
-      await sendTelegramWithButtons(targetChatId, msg, btns);
+      await editOrSend(targetChatId, messageId, msg, btns);
     }
 
     else if (type === "lost") {
       const data = await crmQuery(`{ leads(filter: { status: { eq: "closed" } }, first: 100, orderBy: { updatedAt: DescNullsLast }) { edges { node { id name icpScore industry notes } } } }`);
       const all = data?.data?.leads?.edges || [];
-      if (!all.length) { await sendTelegram("Нет отказов — отлично!"); return; }
+      if (!all.length) { await editOrSend(targetChatId, messageId, "Нет отказов — отлично!", backBtn); return; }
       const pages = Math.ceil(all.length / CRM_PAGE_SIZE);
       const leads = all.slice(offset, offset + CRM_PAGE_SIZE);
 
@@ -894,7 +895,7 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:lost:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
-      await sendTelegramWithButtons(targetChatId, msg, btns);
+      await editOrSend(targetChatId, messageId, msg, btns);
     }
 
     else if (type === "stats") {
@@ -944,13 +945,13 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
         }
       }
 
-      await sendTelegramWithButtons(targetChatId, msg, [[{ text: "← CRM меню", callback_data: "menu:crm" }]]);
+      await editOrSend(targetChatId, messageId, msg, backBtn);
     }
 
     else if (type === "tenders") {
       const data = await crmQuery(`{ tenders(first: 100, orderBy: { createdAt: DescNullsLast }) { edges { node { id name status setAside createdAt } } } }`);
       const all = data?.data?.tenders?.edges || [];
-      if (!all.length) { await sendTelegram("Нет тендеров.\n💡 <i>Gov Scout ищет — скоро появятся!</i>"); return; }
+      if (!all.length) { await editOrSend(targetChatId, messageId, "Нет тендеров.\n💡 <i>Gov Scout ищет — скоро появятся!</i>", backBtn); return; }
       const pages = Math.ceil(all.length / CRM_PAGE_SIZE);
       const items = all.slice(offset, offset + CRM_PAGE_SIZE);
 
@@ -967,13 +968,13 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:tenders:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
-      await sendTelegramWithButtons(targetChatId, msg, btns);
+      await editOrSend(targetChatId, messageId, msg, btns);
     }
 
     else if (type === "clients") {
       const data = await crmQuery(`{ clients(first: 100) { edges { node { id name services } } } }`);
       const all = data?.data?.clients?.edges || [];
-      if (!all.length) { await sendTelegram("Пока нет клиентов.\n💡 <i>@ikberik — внеси текущих клиентов!</i>"); return; }
+      if (!all.length) { await editOrSend(targetChatId, messageId, "Пока нет клиентов.\n💡 <i>@ikberik — внеси текущих клиентов!</i>", backBtn); return; }
       const total = all.length;
       const pages = Math.ceil(total / CRM_PAGE_SIZE);
       const clients = all.slice(offset, offset + CRM_PAGE_SIZE);
@@ -989,15 +990,32 @@ async function handleCrmQuery(type, targetChatId, page = 1) {
       if (page < pages) nav.push({ text: `Стр.${page+1} →`, callback_data: `crm:clients:${page+1}` });
       if (nav.length > 1) btns.push(nav);
       btns.push([{ text: "← CRM меню", callback_data: "menu:crm" }]);
-      await sendTelegramWithButtons(targetChatId, msg, btns);
+      await editOrSend(targetChatId, messageId, msg, btns);
     }
   } catch (err) {
-    await sendTelegram(`❌ Ошибка CRM: ${err.message}`);
+    await editOrSend(targetChatId, messageId, `❌ Ошибка CRM: ${err.message}`, backBtn);
   }
 }
 
-// Send message with inline keyboard
-async function sendTelegramWithButtons(targetChatId, text, buttons) {
+// Edit existing message OR send new one (for inline UX — no chat spam)
+async function editOrSend(targetChatId, messageId, text, buttons) {
+  if (messageId) {
+    // Try to edit in place
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: targetChatId || chatId,
+        message_id: messageId,
+        text,
+        parse_mode: "HTML",
+        reply_markup: { inline_keyboard: buttons },
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) return;
+    // If edit fails (e.g. message too old), fall through to send
+  }
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1231,12 +1249,11 @@ const server = http.createServer(async (req, res) => {
           if (crmAction === "pipeline") {
             await handlePipeline();
           } else {
-            // Parse: hot, hot:2, outreach:3 etc
             const parts = crmAction.split(":");
             const queryType = parts[0];
             const page = parseInt(parts[1]) || 1;
-            if (["hot", "outreach", "new", "clients"].includes(queryType)) {
-              await handleCrmQuery(queryType, cb.message.chat.id, page);
+            if (["hot", "outreach", "new", "clients", "replied", "nurture", "lost", "stats", "tenders"].includes(queryType)) {
+              await handleCrmQuery(queryType, cb.message.chat.id, page, cb.message.message_id);
             }
           }
         }
