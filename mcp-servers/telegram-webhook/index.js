@@ -1529,6 +1529,10 @@ const server = http.createServer(async (req, res) => {
             await handleLeadsInline(chtId, msgId);
           } else if (action === "tasks") {
             await handleTasksInline(chtId, msgId, 1);
+          } else if (action === "approvals") {
+            await handleApprovalsInline(chtId, msgId);
+          } else if (action === "failed") {
+            await handleFailedRunsInline(chtId, msgId);
           }
         }
 
@@ -1723,20 +1727,6 @@ const server = http.createServer(async (req, res) => {
               await answerCb(cb.id, "❌ Ошибка", true);
             }
           } catch (err) { console.error("Approval error:", err.message); }
-        }
-
-        // Approvals list: show pending approvals
-        else if (cbData === "action:approvals") {
-          await answerCb(cb.id, "⏳ Загрузка...");
-          await sendChatAction(cb.message.chat.id);
-          await handleApprovalsInline(cb.message.chat.id, cb.message.message_id);
-        }
-
-        // Failed runs list
-        else if (cbData === "action:failed") {
-          await answerCb(cb.id, "⏳ Загрузка...");
-          await sendChatAction(cb.message.chat.id);
-          await handleFailedRunsInline(cb.message.chat.id, cb.message.message_id);
         }
 
         res.writeHead(200).end("ok");
