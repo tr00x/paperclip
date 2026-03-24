@@ -56,6 +56,19 @@ globalThis.pendingAgentTasks = globalThis.pendingAgentTasks || {};
 globalThis.pendingInputs = globalThis.pendingInputs || {};
 globalThis.pendingComments = globalThis.pendingComments || {};
 
+// Callback dedup: prevent double-click on buttons (track last 200 callback IDs)
+const processedCallbacks = new Set();
+const MAX_CB_DEDUP = 200;
+function isCallbackDuplicate(cbId) {
+  if (processedCallbacks.has(cbId)) return true;
+  processedCallbacks.add(cbId);
+  if (processedCallbacks.size > MAX_CB_DEDUP) {
+    const first = processedCallbacks.values().next().value;
+    processedCallbacks.delete(first);
+  }
+  return false;
+}
+
 function resolveTeamMember(tgMessage) {
   const username = tgMessage.from?.username;
   if (username && TEAM_MEMBERS[username]) {
@@ -1329,6 +1342,15 @@ const server = http.createServer(async (req, res) => {
         const cbData = cb.data || "";
         const member = resolveTeamMember(cb);
 
+        // Dedup: prevent double-click (except noop and menu navigation)
+        if (!cbData.startsWith("menu:") && cbData !== "noop" && !cbData.startsWith("crm:") && !cbData.startsWith("action:") && !cbData.startsWith("tasks:page:")) {
+          if (isCallbackDuplicate(cb.id)) {
+            await answerCb(cb.id, "⏳ Уже обрабатываю...");
+            res.writeHead(200).end("ok");
+            return;
+          }
+        }
+
         if (cbData.startsWith("comment:")) {
           const taskId = cbData.slice(8);
           globalThis.pendingComments[cb.from.id] = taskId;
@@ -1360,8 +1382,13 @@ const server = http.createServer(async (req, res) => {
             const statusEmoji = { done: "✅", in_progress: "🔄", blocked: "🚫", todo: "📋" };
             if (patchRes.ok) {
               await answerCb(cb.id, `${statusEmoji[newStatus] || "✓"} Статус → ${newStatus}`);
-              // Add comment about status change
               await addCommentToTask(taskId, `Статус изменён → **${newStatus}**`, `${member.name} (via Telegram)`);
+              // Update message inline — replace buttons with confirmation
+              const origText = cb.message?.text || cb.message?.caption || "";
+              const confirmText = origText + `\n\n${statusEmoji[newStatus] || "✓"} <b>Статус → ${newStatus}</b> — ${member.name}`;
+              await editOrSend(cb.message.chat.id, cb.message.message_id, confirmText, [
+                [{ text: "💬 Комментарий", callback_data: `comment:${taskId}` }],
+              ]);
             } else {
               await answerCb(cb.id, "❌ Ошибка", true);
             }
@@ -1414,7 +1441,12 @@ const server = http.createServer(async (req, res) => {
           const ap = AGENT_PROMPTS[agentKey];
           if (ap) {
             globalThis.pendingAgentTasks[cb.from.id] = agentKey;
-            await answerCb(cb.id);
+            await answerCb(cb.id, `${ap.emoji} ${ap.name}`);
+            // Edit menu to show selected agent
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              `${ap.emoji} <b>${ap.name}</b> — ожидаю задачу от <b>${member.name}</b>...\n\n💡 <i>Ответь на следующее сообщение</i>`,
+              [[{ text: "✖ Отмена", callback_data: "menu:agents" }]]);
+            // Send force_reply prompt (needed for TG reply UX)
             await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1434,7 +1466,12 @@ const server = http.createServer(async (req, res) => {
           const prompt = INPUT_PROMPTS[inputType];
           if (prompt) {
             globalThis.pendingInputs[cb.from.id] = inputType;
-            await answerCb(cb.id);
+            await answerCb(cb.id, "✏️");
+            // Edit menu to show waiting state
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              `✏️ <b>Жду ввод от ${member.name}</b>\n\n${prompt}`,
+              [[{ text: "✖ Отмена", callback_data: "menu:tasks" }]]);
+            // Send force_reply prompt
             await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1455,6 +1492,10 @@ const server = http.createServer(async (req, res) => {
           const itChefSlug = agentMap["it-chef"] ? "it-chef" : "staff-manager";
           const cmd = { agent: itChefSlug, emoji: "🔧", name: "IT Chef" };
           await answerCb(cb.id, "🔧 IT Chef на связи!");
+          // Edit menu to show confirmation
+          await editOrSend(cb.message.chat.id, cb.message.message_id,
+            `🔧 <b>IT Chef получил задачу</b>\n\n${issues[issue] || issue}\n\n<i>Задача создана, агент разбудён — ${member.name}</i>`,
+            [[{ text: "← Главное меню", callback_data: "menu:main" }]]);
           await createTaskAndWake(itChefSlug, cmd, `${member.name} (via menu)`, `[TECH-ISSUE] ${issues[issue] || issue}`, member);
         }
 
@@ -1495,8 +1536,10 @@ const server = http.createServer(async (req, res) => {
             }
             await addCommentToTask(taskId, decisionText[decision] || decision, `${member.name} (via Telegram)`);
             await answerCb(cb.id, decisionText[decision]?.slice(0, 50) || "✓");
-            // Notify in chat
-            await sendTelegram(decisionText[decision] + `\n<i>— ${member.name}</i>`);
+            // Edit original message — remove decision buttons, show result
+            const origText = cb.message?.text || cb.message?.caption || "";
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              origText + `\n\n${decisionText[decision]}\n<i>— ${member.name}</i>`, []);
           } catch (err) { console.error("Decision error:", err.message); }
         }
 
@@ -1522,9 +1565,17 @@ const server = http.createServer(async (req, res) => {
           } else if (result === "miss") {
             await addCommentToTask(taskId, "📞 Не дозвонился. Перезвоню.", `${member.name} (via Telegram)`);
             await answerCb(cb.id, "📞 Не дозвонился — записано");
+            const origText = cb.message?.text || cb.message?.caption || "";
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              origText + `\n\n📞 <b>Не дозвонился</b> — ${member.name}`,
+              [[{ text: "📞 Перезвонить", callback_data: `call:done:${taskId}` }]]);
           } else if (result === "later") {
             await addCommentToTask(taskId, "⏰ Перезвоню позже.", `${member.name} (via Telegram)`);
             await answerCb(cb.id, "⏰ Окей, перезвонишь позже");
+            const origText = cb.message?.text || cb.message?.caption || "";
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              origText + `\n\n⏰ <b>Перезвоню позже</b> — ${member.name}`,
+              [[{ text: "📞 Перезвонить", callback_data: `call:done:${taskId}` }]]);
           } else if (result === "won") {
             await addCommentToTask(taskId, "🎉 КЛИЕНТ СОГЛАСЕН! Закрываем!", `${member.name} (via Telegram)`);
             await fetch(`${PAPERCLIP_URL}/api/issues/${taskId}`, {
@@ -1532,6 +1583,10 @@ const server = http.createServer(async (req, res) => {
               body: JSON.stringify({ status: "done" }),
             });
             await answerCb(cb.id, "🎉 Поздравляем!!!");
+            // Edit original to show win, send celebration to group
+            const origText = cb.message?.text || cb.message?.caption || "";
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              origText + `\n\n🎉🎉🎉 <b>КЛИЕНТ СОГЛАСЕН!</b> — ${member.name}`, []);
             await sendTelegram(`🎉🎉🎉 <b>НОВЫЙ КЛИЕНТ!</b>\n\n<b>${member.name}</b> закрыл сделку!\n\n💡 <i>Onboarding и Contract Manager запустятся автоматически.</i>`);
           } else if (result === "lost") {
             // Ask for reason
@@ -1560,13 +1615,21 @@ const server = http.createServer(async (req, res) => {
           const newPriority = parts[1];
           const taskId = parts.slice(2).join(":");
           try {
-            await fetch(`${PAPERCLIP_URL}/api/issues/${taskId}`, {
+            const pRes = await fetch(`${PAPERCLIP_URL}/api/issues/${taskId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ priority: newPriority }),
             });
-            await answerCb(cb.id, `⚡ Приоритет → ${newPriority}`);
-            await addCommentToTask(taskId, `Приоритет изменён → **${newPriority}**`, `${member.name} (via Telegram)`);
+            if (pRes.ok) {
+              await answerCb(cb.id, `⚡ Приоритет → ${newPriority}`);
+              await addCommentToTask(taskId, `Приоритет изменён → **${newPriority}**`, `${member.name} (via Telegram)`);
+              const origText = cb.message?.text || cb.message?.caption || "";
+              await editOrSend(cb.message.chat.id, cb.message.message_id, origText + `\n\n⚡ <b>Приоритет → ${newPriority}</b> — ${member.name}`, [
+                [{ text: "💬 Комментарий", callback_data: `comment:${taskId}` }],
+              ]);
+            } else {
+              await answerCb(cb.id, "❌ Ошибка", true);
+            }
           } catch (err) {
             console.error("Priority change error:", err.message);
           }
