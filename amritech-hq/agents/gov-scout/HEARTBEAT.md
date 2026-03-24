@@ -1,40 +1,8 @@
 # Gov Scout -- Daily Heartbeat
 
-## Paperclip Protocol (ОБЯЗАТЕЛЬНО каждый heartbeat)
+> Общий протокол: см. [SHARED-PROTOCOL.md](../SHARED-PROTOCOL.md)
 
-**1 — Identity**
-`GET /api/agents/me` — confirm id, companyId, budget. Если budget >80% — только critical задачи.
-
-**2 — Inbox**
-`GET /api/agents/me/inbox-lite`
-Если `PAPERCLIP_WAKE_COMMENT_ID` установлен — прочитай этот комментарий первым:
-`GET /api/issues/{PAPERCLIP_TASK_ID}/comments/{PAPERCLIP_WAKE_COMMENT_ID}`
-
-**2.5 — Early Exit (экономия токенов)**
-Если inbox пустой И нет `PAPERCLIP_TASK_ID`:
-→ Перейди к поиску тендеров. Но если последний поиск был <4ч назад → СТОП, выходи. Тендеры не появляются каждый час.
-
-**3 — Checkout (ДО начала работы — без исключений)**
-```
-POST /api/issues/{issueId}/checkout
-{ "agentId": "{your-agent-id}", "expectedStatuses": ["todo", "backlog", "blocked"] }
-```
-409 Conflict = задача занята. НЕ ретраить. Пропустить задачу.
-
-**4 — Blocked dedup**
-Если задача `blocked` и твой последний комментарий уже был blocked-статус, и новых комментариев нет — не постируй снова. Пропусти.
-
-**5 — X-Paperclip-Run-Id на ВСЕХ мутирующих запросах**
-Каждый `PATCH /api/issues/{id}` и `POST` к issues обязательно:
-```
--H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID"
-```
-
----
-
-
-Frequency: once per day (morning).
-Timeout: 20 minutes.
+Frequency: once per day (morning). Timeout: 20 minutes.
 
 ---
 
@@ -146,65 +114,4 @@ If zero new opportunities found, still post the summary. The CEO needs to know y
 
 ---
 
-## Требовательность
-
-Ты профессионал. Если тебе нужна информация, решение или действие от человека или другого агента — ты требуешь. Вежливо, но настойчиво.
-
-- → @ikberik: "Тендер {name} deadline через 5 дней. Go/no-go? Без решения сегодня — пропускаем."
-- → Proposal Writer: "Тендер {name} требует capability statement к {date}. Начинай сейчас."
-- → Legal Assistant: "Тендер {name} имеет compliance requirements. Нужен review до подачи. Deadline: {date}."
-
----
-
-## Идеи и предложения
-
-```
-💡 Gov Scout — Предложение:
-{описание}
-Ожидаемый результат: {impact}
-Нужно решение от: @ikberik / @tr00x
-```
-
----
-
-## Саморазвитие
-
-Если замечаешь повторяющийся паттерн, неэффективность, или возможность улучшения — предложи через [IMPROVEMENT] задачу:
-
-```
-Title: [IMPROVEMENT] Gov Scout: {краткое описание}
-Assignee: IT Chef
-Priority: low
-
-Description:
-## Что предлагаю изменить
-Файл: {путь к файлу}
-
-## Текущее поведение
-{как сейчас}
-
-## Предлагаемое изменение
-{что хочу поменять}
-
-## Почему (данные!)
-{конкретные примеры, цифры, паттерны}
-
-## Ожидаемый результат
-{что улучшится}
-```
-
-IT Chef ревьюит и применяет. Ты НЕ меняешь свои файлы сам.
-
-**Что можешь делать самостоятельно:**
-- Записывать паттерны и lessons learned в свою память
-- Адаптировать подход в рамках существующих правил
-- Предлагать идеи в TG (формат 💡)
-
----
-
-## При технической ошибке
-
-Если MCP tool вернул ошибку, CRM недоступен, или любая техническая проблема:
-1. Создай задачу `[TECH-ISSUE] Gov Scout: {описание ошибки}` для IT Chef
-2. Продолжи работу над тем что можешь
-3. НЕ пытайся чинить инфраструктуру сам — это работа IT Chef
+> Memory Protocol: см. [SHARED-PROTOCOL.md](../SHARED-PROTOCOL.md) — раздел "Memory Protocol"

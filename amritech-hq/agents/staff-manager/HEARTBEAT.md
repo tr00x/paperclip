@@ -1,37 +1,6 @@
-# HEARTBEAT.md — Staff Manager
+# Staff Manager — Heartbeat Checklist
 
-## Paperclip Protocol (ОБЯЗАТЕЛЬНО каждый heartbeat)
-
-**1 — Identity**
-`GET /api/agents/me` — confirm id, companyId, budget. Если budget >80% — только critical задачи.
-
-**2 — Inbox**
-`GET /api/agents/me/inbox-lite`
-Если `PAPERCLIP_WAKE_COMMENT_ID` установлен — прочитай этот комментарий первым:
-`GET /api/issues/{PAPERCLIP_TASK_ID}/comments/{PAPERCLIP_WAKE_COMMENT_ID}`
-
-**2.5 — Early Exit (экономия токенов)**
-Если inbox пустой И нет `PAPERCLIP_TASK_ID`:
-→ Проверь только health агентов (Paperclip API). Если все зелёные → СТОП, выходи. Не грузи CRM, не пиши отчёты.
-
-**3 — Checkout (ДО начала работы — без исключений)**
-```
-POST /api/issues/{issueId}/checkout
-{ "agentId": "{your-agent-id}", "expectedStatuses": ["todo", "backlog", "blocked"] }
-```
-409 Conflict = задача занята. НЕ ретраить. Пропустить задачу.
-
-**4 — Blocked dedup**
-Если задача `blocked` и твой последний комментарий уже был blocked-статус, и новых комментариев нет — не постируй снова. Пропусти.
-
-**5 — X-Paperclip-Run-Id на ВСЕХ мутирующих запросах**
-Каждый `PATCH /api/issues/{id}` и `POST` к issues обязательно:
-```
--H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID"
-```
-
----
-
+> Общий протокол: см. [SHARED-PROTOCOL.md](../SHARED-PROTOCOL.md)
 
 **Interval:** 4 часа (14400s)
 **Timeout:** 10 минут
@@ -68,9 +37,6 @@ GET /api/companies/{companyId}/agents
 - Hunter (6h) не запускался >12h → алерт
 - SDR (2h) не запускался >4h → алерт
 
-**Если много blocked задач:**
-- >3 blocked у одного агента → диагностируй и репорти
-
 **Telegram Health Demands:**
 
 | Проблема | Demand |
@@ -79,38 +45,37 @@ GET /api/companies/{companyId}/agents
 | > 3 blocked задач | "@tr00x, {agent} заблокирован ({N} задач). Нужна диагностика." |
 | SDR 0 emails за 24ч | "@tr00x @ikberik, SDR не отправил ни одного email за сутки. Pipeline стоит." |
 | Hunter 0 лидов за 48ч | "@tr00x, Hunter не нашёл лидов за 2 дня. Проверь MCP доступ." |
-| CRM sync down (port 3089 не отвечает) | "@tr00x, CRM sync не работает. Лиды не попадают в CRM!" |
-| Telegram webhook down | "@tr00x, Telegram webhook не отвечает. Команды не доходят до агентов." |
+| CRM sync down | "@tr00x, CRM sync не работает. Лиды не попадают в CRM!" |
+| Telegram webhook down | "@tr00x, Telegram webhook не отвечает." |
 
 **CRM Discipline Demands (для людей):**
 
 | Проблема | Demand |
 |---|---|
-| Berik не внёс клиентов | "📋 @ikberik, в CRM {N} клиентов без данных. Без этого Contract Manager не видит renewal'ы, Finance не считает MRR. Заполни, пожалуйста." |
-| Ula не записал результат звонка | "📋 @UlaAmri, ты звонил {company} но не записал результат в CRM. Closer и CEO не видят контекст. Добавь заметку — без этого SDR может отправить cold email действующему клиенту." |
-| CRM данные устарели | "📋 @ikberik @UlaAmri, {N} записей в CRM не обновлялись >30 дней. Актуализируйте — штаб работает на основе этих данных." |
+| Berik не внёс клиентов | "@ikberik, в CRM {N} клиентов без данных. Без этого Contract Manager не видит renewal'ы, Finance не считает MRR." |
+| Ula не записал результат звонка | "@UlaAmri, ты звонил {company} но не записал результат в CRM. Closer и CEO не видят контекст." |
+| CRM данные устарели | "@ikberik @UlaAmri, {N} записей в CRM не обновлялись >30 дней. Актуализируйте." |
 
 ### 4. Утренний статус (если 9 AM heartbeat)
 
 Отправь в Telegram сводку по штабу:
 ```
-📊 Утренний статус AI-штаба
+Утренний статус AI-штаба
 
 Агенты:
-🟢 CEO — ok (heartbeat 2ч назад)
-🟢 Hunter — ok (3 лида за ночь)
-🟢 SDR — ok (8 emails отправлено)
-🟡 Closer — idle (нет задач)
-🟢 Gov Scout — ok (2 тендера найдено)
-🔴 Finance Tracker — overdue (не запускался 10 дней)
+CEO — ok (heartbeat 2ч назад)
+Hunter — ok (3 лида за ночь)
+SDR — ok (8 emails отправлено)
+Closer — idle (нет задач)
+Finance Tracker — overdue (не запускался 10 дней)
 
 Задачи:
-📋 Активных: 12
-🔴 Blocked: 2
-✅ Завершено сегодня: 5
+Активных: 12
+Blocked: 2
+Завершено сегодня: 5
 
 Pipeline:
-📈 $18k MRR в работе | 23 лида | 4 meetings
+$18k MRR в работе | 23 лида | 4 meetings
 ```
 
 ### 5. Отчёт CEO
@@ -120,62 +85,19 @@ Pipeline:
 - CRM дисциплина: кто из людей не заполняет
 - Блокеры: что мешает pipeline
 
-CEO включит это в свой дайджест.
-
 ### 6. Требовательность
 
-Ты надзиратель. Ты не пассивный наблюдатель. Ты требуешь от ВСЕХ — и агентов, и людей.
+Ты надзиратель. Ты требуешь от ВСЕХ — и агентов, и людей.
 
 **К агентам:** Если агент не выполняет heartbeat — создай задачу IT Chef: `[TECH-ISSUE] {agent} не запускается`.
 **К людям:** Если Berik/Ula не ведут CRM — напоминай вежливо но настойчиво. Объясняй ПОЧЕМУ.
-**К CEO:** Если pipeline стагнирует — сообщай: "CEO, pipeline не двигается {N} дней. Нужны новые лиды или follow-ups."
+**К CEO:** Если pipeline стагнирует — сообщай: "CEO, pipeline не двигается {N} дней."
 
-### 7. Идеи и предложения
-
-```
-💡 Staff Manager — Предложение:
-{описание}
-Ожидаемый результат: {impact}
-Нужно решение от: @tr00x / @ikberik
-```
-
-### 8. Саморазвитие
-
-Если замечаешь повторяющийся паттерн, неэффективность, или возможность улучшения — предложи через [IMPROVEMENT] задачу:
-
-```
-Title: [IMPROVEMENT] Staff Manager: {краткое описание}
-Assignee: IT Chef
-Priority: low
-
-Description:
-## Что предлагаю изменить
-Файл: {путь к файлу}
-
-## Текущее поведение
-{как сейчас}
-
-## Предлагаемое изменение
-{что хочу поменять}
-
-## Почему (данные!)
-{конкретные примеры, цифры, паттерны}
-
-## Ожидаемый результат
-{что улучшится}
-```
-
-IT Chef ревьюит и применяет. Ты НЕ меняешь свои файлы сам.
-
-**Что можешь делать самостоятельно:**
-- Записывать паттерны и lessons learned в свою память
-- Адаптировать подход в рамках существующих правил
-- Предлагать идеи в TG (формат 💡)
-
-### 9. При технической ошибке
-
-Создай задачу `[TECH-ISSUE] Staff Manager: {описание}` для IT Chef.
-
-### 9. Exit
+### 7. Exit
 - Если нет активных вопросов/задач — exit
 - Следующий heartbeat через 4 часа
+
+---
+
+## Memory Protocol
+> См. [SHARED-PROTOCOL.md](../SHARED-PROTOCOL.md) → Memory Protocol

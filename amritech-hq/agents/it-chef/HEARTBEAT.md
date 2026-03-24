@@ -1,37 +1,6 @@
 # IT Chef — Heartbeat Checklist
 
-## Paperclip Protocol (ОБЯЗАТЕЛЬНО каждый heartbeat)
-
-**1 — Identity**
-`GET /api/agents/me` — confirm id, companyId, budget. Если budget >80% — только critical задачи.
-
-**2 — Inbox**
-`GET /api/agents/me/inbox-lite`
-Если `PAPERCLIP_WAKE_COMMENT_ID` установлен — прочитай этот комментарий первым:
-`GET /api/issues/{PAPERCLIP_TASK_ID}/comments/{PAPERCLIP_WAKE_COMMENT_ID}`
-
-**2.5 — Early Exit (экономия токенов)**
-Если inbox пустой И нет `PAPERCLIP_TASK_ID`:
-→ Проверь только health (docker ps, API endpoints). Если всё зелёное → СТОП, выходи. Не запускай полный диагностический скан каждый heartbeat.
-
-**3 — Checkout (ДО начала работы — без исключений)**
-```
-POST /api/issues/{issueId}/checkout
-{ "agentId": "{your-agent-id}", "expectedStatuses": ["todo", "backlog", "blocked"] }
-```
-409 Conflict = задача занята. НЕ ретраить. Пропустить задачу.
-
-**4 — Blocked dedup**
-Если задача `blocked` и твой последний комментарий уже был blocked-статус, и новых комментариев нет — не постируй снова. Пропусти.
-
-**5 — X-Paperclip-Run-Id на ВСЕХ мутирующих запросах**
-Каждый `PATCH /api/issues/{id}` и `POST` к issues обязательно:
-```
--H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID"
-```
-
----
-
+> Общий протокол: см. [SHARED-PROTOCOL.md](../SHARED-PROTOCOL.md)
 
 **Interval:** 1 час (3600s)
 **Timeout:** 10 минут
@@ -55,7 +24,7 @@ POST /api/issues/{issueId}/checkout
 curl -s http://localhost:4444/api/health || echo "DOWN"
 ```
 Если DOWN → попробуй: `cd /Users/timur/paperclip && pnpm dev:once`
-Если всё равно DOWN → TG: "🔴 @tr00x, Paperclip не отвечает. Попробовал перезапустить — не помогло."
+Если всё равно DOWN → TG: "@tr00x, Paperclip не отвечает. Попробовал перезапустить — не помогло."
 
 ### 2b. Twenty CRM (порт 5555)
 ```bash
@@ -63,47 +32,38 @@ docker ps --filter name=twenty-server --format "{{.Status}}"
 curl -s http://localhost:5555/healthz || echo "DOWN"
 ```
 Если DOWN → `cd /Users/timur/paperclip/twenty-crm && docker compose restart`
-Проверь после рестарта.
 
 ### 2c. CRM Sync (порт 3089)
 ```bash
 curl -s http://localhost:3089/health | jq
 ```
-Если DOWN → проверь логи: `tail -20 /tmp/crm-sync.log`
-Перезапусти если нужно.
+Если DOWN → проверь логи: `tail -20 /tmp/crm-sync.log`. Перезапусти если нужно.
 
 ### 2d. Telegram Webhook (порт 3088)
 ```bash
 curl -s http://localhost:3088/health | jq
 ```
-Если DOWN → проверь логи: `tail -20 /tmp/telegram-webhook.log`
-Перезапусти если нужно.
+Если DOWN → проверь логи: `tail -20 /tmp/telegram-webhook.log`. Перезапусти если нужно.
 
 ### 2e. Email (SMTP + IMAP)
 ```bash
 curl -v --connect-timeout 5 smtp://smtp.ionos.com:587 2>&1 | head -5
 curl -v --connect-timeout 5 imaps://imap.ionos.com:993 2>&1 | head -5
 ```
-Если не подключается → TG: "⚠️ @tr00x, IONOS SMTP/IMAP недоступен. Внешняя проблема."
+Если не подключается → TG: "@tr00x, IONOS SMTP/IMAP недоступен. Внешняя проблема."
 
 ### 2f. Docker общий статус
 ```bash
 docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
-Проверь что все контейнеры healthy/running.
 
 ---
 
 ## Step 3 — Проверка агентов
 
-Запроси список агентов из Paperclip:
 ```
 GET /api/companies/{companyId}/agents
 ```
-
-Для каждого агента:
-- Когда был последний heartbeat?
-- Агент не запускался > 2x его интервала → проблема
 
 | Агент | Интервал | Алерт если > |
 |-------|----------|-------------|
@@ -120,7 +80,6 @@ GET /api/companies/{companyId}/agents
 
 ## Step 4 — Обработка [TECH-ISSUE] задач
 
-Запроси задачи с тегом [TECH-ISSUE] assigned to тебя:
 ```
 GET /api/companies/{companyId}/issues?assigneeAgentId={your-id}&status=todo,in_progress
 ```
@@ -157,162 +116,57 @@ lsof -i :3089 -sTCP:LISTEN || echo "CRM sync DOWN"
 
 | Метрика | Warning | Critical | Auto-fix? |
 |---------|---------|----------|-----------|
-| Диск >70% | ⚠️ alert | >85% почисти Docker/логи | Yes |
-| Container restarting | ⚠️ investigate | >5 за час — restart compose | Yes |
-| CRM response >3с | ⚠️ alert Tim | >10с — restart DB/Redis | Yes |
-| Stale tasks >3 | ⚠️ unlock | >10 — mass unlock + alert | Yes |
-
-Если Warning → сообщи в TG. Если Critical → auto-fix + сообщи.
+| Диск >70% | alert | >85% почисти Docker/логи | Yes |
+| Container restarting | investigate | >5 за час — restart compose | Yes |
+| CRM response >3с | alert Tim | >10с — restart DB/Redis | Yes |
+| Stale tasks >3 | unlock | >10 — mass unlock + alert | Yes |
 
 ---
 
 ## Step 4.6 — Known Issues Check
 
-Перед диагностикой новых проблем — проверь известные инциденты через para-memory-files skill (search по ключевым словам ошибки). Если проблема уже известна — применяй fix из базы, не трать время на повторную диагностику.
+Перед диагностикой новых проблем — проверь известные инциденты через para-memory-files skill. Если проблема уже известна — применяй fix из базы.
 
 После каждого нового фикса — ОБЯЗАТЕЛЬНО сохрани инцидент через para-memory-files skill.
 
 ---
 
-## Step 5 — Full System Health Check
+## Step 5 — Watchdog Health
 
-У тебя полный доступ: CRM, Email, Telegram, Web, Serena (code), bash.
-
-**CRM (Twenty):**
 ```bash
-docker ps | grep twenty-server
-curl -s -o /dev/null -w "%{http_code}" http://localhost:5555/api
-docker logs twenty-server-1 --tail 20 2>&1 | grep -i error
+pgrep -f "watchdog.sh" || echo "WATCHDOG DOWN"
 ```
-Если упал → restart. Если данные битые → почини (дубли, broken state). Перед массовыми изменениями — demand @tr00x.
-
-**Email (IONOS SMTP/IMAP):**
-```bash
-curl -s smtp.ionos.com:587
-```
-Проверь deliverability, bounce'ы.
-
-**Telegram bot:**
-Проверь что webhook active, бот отвечает.
-
-**Paperclip:**
-```bash
-curl -s http://localhost:4444/api/health
-```
+Если мёртв → `launchctl kickstart -kp system/com.amritech.paperclip-watchdog`
 
 ---
 
-## Step 6 — Watchdog Health
+## Step 6 — Report и Exit
 
-```bash
-# Watchdog живой?
-pgrep -f "watchdog.sh" || echo "WATCHDOG DOWN"
-```
+Если были проблемы или фиксы → комментарий в задачах, отчёт CEO, TG если критичное.
+Если всё ок — тихий exit. Не шуми когда всё работает.
 
-Если watchdog мёртв → это критично, перезапусти:
-```bash
-launchctl kickstart -kp system/com.amritech.paperclip-watchdog
-```
+**Приоритеты:** Downtime (немедленно) → [TECH-ISSUE] → CRM inconsistencies → Health degradation → Improvements
 
 ---
 
 ## Step 7 — Еженедельный System Health Report (воскресенье)
 
-Каждое воскресенье отправь в TG:
-```
-🔧 IT Chef — System Health Report
-
-Uptime за неделю:
-• Paperclip: {N}% (downtime: {minutes}м)
-• Twenty CRM: {N}%
-• Email: {N}%
-• Telegram: {N}%
-
-Tech Issues за неделю:
-• Решено: {N}
-• В работе: {N}
-• Ожидают @tr00x: {N}
-
-CRM Health:
-• Лидов: {N}
-• Inconsistencies: {N} (битые статусы, дубли)
-• Stale leads (14+ дней): {N}
-
-Предложения:
-• {suggestion 1}
-• {suggestion 2}
-```
+Каждое воскресенье: uptime % по сервисам, tech issues (решено/в работе/ждут), CRM health, предложения. Формат в SOUL.md.
 
 ---
 
-## Step 8 — Report и Exit
+## Step 8 — Post-Mortem (downtime >5 мин, потеря данных, mass agent failure)
 
-Если были проблемы или фиксы:
-- Комментарий в задачах
-- Отчёт CEO (если серьёзная проблема)
-- TG если критичное
-
-Если всё ок — тихий exit. Не шуми когда всё работает.
-
----
-
-## Приоритеты
-
-1. **Downtime** — всё упало → чини немедленно (даже без Tim'а)
-2. **[TECH-ISSUE] от агентов** — кто-то не может работать
-3. **CRM inconsistencies** — данные битые
-4. **Health degradation** — что-то тормозит или нестабильно
-5. **Improvements** — предложения по улучшению
-
----
-
-## Step 9 — Post-Mortem (после серьёзных инцидентов)
-
-Если был downtime >5 мин, потеря данных, или массовый agent failure — пиши post-mortem:
-
-```
-📋 IT Chef — Post-Mortem
-
-Инцидент: {описание}
-Время: {начало} → {конец} ({duration})
-Impact: {что пострадало}
-
-Timeline:
-• {time} — {event}
-
-Root Cause: {почему}
-Fix: {что сделали}
-Prevention: {как не допустить}
-
-Action Items:
-• [ ] {todo}
-```
-
+Формат: Инцидент → Timeline → Root Cause → Fix → Prevention → Action Items.
 Отправь в TG и добавь в `known-issues.md`.
 
 ---
 
-## Step 10 — Onboarding новых агентов
+## Step 9 — Onboarding новых агентов
 
-Если Tim создал нового агента — проверь чеклист:
-
-- [ ] Зарегистрирован в Paperclip
-- [ ] SOUL.md + HEARTBEAT.md существуют и непустые
-- [ ] MCP tools доступны
-- [ ] Контакты команды в SOUL.md
-- [ ] [TECH-ISSUE] протокол в HEARTBEAT.md
-- [ ] Telegram webhook знает про агента
-- [ ] CRM доступ работает
-- [ ] Budget выделен
-- [ ] CEO знает
-
-Рапорт: "✅ Onboarding {agent} завершён. Все чекпоинты пройдены."
+Чеклист: Paperclip registered, SOUL+HEARTBEAT exist, MCP tools ok, contacts added, TG webhook mapped, CRM access, budget, CEO notified.
 
 ---
 
-## При своей технической ошибке
-
-Если ТЫ сам столкнулся с ошибкой которую не можешь решить:
-1. Залогируй подробно что пробовал
-2. TG: "🔴 @tr00x, IT Chef не может решить: {описание}. Нужна помощь."
-3. Не зацикливайся — если 3 попытки не помогли, эскалируй
+## Memory Protocol
+> См. [SHARED-PROTOCOL.md](../SHARED-PROTOCOL.md) → Memory Protocol

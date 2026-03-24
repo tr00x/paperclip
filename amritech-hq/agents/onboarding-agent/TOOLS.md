@@ -151,3 +151,31 @@ Steps 4-5 are important but recoverable. If CRM or Paperclip is temporarily down
 | Twenty CRM | Unreachable | Skip CRM updates. Note in task comment. Continue. |
 | Twenty CRM | Client not found | Comment on task requesting CEO to create client record. |
 | Paperclip API | Cannot create sub-task | Note in task comment. CEO or human will create manually. |
+
+---
+
+## Sub-task Templates
+
+### Contract Manager
+
+```json
+{
+  "title": "File signed MSA for {clientName}",
+  "description": "New client onboarded. File and track the signed MSA.\n\nClient: {clientName}\nContract: {contract}\nMRR: ${mrr}/mo\nSigned date: {today}",
+  "priority": "medium",
+  "assigneeAgentId": "contract-manager",
+  "parentId": "{onboardTaskId}"
+}
+```
+
+### Finance Tracker
+
+```json
+{
+  "title": "Set up MRR tracking for {clientName} -- ${mrr}/mo",
+  "description": "New client onboarded. Add to MRR tracking.\n\nClient: {clientName}\nMRR: ${mrr}/mo\nContract: {contract}\nStart date: {today}",
+  "priority": "medium",
+  "assigneeAgentId": "finance-tracker",
+  "parentId": "{onboardTaskId}"
+}
+```

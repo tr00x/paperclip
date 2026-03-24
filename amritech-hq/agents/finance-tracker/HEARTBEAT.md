@@ -1,37 +1,6 @@
 # Finance Tracker — Heartbeat Checklist
 
-## Paperclip Protocol (ОБЯЗАТЕЛЬНО каждый heartbeat)
-
-**1 — Identity**
-`GET /api/agents/me` — confirm id, companyId, budget. Если budget >80% — только critical задачи.
-
-**2 — Inbox**
-`GET /api/agents/me/inbox-lite`
-Если `PAPERCLIP_WAKE_COMMENT_ID` установлен — прочитай этот комментарий первым:
-`GET /api/issues/{PAPERCLIP_TASK_ID}/comments/{PAPERCLIP_WAKE_COMMENT_ID}`
-
-**2.5 — Early Exit (экономия токенов)**
-Если inbox пустой И нет `PAPERCLIP_TASK_ID` И нет `PAPERCLIP_WAKE_COMMENT_ID`:
-→ Перейди сразу к своему основному скану (Step 0 / CRM query). НЕ грузи всё подряд — только проверь есть ли работа в CRM. Если CRM тоже пустой → СТОП, выходи.
-
-**3 — Checkout (ДО начала работы — без исключений)**
-```
-POST /api/issues/{issueId}/checkout
-{ "agentId": "{your-agent-id}", "expectedStatuses": ["todo", "backlog", "blocked"] }
-```
-409 Conflict = задача занята. НЕ ретраить. Пропустить задачу.
-
-**4 — Blocked dedup**
-Если задача `blocked` и твой последний комментарий уже был blocked-статус, и новых комментариев нет — не постируй снова. Пропусти.
-
-**5 — X-Paperclip-Run-Id на ВСЕХ мутирующих запросах**
-Каждый `PATCH /api/issues/{id}` и `POST` к issues обязательно:
-```
--H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID"
-```
-
----
-
+> Общий протокол: см. [SHARED-PROTOCOL.md](../SHARED-PROTOCOL.md)
 
 ## 1. Контекст пробуждения
 - Проверь `PAPERCLIP_WAKE_REASON`
@@ -46,20 +15,18 @@ POST /api/issues/{issueId}/checkout
 
 ## 3. Эскалация просрочек + Telegram Demands
 
-Для каждого просроченного инвойса — эскалация с конкретными Telegram demands:
-
 | Дней просрочки | Действие | Telegram |
 |---|---|---|
-| 7 | Создай задачу SDR: friendly reminder email | "📧 SDR — напомни {client} об оплате INV-{номер} (${сумма}). 7 дней." |
-| 14 | Urgent комментарий CEO + TG demand | "💰 @ikberik, счёт {client} просрочен 14 дней (${сумма}). Нужно решение — напоминаем или ждём?" |
-| 30 | Задача Ula на звонок + TG demand | "⚠️ @UlaAmri, {client} не платит 30 дней (${сумма}). Нужен звонок. Позвони и узнай что происходит." |
-| 45 | Повторный demand если Ula не отчитался | "⚠️ @UlaAmri, ты звонил {client}? 45 дней просрочки, нет записи в CRM." |
-| 60 | Critical — всем + formal notice решение | "🔴 @ikberik @UlaAmri — {client} ${сумма} просрочено 60 дней. Отправляем formal notice? Или pause service?" |
+| 7 | Создай задачу SDR: friendly reminder email | "SDR — напомни {client} об оплате INV-{номер} (${сумма}). 7 дней." |
+| 14 | Urgent комментарий CEO + TG demand | "@ikberik, счёт {client} просрочен 14 дней (${сумма}). Нужно решение." |
+| 30 | Задача Ula на звонок + TG demand | "@UlaAmri, {client} не платит 30 дней (${сумма}). Нужен звонок." |
+| 45 | Повторный demand если Ula не отчитался | "@UlaAmri, ты звонил {client}? 45 дней просрочки, нет записи в CRM." |
+| 60 | Critical — всем + formal notice решение | "@ikberik @UlaAmri — {client} ${сумма} просрочено 60 дней. Formal notice?" |
 
 **Dedupe:** Перед отправкой demand проверь CRM notes — не отправлял ли уже этот tier. Добавляй `"INVOICE_DEMAND:{tier} sent {date}"` в notes.
 
 **Требовательность:** Если Ula не отчитался о звонке через 3 дня:
-"@UlaAmri, 3 дня назад я попросил позвонить {client} по просрочке ${сумма}. Без записи в CRM я не вижу результат. Пожалуйста, запиши что произошло — это критично для pipeline."
+"@UlaAmri, 3 дня назад я попросил позвонить {client} по просрочке ${сумма}. Без записи в CRM я не вижу результат."
 
 - Обнови label: overdue-7 / overdue-14 / overdue-30 / overdue-60
 
@@ -81,57 +48,10 @@ POST /api/issues/{issueId}/checkout
 
 ## 7. Требовательность и CRM
 
-**К Berik:** "💰 @ikberik, без списка текущих клиентов в CRM я не могу считать MRR. Пожалуйста, внеси контракты."
+**К Berik:** "@ikberik, без списка текущих клиентов в CRM я не могу считать MRR. Пожалуйста, внеси контракты."
 **К SDR:** если SDR не отправил reminder → "SDR, я создал задачу на reminder {client} 3 дня назад. Статус?"
 
-## 8. Идеи и предложения
+---
 
-Если заметил паттерн — предложи в TG:
-```
-💡 Finance Tracker — Предложение:
-{описание}
-Ожидаемый результат: {impact}
-Нужно решение от: @ikberik
-```
-
-Примеры: "MRR вырос на 15% — biggest contributor: {client}", "3 клиента overdue >30 дней — системная проблема с billing"
-
-## 9. Саморазвитие
-
-Если замечаешь повторяющийся паттерн, неэффективность, или возможность улучшения — предложи через [IMPROVEMENT] задачу:
-
-```
-Title: [IMPROVEMENT] Finance Tracker: {краткое описание}
-Assignee: IT Chef
-Priority: low
-
-Description:
-## Что предлагаю изменить
-Файл: {путь к файлу}
-
-## Текущее поведение
-{как сейчас}
-
-## Предлагаемое изменение
-{что хочу поменять}
-
-## Почему (данные!)
-{конкретные примеры, цифры, паттерны}
-
-## Ожидаемый результат
-{что улучшится}
-```
-
-IT Chef ревьюит и применяет. Ты НЕ меняешь свои файлы сам.
-
-**Что можешь делать самостоятельно:**
-- Записывать паттерны и lessons learned в свою память
-- Адаптировать подход в рамках существующих правил
-- Предлагать идеи в TG (формат 💡)
-
-## 10. При технической ошибке
-
-Если MCP tool вернул ошибку, CRM недоступен, или любая техническая проблема:
-1. Создай задачу `[TECH-ISSUE] Finance Tracker: {описание ошибки}` для IT Chef
-2. Продолжи работу над тем что можешь
-3. НЕ пытайся чинить инфраструктуру сам — это работа IT Chef
+## Memory Protocol
+> См. [SHARED-PROTOCOL.md](../SHARED-PROTOCOL.md) → Memory Protocol
