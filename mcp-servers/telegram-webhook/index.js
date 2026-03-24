@@ -1750,8 +1750,18 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        // Handle files/photos FIRST (before text processing)
+        // Handle files/photos — route to pending agent if selected via menu
         if (message.photo || message.document || message.voice || message.video) {
+          if (!globalThis.pendingAgentTasks) globalThis.pendingAgentTasks = {};
+          const pendingAgent = globalThis.pendingAgentTasks[message.from?.id];
+          if (pendingAgent) {
+            // User selected agent via menu, then sent a file — route it there
+            delete globalThis.pendingAgentTasks[message.from.id];
+            const caption = message.caption || "";
+            const cmd = COMMANDS[`/${pendingAgent}`] || { agent: pendingAgent, emoji: "🤖", name: pendingAgent };
+            // Inject agent command into caption so handleIncomingFile routes correctly
+            message.caption = `/${pendingAgent} ${caption}`.trim();
+          }
           await handleIncomingFile(message, member, from);
           res.writeHead(200).end("ok");
           return;
