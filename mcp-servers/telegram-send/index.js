@@ -39,7 +39,7 @@ server.tool(
     task_id: z.string().optional().describe("Paperclip task ID — links this TG message to the task so team replies become comments"),
     buttons: z.string().optional().describe("Button preset: 'berik_decision' (approve lead), 'ula_call' (call result), 'berik_pricing' (pricing approval)"),
   },
-  async ({ text, chat_id, task_id }) => {
+  async ({ text, chat_id, task_id, buttons }) => {
     const targetChat = chat_id || CHAT_ID;
     if (!targetChat) return { content: [{ type: "text", text: "No chat_id" }], isError: true };
 
@@ -63,7 +63,7 @@ server.tool(
     }
 
     // Special button sets for role-specific messages
-    if (args.buttons === "berik_decision") {
+    if (buttons === "berik_decision") {
       payload.reply_markup = {
         inline_keyboard: [
           [
@@ -75,7 +75,7 @@ server.tool(
           ],
         ]
       };
-    } else if (args.buttons === "ula_call") {
+    } else if (buttons === "ula_call") {
       payload.reply_markup = {
         inline_keyboard: [
           [
@@ -91,7 +91,7 @@ server.tool(
           ],
         ]
       };
-    } else if (args.buttons === "berik_pricing") {
+    } else if (buttons === "berik_pricing") {
       payload.reply_markup = {
         inline_keyboard: [
           [
