@@ -51,10 +51,52 @@ const TEAM_MEMBERS = {
   "UlaAmri": { name: "Ula", role: "Account Manager", handle: "@UlaAmri" },
 };
 
-// Initialize global state (survives within process, resets on restart)
-globalThis.pendingAgentTasks = globalThis.pendingAgentTasks || {};
-globalThis.pendingInputs = globalThis.pendingInputs || {};
-globalThis.pendingComments = globalThis.pendingComments || {};
+// Persistent pending state — survives webhook restarts
+const PENDING_STATE_FILE = "/tmp/tg-pending-state.json";
+
+function loadPendingState() {
+  try {
+    const data = JSON.parse(fs.readFileSync(PENDING_STATE_FILE, "utf8"));
+    // Expire entries older than 10 minutes
+    const now = Date.now();
+    for (const [key, val] of Object.entries(data)) {
+      if (val._ts && now - val._ts > 600000) delete data[key];
+    }
+    return data;
+  } catch { return {}; }
+}
+
+function savePendingState(state) {
+  try { fs.writeFileSync(PENDING_STATE_FILE, JSON.stringify(state)); } catch {}
+}
+
+function setPending(userId, type, value) {
+  const state = loadPendingState();
+  state[`${userId}:${type}`] = { value, _ts: Date.now() };
+  savePendingState(state);
+}
+
+function getPending(userId, type) {
+  const state = loadPendingState();
+  const entry = state[`${userId}:${type}`];
+  if (!entry) return null;
+  if (Date.now() - entry._ts > 600000) { clearPending(userId, type); return null; }
+  return entry.value;
+}
+
+function clearPending(userId, type) {
+  const state = loadPendingState();
+  delete state[`${userId}:${type}`];
+  savePendingState(state);
+}
+
+function clearAllPending(userId) {
+  const state = loadPendingState();
+  for (const key of Object.keys(state)) {
+    if (key.startsWith(`${userId}:`)) delete state[key];
+  }
+  savePendingState(state);
+}
 
 // Callback dedup: prevent double-click on buttons (track last 200 callback IDs)
 const processedCallbacks = new Set();
@@ -1317,7 +1359,7 @@ const server = http.createServer(async (req, res) => {
 
         if (cbData.startsWith("comment:")) {
           const taskId = cbData.slice(8);
-          globalThis.pendingComments[cb.from.id] = taskId;
+          setPending(cb.from.id, "comment", taskId);
           await answerCb(cb.id, "Напиши комментарий в чат");
           const origText = cb.message?.text || cb.message?.caption || "";
           await editOrSend(cb.message.chat.id, cb.message.message_id,
@@ -1397,7 +1439,7 @@ const server = http.createServer(async (req, res) => {
           const agentKey = cbData.slice(6);
           const ap = AGENT_PROMPTS[agentKey];
           if (ap) {
-            globalThis.pendingAgentTasks[cb.from.id] = agentKey;
+            setPending(cb.from.id, "agent", agentKey);
             await answerCb(cb.id, ap.name);
             await editOrSend(cb.message.chat.id, cb.message.message_id,
               `<b>${ap.name}</b>\n\n${ap.prompt}\n\n<i>Напиши текст задачи прямо в чат.</i>`,
@@ -1410,7 +1452,7 @@ const server = http.createServer(async (req, res) => {
           const inputType = cbData.slice(6);
           const prompt = INPUT_PROMPTS[inputType];
           if (prompt) {
-            globalThis.pendingInputs[cb.from.id] = inputType;
+            setPending(cb.from.id, "input", inputType);
             const cancelMenu = inputType === "search_lead" ? "menu:crm" : inputType === "fix" ? "menu:fix" : "menu:tasks";
             await answerCb(cb.id);
             await editOrSend(cb.message.chat.id, cb.message.message_id,
@@ -1484,7 +1526,7 @@ const server = http.createServer(async (req, res) => {
           const taskId = parts.slice(2).join(":");
 
           if (result === "done") {
-            globalThis.pendingComments[cb.from.id] = taskId;
+            setPending(cb.from.id, "comment", taskId);
             await answerCb(cb.id, "Напиши результат в чат");
             const origText = cb.message?.text || cb.message?.caption || "";
             await editOrSend(cb.message.chat.id, cb.message.message_id,
@@ -1517,7 +1559,7 @@ const server = http.createServer(async (req, res) => {
               origText + `\n\n🎉🎉🎉 <b>КЛИЕНТ СОГЛАСЕН!</b> — ${member.name}`, []);
             await sendTelegram(`🎉🎉🎉 <b>НОВЫЙ КЛИЕНТ!</b>\n\n<b>${member.name}</b> закрыл сделку!\n\n💡 <i>Onboarding и Contract Manager запустятся автоматически.</i>`);
           } else if (result === "lost") {
-            globalThis.pendingComments[cb.from.id] = taskId;
+            setPending(cb.from.id, "comment", taskId);
             await answerCb(cb.id, "Напиши причину в чат");
             const origText = cb.message?.text || cb.message?.caption || "";
             await editOrSend(cb.message.chat.id, cb.message.message_id,
@@ -1574,9 +1616,10 @@ const server = http.createServer(async (req, res) => {
         const lower = text.toLowerCase().trim().replace(/@\w+bot\b/i, "").trim();
 
         // ─── Handle pending agent task (after menu agent button) ───
-        if (globalThis.pendingAgentTasks[message.from?.id]) {
-          const agentKey = globalThis.pendingAgentTasks[message.from.id];
-          delete globalThis.pendingAgentTasks[message.from.id];
+        const pendingAgent = getPending(message.from?.id, "agent");
+        if (pendingAgent) {
+          const agentKey = pendingAgent;
+          clearAllPending(message.from.id);
           const agentSlug = AGENT_PROMPTS[agentKey]?.name ? (COMMANDS[`/${agentKey}`]?.agent || agentKey) : agentKey;
           const cmd = COMMANDS[`/${agentKey}`] || { agent: agentKey, emoji: "🤖", name: agentKey };
           await createTaskAndWake(cmd.agent || agentKey, cmd, from, text, member);
@@ -1585,9 +1628,10 @@ const server = http.createServer(async (req, res) => {
         }
 
         // ─── Handle pending input (done, block, assign, comment, fix) ───
-        if (globalThis.pendingInputs[message.from?.id]) {
-          const inputType = globalThis.pendingInputs[message.from.id];
-          delete globalThis.pendingInputs[message.from.id];
+        const pendingInput = getPending(message.from?.id, "input");
+        if (pendingInput) {
+          const inputType = pendingInput;
+          clearAllPending(message.from.id);
 
           if (inputType === "done") {
             const identifier = text.trim().split(/\s+/)[0];
@@ -1639,9 +1683,9 @@ const server = http.createServer(async (req, res) => {
         }
 
         // ─── Check for pending comment (after button press) ───
-        const pendingTaskId = globalThis.pendingComments[message.from?.id];
+        const pendingTaskId = getPending(message.from?.id, "comment");
         if (pendingTaskId) {
-          delete globalThis.pendingComments[message.from.id];
+          clearAllPending(message.from.id);
           const comment = await addCommentToTask(pendingTaskId, text, from);
           if (comment) {
             await sendTelegram(`✅ Комментарий добавлен`);
@@ -1799,10 +1843,10 @@ const server = http.createServer(async (req, res) => {
 
         // Handle files/photos — route to pending agent if selected via menu
         if (message.photo || message.document || message.voice || message.video) {
-          const pendingAgent = globalThis.pendingAgentTasks[message.from?.id];
-          if (pendingAgent) {
-            // User selected agent via menu, then sent a file — route it there
-            delete globalThis.pendingAgentTasks[message.from.id];
+          const filePendingAgent = getPending(message.from?.id, "agent");
+          if (filePendingAgent) {
+            clearAllPending(message.from.id);
+            const pendingAgent = filePendingAgent;
             const caption = message.caption || "";
             const cmd = COMMANDS[`/${pendingAgent}`] || { agent: pendingAgent, emoji: "🤖", name: pendingAgent };
             // Inject agent command into caption so handleIncomingFile routes correctly
@@ -1837,21 +1881,11 @@ const server = http.createServer(async (req, res) => {
           } else if (parsed && !parsed.message) {
             await sendTelegram(`${parsed.cmd.emoji} Напиши сообщение после команды.\nПример: <code>${Object.keys(COMMANDS).find(k => COMMANDS[k].agent === parsed.slug)} текст задачи</code>`);
           } else if (text.trim()) {
-            // Unknown text → show menu with hint
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: message.chat.id,
-                text: `💡 <b>${member.name}</b>, используй кнопки меню или команды.\n\nНапиши /menu для главного меню или /help для справки.`,
-                parse_mode: "HTML",
-                reply_markup: {
-                  inline_keyboard: [
-                    [{ text: "📋 Меню", callback_data: "menu:main" }, { text: "✍️ Написать агенту", callback_data: "menu:agents" }],
-                  ],
-                },
-              }),
-            });
+            // Unknown text → send to CEO by default (most useful behavior)
+            const ceoCmd = COMMANDS["/ceo"];
+            if (ceoCmd && agentMap[ceoCmd.agent]) {
+              await createTaskAndWake(ceoCmd.agent, ceoCmd, from, text, member);
+            }
           }
         }
       }
