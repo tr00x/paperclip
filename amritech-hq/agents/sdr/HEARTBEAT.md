@@ -86,15 +86,19 @@ For each new lead:
 Query Twenty CRM for leads with follow-up dates due today or overdue.
 
 **Day 3 Follow-ups:**
-1. Find original thread → write Follow-up #1 (3-4 sentences, new angle, same thread)
-2. Send via Email MCP as reply (BCC: `tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com`)
-3. Log in CRM: activity + update follow-up to Day 7. Comment on Paperclip task.
+1. **Загрузи скилл `amritech-html-email`** — ОБЯЗАТЕЛЬНО перед каждым follow-up
+2. Find original thread → write Follow-up #1 (3-4 sentences, new angle)
+3. **Используй ПОЛНЫЙ HTML шаблон** (header + logo + signature) — БЕЗ CTA кнопки
+4. Send via Email MCP as reply (BCC: `tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com`)
+5. Log in CRM: activity + update follow-up to Day 7. Comment on task.
 
 **Day 7 Follow-ups:**
-1. Find original thread → write Follow-up #2 (2-3 sentences, final, respectful close)
-2. Send via Email MCP as reply (BCC: same)
-3. Log in CRM: activity + mark sequence complete. If no reply → mark "cold".
-4. Comment on Paperclip task. Status → `done`.
+1. **Загрузи скилл `amritech-html-email`** — ОБЯЗАТЕЛЬНО
+2. Find original thread → write Follow-up #2 (2-3 sentences, final, respectful close)
+3. **Используй ПОЛНЫЙ HTML шаблон** (header + logo + signature) — БЕЗ CTA кнопки
+4. Send via Email MCP as reply (BCC: same)
+5. Log in CRM: activity + mark sequence complete. If no reply → mark "cold".
+6. Comment on task. Status → `done`.
 
 ---
 
