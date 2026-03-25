@@ -36,13 +36,13 @@ services:
       # AUTH_MICROSOFT_CALLBACK_URL: ${AUTH_MICROSOFT_CALLBACK_URL}
       # AUTH_MICROSOFT_APIS_CALLBACK_URL: ${AUTH_MICROSOFT_APIS_CALLBACK_URL}
 
-      # EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-contact@yourdomain.com}
-      # EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-"John from YourDomain"}
-      # EMAIL_DRIVER: ${EMAIL_DRIVER:-smtp}
-      # EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-smtp.gmail.com}
-      # EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-465}
-      # EMAIL_SMTP_USER: ${EMAIL_SMTP_USER:-}
-      # EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
+      EMAIL_FROM_ADDRESS: agent@amritech.us
+      EMAIL_FROM_NAME: "AmriTech CRM"
+      EMAIL_DRIVER: smtp
+      EMAIL_SMTP_HOST: smtp.ionos.com
+      EMAIL_SMTP_PORT: "587"
+      EMAIL_SMTP_USER: agent@amritech.us
+      EMAIL_SMTP_PASSWORD: "1q2w3e4r@@Agent"
 
     depends_on:
       db:
@@ -89,13 +89,13 @@ services:
       # AUTH_MICROSOFT_CALLBACK_URL: ${AUTH_MICROSOFT_CALLBACK_URL}
       # AUTH_MICROSOFT_APIS_CALLBACK_URL: ${AUTH_MICROSOFT_APIS_CALLBACK_URL}
 
-      # EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-contact@yourdomain.com}
-      # EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-"John from YourDomain"}
-      # EMAIL_DRIVER: ${EMAIL_DRIVER:-smtp}
-      # EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-smtp.gmail.com}
-      # EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-465}
-      # EMAIL_SMTP_USER: ${EMAIL_SMTP_USER:-}
-      # EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
+      EMAIL_FROM_ADDRESS: agent@amritech.us
+      EMAIL_FROM_NAME: "AmriTech CRM"
+      EMAIL_DRIVER: smtp
+      EMAIL_SMTP_HOST: smtp.ionos.com
+      EMAIL_SMTP_PORT: "587"
+      EMAIL_SMTP_USER: agent@amritech.us
+      EMAIL_SMTP_PASSWORD: "1q2w3e4r@@Agent"
 
     depends_on:
       db:
