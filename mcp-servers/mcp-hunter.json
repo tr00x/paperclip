@@ -18,6 +18,15 @@
         "@zhafron/mcp-web-search"
       ]
     },
+    "apollo": {
+      "command": "node",
+      "args": [
+        "/Users/timur/paperclip/mcp-servers/apollo/index.js"
+      ],
+      "env": {
+        "APOLLO_API_KEY": "YOUR_APOLLO_API_KEY"
+      }
+    },
     "telegram": {
       "command": "node",
       "args": [

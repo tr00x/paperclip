@@ -1,0 +1,11 @@
+{
+  "name": "apollo-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Apollo.io MCP server for Hunter lead discovery",
+  "main": "index.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.22.0"
+  }
+}
