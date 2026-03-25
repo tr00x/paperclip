@@ -1,45 +1,16 @@
 ---
 name: amritech-html-email
-description: "Generate branded HTML emails for AmriTech IT Solutions. Use when writing cold outreach, follow-up, welcome, renewal, or invoice reminder emails. Produces email-safe HTML with table layout, inline styles, logo, and mobile support."
+description: "ЕДИНСТВЕННЫЙ шаблон для ВСЕХ исходящих email AmriTech. Загружай ПЕРЕД каждой отправкой. Cold outreach, follow-up, welcome, invoice — ВСЁ через этот шаблон."
 ---
 
-# AmriTech HTML Email Skill
+# AmriTech Email Template
 
-Email-safe HTML с table layout, inline styles, logo AmriTech. Работает в Gmail, Outlook, Apple Mail, Yahoo, мобильных клиентах.
+**ПРАВИЛО: КАЖДЫЙ исходящий email использует ЭТОТ шаблон. Без исключений.**
+Cold, follow-up Day 3, Day 7, welcome, invoice, renewal — ВСЁ с header, logo, gold accent, подписью.
 
-## Brand Guidelines
+## Шаблон (КОПИРУЙ ЦЕЛИКОМ)
 
-| Элемент | Значение |
-|---------|----------|
-| Primary Blue (dark) | `#003D8F` |
-| Primary Blue (light) | `#1474C4` |
-| Header Gradient | `#003D8F` → `#1474C4` (bottom-right) |
-| Gold Accent | `#EC9F00` |
-| Dark Text | `#2D2D2D` |
-| Secondary Text | `#555555` |
-| Light BG | `#F7F8FA` |
-| Border | `#E8ECF1` |
-| White | `#FFFFFF` |
-| Font | Arial, Helvetica, sans-serif |
-| Logo URL | `https://amritech.us/assets/images/Main_logo-email.png` |
-| Company | AmriTech IT Solutions & Business Services |
-| CEO | Berik Izmaganov |
-| Phone | (929) 500-5955 |
-| Website | amritech.us |
-| Location | Brooklyn, NY · Serving NYC / NJ / PA |
-
-## Email-Safe Rules (КРИТИЧНО)
-
-1. **Только `<table>` layout** — никаких `<div>` для структуры. Email клиенты ломают div-based layout.
-2. **Только inline styles** — `style="..."` на каждом элементе. `<style>` блок — только как fallback, не полагайся на него.
-3. **Никакого JavaScript** — запрещён во всех email клиентах.
-4. **Никаких background-image в CSS** — используй `background` атрибут на `<td>` если нужен фон.
-5. **Ширина: 600px max** — стандарт для email. Используй `width="600"` на главной таблице.
-6. **Картинки:** всегда `alt`, `width`, `height`, `style="display:block"`. Outlook без этого ломает layout.
-7. **Ссылки:** всегда `style="color:#025ADD"` inline — email клиенты игнорируют CSS для ссылок.
-8. **Размер:** < 100KB total HTML.
-
-## Основной шаблон (Cold Outreach / Full Email)
+Замени только `{{SUBJECT}}`, `{{BODY_CONTENT}}`, и CTA секцию.
 
 ```html
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -51,55 +22,44 @@ Email-safe HTML с table layout, inline styles, logo AmriTech. Работает 
 </head>
 <body style="margin:0; padding:0; background-color:#F7F8FA; font-family:Arial,Helvetica,sans-serif; -webkit-font-smoothing:antialiased;">
 
-<!-- Wrapper -->
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#F7F8FA;">
   <tr>
     <td align="center" style="padding:24px 16px;">
-
-      <!-- Container 600px -->
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px; background-color:#FFFFFF; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
 
-        <!-- Header with Logo -->
+        <!-- HEADER (ВСЕГДА) -->
         <tr>
           <td style="background-color:#003D8F; background:linear-gradient(to bottom right,#003D8F,#1474C4); padding:28px 36px; text-align:left;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-              <tr>
-                <td style="vertical-align:middle;">
-                  <img src="https://amritech.us/assets/images/Main_logo-email.png" alt="AmriTech" width="160" height="30" style="display:block; border:0; outline:none;" />
-                </td>
-              </tr>
-            </table>
+            <img src="https://amritech.us/assets/images/Main_logo-email.png" alt="AmriTech" width="160" height="30" style="display:block; border:0; outline:none;" />
           </td>
         </tr>
 
-        <!-- Gold Accent Line -->
+        <!-- GOLD LINE (ВСЕГДА) -->
         <tr>
           <td style="background-color:#EC9F00; height:3px; font-size:1px; line-height:1px;">&nbsp;</td>
         </tr>
 
-        <!-- Body -->
+        <!-- BODY (замени {{BODY_CONTENT}}) -->
         <tr>
           <td style="padding:36px 36px 28px 36px; color:#2D2D2D; font-size:15px; line-height:1.7; font-family:Arial,Helvetica,sans-serif;">
             {{BODY_CONTENT}}
           </td>
         </tr>
 
-        <!-- CTA Button (если нужен) -->
-        <!--
+        <!-- CTA BUTTON (для cold outreach — включи; для follow-up — удали эту секцию) -->
         <tr>
           <td style="padding:0 36px 32px 36px;" align="left">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="background-color:#003D8F; background:linear-gradient(to bottom right,#003D8F,#1474C4); border-radius:6px; padding:13px 32px;">
-                  <a href="{{CTA_URL}}" style="color:#FFFFFF; text-decoration:none; font-size:15px; font-weight:bold; font-family:Arial,Helvetica,sans-serif; display:inline-block;">{{CTA_TEXT}}</a>
+                  <a href="https://calendly.com/amritech/15-min-it-discovery-call" style="color:#FFFFFF; text-decoration:none; font-size:15px; font-weight:bold; font-family:Arial,Helvetica,sans-serif; display:inline-block;"><span style="color:#FFFFFF;">Book a 15-min Phone Call</span></a>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
-        -->
 
-        <!-- Divider -->
+        <!-- DIVIDER (ВСЕГДА) -->
         <tr>
           <td style="padding:0 36px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -108,7 +68,7 @@ Email-safe HTML с table layout, inline styles, logo AmriTech. Работает 
           </td>
         </tr>
 
-        <!-- Signature -->
+        <!-- SIGNATURE (ВСЕГДА, НЕ МЕНЯТЬ) -->
         <tr>
           <td style="padding:24px 36px 32px 36px; font-family:Arial,Helvetica,sans-serif;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
@@ -128,7 +88,7 @@ Email-safe HTML с table layout, inline styles, logo AmriTech. Работает 
           </td>
         </tr>
 
-        <!-- Reply Prompt -->
+        <!-- REPLY PROMPT (ВСЕГДА) -->
         <tr>
           <td style="padding:0 36px 24px 36px; text-align:center;">
             <p style="margin:0; font-size:12px; color:#999999; font-family:Arial,Helvetica,sans-serif;">
@@ -138,110 +98,85 @@ Email-safe HTML с table layout, inline styles, logo AmriTech. Работает 
         </tr>
 
       </table>
-      <!-- /Container -->
-
     </td>
   </tr>
 </table>
-<!-- /Wrapper -->
 
 </body>
 </html>
 ```
 
-## CTA Button — как вставить
+## Как использовать
 
-Раскомментируй секцию CTA и замени `{{CTA_URL}}` и `{{CTA_TEXT}}`:
+### Cold Outreach (SDR)
+- CTA кнопка: **ВКЛЮЧЕНА** — "Book a 15-min Phone Call"
+- Body: 5-7 предложений, первое — о НИХ
+- BCC: `tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com`
 
+### Follow-up Day 3
+- CTA кнопка: **УДАЛИ** секцию CTA из шаблона
+- Body: 2-3 предложения, новый угол/факт
+- Тот же тред (reply)
+
+### Follow-up Day 7 (Final)
+- CTA кнопка: **УДАЛИ** секцию CTA
+- Body: 2-3 предложения, вежливое закрытие
+- Предложи звонок: "(929) 500-5955"
+
+### Welcome (Onboarding)
+- CTA кнопка: **ВКЛЮЧЕНА** — "Complete Your IT Profile"
+- Body: спасибо, что дальше (3 шага), Account Manager Ula
+
+### Renewal / Invoice
+- CTA кнопка: **УДАЛИ** или "Review Your Renewal"
+- Body: краткая информация, без давления
+
+## Body Content Rules
+
+Каждый `<p>` в body ОБЯЗАН иметь inline style:
 ```html
-<tr>
-  <td style="padding:0 36px 32px 36px;" align="left">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="background-color:#003D8F; background:linear-gradient(to bottom right,#003D8F,#1474C4); border-radius:6px; padding:13px 32px;">
-          <a href="https://calendly.com/amritech/15-min-it-discovery-call" style="color:#FFFFFF; text-decoration:none; font-size:15px; font-weight:bold; font-family:Arial,Helvetica,sans-serif; display:inline-block;"><span style="color:#FFFFFF;">Book a 15-min Phone Call</span></a>
-        </td>
-      </tr>
-    </table>
-  </td>
-</tr>
+<p style="margin:0 0 14px 0;">Text here</p>
 ```
 
-## Шаблон для Follow-up (Day 3/7)
-
-**ВАЖНО: Follow-up тоже использует ПОЛНЫЙ шаблон!** Без CTA кнопки, но с header, logo и подписью.
-
-Используй тот же основной шаблон выше, но:
-- **Без CTA кнопки** (оставь закомментированной)
-- **Body:** 2-3 предложения максимум
-- **Тот же тред** (reply в email)
-
-## Email Types
-
-### 1. Cold Outreach (SDR)
-- **Шаблон:** Полный (header + logo + CTA + signature)
-- **Max body:** 5-7 предложений
-- **Первое предложение:** О НИХ, не об AmriTech
-- **CTA:** Один button — "Book a 15-min Phone Call"
-- **Tone:** Helpful, direct, zero bullshit
-- **BANNED:** "I noticed your company...", "As a leading MSP...", "We offer comprehensive...", "Dear Sir/Madam"
-
-**Пример body content:**
+Каждый `<a>` ОБЯЗАН:
 ```html
-<p style="margin:0 0 14px 0;">Hi {{FIRST_NAME}},</p>
+<a href="..." style="color:#1474C4; text-decoration:none;">link text</a>
+```
 
-<p style="margin:0 0 14px 0;">Your SSL certificate on {{DOMAIN}} expired 3 days ago — every visitor sees a browser warning right now.</p>
+## Пример body (Cold Outreach)
 
-<p style="margin:0 0 14px 0;">We handle IT for {{NICHE}} across NJ. Fixing this is usually a 30-minute job for us.</p>
+```html
+<p style="margin:0 0 14px 0;">Hi Sarah,</p>
+
+<p style="margin:0 0 14px 0;">Your SSL certificate on gardenstatedental.com expired 3 days ago — every visitor sees a browser warning right now.</p>
+
+<p style="margin:0 0 14px 0;">We handle IT for dental practices across NJ. Fixing this is usually a 30-minute job for us.</p>
 
 <p style="margin:0 0 14px 0;">Worth a quick call to see what else might need attention?</p>
 ```
 
-### 2. Follow-up Day 3
-- **Шаблон:** ПОЛНЫЙ (header + logo + signature) — БЕЗ CTA кнопки
-- **Length:** 2-3 предложения
-- **New angle:** stat, case study, или industry insight
-- **Ссылка на оригинал** в тексте, не в кнопке
+## Пример body (Follow-up Day 3)
 
-### 3. Follow-up Day 7 (Final)
-- **Шаблон:** ПОЛНЫЙ (header + logo + signature) — БЕЗ CTA кнопки
-- **Length:** 2-3 предложения
-- **Tone:** Gracious close, door open
-- **Offer:** "Happy to chat on the phone anytime — (929) 500-5955"
+```html
+<p style="margin:0 0 14px 0;">Hi Sarah,</p>
 
-### 4. Welcome (Onboarding)
-- **Шаблон:** Полный + extra sections
-- **Tone:** Warm, excited, professional
-- **Sections:**
-  1. Спасибо за выбор AmriTech
-  2. Что дальше (numbered: IT аудит → настройка доступа → выделенная поддержка)
-  3. Ваш Account Manager: Ula + контакты
-  4. Emergency contact
-- **CTA:** "Complete Your IT Profile"
+<p style="margin:0 0 14px 0;">Quick follow-up — we just helped a 3-location dental practice in Bergen County cut their IT response time from 4 hours to 15 minutes. Their old MSP was missing critical patches too.</p>
 
-### 5. Renewal Reminder
-- **Шаблон:** Полный
-- **Tone:** Appreciative, professional
-- **Sections:** дата renewal, summary работы, next steps
-- **CTA:** "Review Your Renewal"
+<p style="margin:0 0 14px 0;">Happy to share what we found if it's useful for your team.</p>
+```
 
-### 6. Invoice Reminder
-- **Шаблон:** ПОЛНЫЙ (header + logo + signature) — БЕЗ CTA кнопки
-- **Tone:** "Just checking in" — friendly, zero pressure
-- **Include:** номер invoice, сумма, дата
-- **Offer:** "Если вопросы по счёту — пишите"
+## ЗАПРЕЩЕНО
 
-## ПРАВИЛО #1: ВСЕ исходящие письма используют ПОЛНЫЙ шаблон
+- Plain text emails (без HTML)
+- `<div>` layout (только `<table>`)
+- `<style>` блок без inline styles (email клиенты его вырезают)
+- Своя подпись (она в шаблоне)
+- Email без header/logo
+- Email без gold accent line
+- Email без BCC team
 
-Без исключений. КАЖДЫЙ email от AmriTech — cold, follow-up, welcome, invoice, renewal — использует основной шаблон с header, logo, gold accent, и подписью. Единственное отличие — наличие/отсутствие CTA кнопки.
+## BCC (ОБЯЗАТЕЛЬНО на КАЖДОМ email)
 
-**Никаких plain text, никаких простых `<div>`.** Мы — premium MSP, каждое письмо должно выглядеть как от серьёзной компании.
-
-## Golden Rules
-
-1. **Каждый `<p>` — inline style.** `style="margin:0 0 14px 0;"` минимум.
-2. **Каждый `<a>` — inline color.** `style="color:#1474C4; text-decoration:none;"`
-3. **Table layout только.** `<table role="presentation">` — для accessibility.
-4. **Logo всегда с fallback.** `alt="AmriTech"` + `width` + `height`.
-5. **Тестируй мысленно:** "Это будет работать в Outlook 2016?" Если сомневаешься — упрости.
-6. **BCC ОБЯЗАТЕЛЬНО** на каждый клиентский email: `tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com`
+```
+tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com
+```
