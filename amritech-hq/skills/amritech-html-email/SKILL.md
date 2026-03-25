@@ -46,7 +46,7 @@ Cold, follow-up Day 3, Day 7, welcome, invoice, renewal — ВСЁ с header, lo
           </td>
         </tr>
 
-        <!-- CTA BUTTON (для cold outreach — включи; для follow-up — удали эту секцию) -->
+        <!-- CTA BUTTON (ВСЕГДА ОСТАВЛЯЙ) -->
         <tr>
           <td style="padding:0 36px 32px 36px;" align="left">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
@@ -108,27 +108,23 @@ Cold, follow-up Day 3, Day 7, welcome, invoice, renewal — ВСЁ с header, lo
 
 ## Как использовать
 
+**Копируй шаблон ЦЕЛИКОМ. Замени только `{{SUBJECT}}` и `{{BODY_CONTENT}}`. ВСЁ ОСТАЛЬНОЕ НЕ ТРОГАЙ.**
+
 ### Cold Outreach (SDR)
-- CTA кнопка: **ВКЛЮЧЕНА** — "Book a 15-min Phone Call"
 - Body: 5-7 предложений, первое — о НИХ
 - BCC: `tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com`
 
 ### Follow-up Day 3
-- CTA кнопка: **УДАЛИ** секцию CTA из шаблона
 - Body: 2-3 предложения, новый угол/факт
 - Тот же тред (reply)
 
 ### Follow-up Day 7 (Final)
-- CTA кнопка: **УДАЛИ** секцию CTA
 - Body: 2-3 предложения, вежливое закрытие
-- Предложи звонок: "(929) 500-5955"
 
 ### Welcome (Onboarding)
-- CTA кнопка: **ВКЛЮЧЕНА** — "Complete Your IT Profile"
 - Body: спасибо, что дальше (3 шага), Account Manager Ula
 
 ### Renewal / Invoice
-- CTA кнопка: **УДАЛИ** или "Review Your Renewal"
 - Body: краткая информация, без давления
 
 ## Body Content Rules
