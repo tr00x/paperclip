@@ -66,6 +66,11 @@ Check IMAP inbox for replies to outreach emails:
 
 Check for new tasks assigned by Hunter or CEO containing lead data.
 
+**Если новых лидов 0 и pending < 3:**
+1. Создай задачу Hunter: `[ACTION] Hunter: нужны новые лиды! В очереди < 3. Приоритет: {лучшие ниши по ICP}.`
+2. Напиши в TG: `📧 SDR — Очередь пуста. Создал задачу Hunter на пополнение.`
+3. Обработай follow-ups (Step 2) если есть
+
 For each new lead:
 
 1. **Research** using Web Search MCP: verify website, check LinkedIn, look for news/job postings in NJ/NY, identify pain point

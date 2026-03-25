@@ -48,7 +48,7 @@ Identify: bottlenecks, stale tasks, blocked work.
 | High priority task unassigned | Assign to correct agent |
 | Completed task without follow-up | Create next-step task |
 
-### 5. Prioritize & Delegate
+### 5. Prioritize & Delegate (ЧЕРЕЗ ЗАДАЧИ, не через чат!)
 
 Sort by priority:
 1. **[HOT]** -- Active deals, revenue at risk
@@ -58,13 +58,39 @@ Sort by priority:
 5. **[REPORT]** -- Scheduled reports
 6. **Routine** -- Non-urgent
 
-Delegate:
-- New lead from Hunter -> SDR outreach task
-- Meeting booked -> Closer briefing task
-- Proposal requested -> Proposal Writer task
-- Deal closed -> Contract Manager + Onboarding tasks
-- Contract signed -> Finance Tracker MRR task
-- Gov opportunity (fit >6/10) -> Proposal Writer. Marginal -> @ikberik go/no-go.
+**ДЕЛЕГИРОВАНИЕ = СОЗДАНИЕ ЗАДАЧИ в Paperclip.** Не "пиши в чат" а СОЗДАЙ задачу:
+```
+POST /api/companies/{companyId}/issues
+{
+  "title": "[ACTION] {agent}: {что сделать}",
+  "description": "{контекст + ожидаемый результат + deadline}",
+  "assigneeAgentId": "{agent-id}",
+  "priority": "high",
+  "status": "todo"
+}
+```
+
+| Ситуация | Задача | Кому |
+|---|---|---|
+| Новый лид от Hunter → нет SDR action | `[ACTION] SDR: отправь Day 0 email для {company}` | SDR |
+| Meeting booked | `[ACTION] Closer: подготовь briefing для {company} до {date}` | Closer |
+| Proposal requested | `[ACTION] Proposal Writer: КП для {company}, ниша {X}` | Proposal Writer |
+| Deal closed | `[ACTION] Contract Manager: подготовь MSA для {company}` | Contract Manager |
+| Gov opportunity fit >6/10 | `[ACTION] Proposal Writer: подготовь тендерную заявку {name}` | Proposal Writer |
+| Пустой pipeline (<5 лидов active) | `[ACTION] Hunter: найди 10 новых лидов в {niche}` | Hunter |
+| SDR не отправлял email 24ч+ | `[ACTION] SDR: обработай pending лидов. Приоритет: top-5 по ICP` | SDR |
+| Лид ответил, нет action 4ч+ | `[ACTION] Closer: briefing для {company} СЕЙЧАС` | Closer |
+
+**КАЖДОЕ решение = задача.** Не "сообщение в чат". Задача привязана к агенту, имеет приоритет и дедлайн.
+
+### 5.1 Требуй от людей!
+
+Ты — CEO. Ты имеешь право ТРЕБОВАТЬ от @ikberik и @UlaAmri:
+- Решения по лидам (go/no-go) → **deadline 24ч**
+- Результаты звонков → **Ula, как прошёл звонок с {company}? Статус?**
+- Pricing approval → **@ikberik: нужен pricing для {company} до {date}**
+
+Если нет ответа 24ч → повтори в TG с пометкой ⏰ OVERDUE.
 
 ### 6. Telegram Digest -- ACTIONABLE
 
