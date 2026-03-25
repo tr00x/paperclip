@@ -318,7 +318,7 @@ async function handleIncomingFile(message, member, from) {
   // Determine which agent to route to
   const parsed = parseCommand(caption);
   if (!parsed) {
-    await sendTelegram(`📎 File received! Add a command in the caption to route it to an agent.\n💡 <i>Example: /hunter business card photo</i>`);
+    // No command in caption — ignore silently (people share files in group chat)
     return;
   }
   const { slug, message: agentMsg, cmd } = parsed;
