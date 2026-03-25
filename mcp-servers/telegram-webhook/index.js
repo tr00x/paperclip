@@ -304,7 +304,9 @@ async function handleIncomingFile(message, member, from) {
       const txtFile = outPath + ".txt";
       const transcript = fs.existsSync(txtFile) ? fs.readFileSync(txtFile, "utf8").trim() : "";
       if (transcript) {
-        caption = transcript;
+        // Preserve /command prefix if present, append transcript
+        const cmdMatch = caption.match(/^(\/\w+)\s*/);
+        caption = cmdMatch ? `${cmdMatch[1]} ${transcript}` : transcript;
         console.log(`  Whisper transcript: ${transcript.slice(0, 100)}`);
         await sendTelegram(`🎙 <b>Transcript:</b>\n<i>${transcript.slice(0, 500)}</i>`);
       }
