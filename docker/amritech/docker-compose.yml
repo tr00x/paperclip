@@ -24,6 +24,7 @@ services:
     ports:
       - "3088:3088"
     environment:
+      TZ: America/New_York
       PORT: "3088"
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       COMPANY_ID: ${COMPANY_ID}
@@ -52,6 +53,7 @@ services:
     ports:
       - "3089:3089"
     environment:
+      TZ: America/New_York
       PORT: "3089"
       PAPERCLIP_URL: http://host.docker.internal:4444
       TWENTY_URL: http://twenty-server:3000
@@ -68,6 +70,7 @@ services:
   twenty-db:
     image: postgres:16
     environment:
+      TZ: America/New_York
       POSTGRES_DB: default
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${TWENTY_PG_PASSWORD}
@@ -101,6 +104,7 @@ services:
     ports:
       - "5555:3000"
     environment:
+      TZ: America/New_York
       NODE_PORT: 3000
       PG_DATABASE_URL: postgres://postgres:${TWENTY_PG_PASSWORD}@twenty-db:5432/default
       SERVER_URL: ${TWENTY_SERVER_URL}
@@ -136,6 +140,7 @@ services:
     image: twentycrm/twenty:latest
     command: ["yarn", "worker:prod"]
     environment:
+      TZ: America/New_York
       PG_DATABASE_URL: postgres://postgres:${TWENTY_PG_PASSWORD}@twenty-db:5432/default
       SERVER_URL: ${TWENTY_SERVER_URL}
       REDIS_URL: redis://twenty-redis:6379
