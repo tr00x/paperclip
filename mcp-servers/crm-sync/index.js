@@ -386,6 +386,6 @@ setInterval(pollForLeads, parseInt(POLL_INTERVAL_MS));
 // Safety net runs every 5 minutes
 setInterval(safetyNetCheck, 300000);
 
-server.listen(Number(PORT), "127.0.0.1", () => {
-  console.log(`CRM Sync listening on 127.0.0.1:${PORT}`);
+server.listen(Number(PORT), "0.0.0.0", () => {
+  console.log(`CRM Sync listening on 0.0.0.0:${PORT}`);
 });

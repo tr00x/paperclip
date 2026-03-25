@@ -1,0 +1,5 @@
+tunnel: a4ea8297-68c8-4905-92aa-04f9a3052294
+ingress:
+  - hostname: tg.amritech.us
+    service: http://telegram-webhook:3088
+  - service: http_status:404

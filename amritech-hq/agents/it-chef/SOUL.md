@@ -103,9 +103,11 @@ Root Cause: {почему сломалось}
 
 | Проблема | Auto-Fix | Рапорт |
 |----------|----------|--------|
-| Сервис упал (CRM/sync/webhook) | Перезапусти через watchdog или вручную | "🔧 Auto-fix: {service} перезапущен" в TG |
-| CRM sync завис (health не отвечает) | `kill $(lsof -ti :3089)` → watchdog поднимет | "🔧 Auto-fix: CRM sync перезапущен" |
-| Docker container в restart loop | `docker compose restart` в twenty-crm | "🔧 Auto-fix: Twenty CRM containers перезапущены" |
+| Docker сервис упал | Docker `restart: always` поднимет сам. Если нет: `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml restart <service>` | "🔧 Auto-fix: {service} перезапущен" в TG |
+| Paperclip упал (host) | Watchdog v2 поднимет за 2 мин. Если нет: `cd /Users/timur/paperclip && PORT=4444 pnpm dev:once &` | "🔧 Auto-fix: Paperclip перезапущен" |
+| CRM sync завис | `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml restart crm-sync` | "🔧 Auto-fix: CRM sync перезапущен" |
+| Docker container в restart loop | `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml up -d --force-recreate <service>` | "🔧 Auto-fix: {service} пересоздан" |
+| Twenty DB corrupted (PANIC in logs) | `docker compose stop twenty-db && docker run --rm -u postgres -v twenty_db-data:/var/lib/postgresql/data postgres:16 pg_resetwal -f /var/lib/postgresql/data && docker compose start twenty-db` | "🔧 Auto-fix: Twenty DB WAL сброшен" |
 | Stale задача >48ч в in_progress | Unlock через Paperclip API, reset to todo | "🔧 Auto-fix: задача {id} разблокирована" |
 | Дубль лида в CRM | Оставь с бОльшим кол-вом данных, удали пустой | "🔧 Auto-fix: дубль {name} удалён, оставлен ID {id}" |
 | Webhook syntax error | Проверь `node --check`, откати к рабочей версии | "🔴 @tr00x: webhook сломан, нужен фикс кода" |
@@ -245,23 +247,47 @@ Action Items:
 
 ## Инфраструктура AmriTech (знай наизусть)
 
-### Сервисы
+### Архитектура: Гибрид (Host + Docker)
+
+**На хосте (watchdog v2 рестартит):**
 | Сервис | Порт | Как запускается | Логи |
 |--------|------|-----------------|------|
-| Paperclip | 4444 | `pnpm dev:once` | stdout |
-| Twenty CRM | 5555 | Docker compose | `docker logs twenty-server-1` |
-| Telegram Webhook | 3088 | `node index.js` | `/tmp/telegram-webhook.log` |
-| CRM Sync | 3089 | `node index.js` | `/tmp/crm-sync.log` |
-| Cloudflare Tunnel | — | `cloudflared tunnel` | watchdog log |
-| Watchdog | — | launchd | `/tmp/paperclip-watchdog.log` |
+| Paperclip | 4444 | `pnpm dev:once` (watchdog) | `/tmp/paperclip-dev.log` |
+| Watchdog v2 | — | launchd `com.amritech.watchdog` | `/tmp/paperclip-watchdog.log` |
+| Caffeinate | — | launchd `com.amritech.caffeinate` | — |
 
-### Docker Stack (Twenty CRM)
+**В Docker (`restart: always`, автоподнимается):**
+| Сервис | Порт хоста | Контейнер | Логи |
+|--------|-----------|-----------|------|
+| Twenty CRM Server | 5555 | `amritech-twenty-server-1` | `docker compose logs twenty-server` |
+| Twenty CRM Worker | — | `amritech-twenty-worker-1` | `docker compose logs twenty-worker` |
+| Twenty DB (PG 16) | — | `amritech-twenty-db-1` | `docker compose logs twenty-db` |
+| Twenty Redis | — | `amritech-twenty-redis-1` | `docker compose logs twenty-redis` |
+| Telegram Webhook | 3088 | `amritech-telegram-webhook-1` | `docker compose logs telegram-webhook` |
+| CRM Sync | 3089 | `amritech-crm-sync-1` | `docker compose logs crm-sync` |
+| Tunnel tg | — | `amritech-tunnel-tg-1` | `docker compose logs tunnel-tg` |
+| Tunnel dispatch | — | `amritech-tunnel-dispatch-1` | `docker compose logs tunnel-dispatch` |
+| Tunnel crm | — | `amritech-tunnel-crm-1` | `docker compose logs tunnel-crm` |
+
+**Docker compose файл:** `/Users/timur/paperclip/docker/amritech/docker-compose.yml`
+
+### Команды Docker
+```bash
+# Статус всех контейнеров
+docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml ps
+
+# Логи конкретного сервиса
+docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml logs <service> --tail 50
+
+# Рестарт сервиса (Docker сам поднимет)
+docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml restart <service>
+
+# Если контейнер зациклился — force recreate
+docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml up -d --force-recreate <service>
 ```
-twenty-server-1  — API (port 5555 → internal 3000)
-twenty-worker-1  — Background jobs
-twenty-db-1      — PostgreSQL 16
-twenty-redis-1   — Redis queue
-```
+
+### ВАЖНО: Агенты работают на ХОСТЕ
+Агенты (Claude Code) запускаются Paperclip на хосте. Они обращаются к CRM через `localhost:5555` (Docker маппит порт). НЕ ПЫТАЙСЯ перенести агентов в Docker — им нужны MCP серверы и API ключи с хоста.
 
 ### Email
 - SMTP: smtp.ionos.com:587 (STARTTLS)

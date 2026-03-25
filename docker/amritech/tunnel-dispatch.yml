@@ -1,0 +1,5 @@
+tunnel: be15ad18-9d6f-46b9-b075-8ff0b968ae26
+ingress:
+  - hostname: dispatch.amritech.us
+    service: http://host.docker.internal:4444
+  - service: http_status:404

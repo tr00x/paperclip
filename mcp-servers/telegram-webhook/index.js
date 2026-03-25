@@ -290,37 +290,101 @@ async function handleIncomingFile(message, member, from) {
     return;
   }
 
-  // Voice transcription via whisper.cpp + ffmpeg
+  // Voice transcription via whisper service (runs on host)
+  let transcript = "";
   if (fileType === "voice" || fileType === "video") {
+    const whisperUrl = process.env.WHISPER_URL || "http://host.docker.internal:3090";
     try {
-      const { execSync } = await import("node:child_process");
-      const wavPath = file.localPath.replace(/\.[^.]+$/, ".wav");
-      const outPath = file.localPath.replace(/\.[^.]+$/, "");
-      // Convert to 16kHz mono WAV (whisper.cpp requirement)
-      execSync(`ffmpeg -i "${file.localPath}" -ar 16000 -ac 1 -y "${wavPath}" 2>/dev/null`, { timeout: 15000 });
-      // Run whisper.cpp
-      const modelPath = "/usr/local/share/whisper-cpp/ggml-base.bin";
-      execSync(`whisper -m "${modelPath}" -l auto -otxt -of "${outPath}" "${wavPath}" 2>/dev/null`, { timeout: 30000 });
-      const txtFile = outPath + ".txt";
-      const transcript = fs.existsSync(txtFile) ? fs.readFileSync(txtFile, "utf8").trim() : "";
-      if (transcript) {
-        // Preserve /command prefix if present, append transcript
-        const cmdMatch = caption.match(/^(\/\w+)\s*/);
-        caption = cmdMatch ? `${cmdMatch[1]} ${transcript}` : transcript;
+      const wRes = await fetch(`${whisperUrl}/transcribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filePath: file.localPath }),
+        signal: AbortSignal.timeout(45000),
+      });
+      const wData = await wRes.json();
+      if (wData.transcript) {
+        transcript = wData.transcript;
         console.log(`  Whisper transcript: ${transcript.slice(0, 100)}`);
-        await sendTelegram(`🎙 <b>Transcript:</b>\n<i>${transcript.slice(0, 500)}</i>`);
       }
-      // Cleanup temp wav
-      try { fs.unlinkSync(wavPath); } catch {}
     } catch (err) {
-      console.log(`  Whisper failed: ${err.message?.slice(0, 80)}`);
+      console.log(`  Whisper service unavailable: ${err.message?.slice(0, 80)}`);
     }
   }
 
-  // Determine which agent to route to
+  // For voice messages: use transcript as the message, not the file
+  if ((fileType === "voice" || fileType === "video") && transcript) {
+    // Preserve /command prefix if present
+    const cmdMatch = caption.match(/^(\/\w+)\s*/);
+    const fullText = cmdMatch ? `${cmdMatch[1]} ${transcript}` : transcript;
+    caption = fullText;
+
+    // Route as a regular text message with transcript
+    const parsed = parseCommand(fullText);
+    if (!parsed) {
+      // If pending agent task exists, use that agent
+      const pendingAgentKey = getPending(message.from?.id, "agent");
+      if (pendingAgentKey) {
+        const pending = { slug: pendingAgentKey, cmd: COMMANDS["/" + pendingAgentKey] || COMMANDS["/ceo"] };
+        clearPending(message.from?.id, "agent");
+        await createTaskAndWake(pending.slug, pending.cmd, from, transcript, member);
+        await sendTelegram(`🎙 ${pending.cmd.emoji} <b>${pending.cmd.name}</b> получил голосовое от <b>${member.name}</b>:\n\n<i>"${transcript.slice(0, 400)}"</i>`);
+        return;
+      }
+      // Default to CEO
+      const ceoParsed = parseCommand(`/ceo ${transcript}`);
+      if (ceoParsed) {
+        await createTaskAndWake(ceoParsed.slug, ceoParsed.cmd, from, transcript, member);
+        await sendTelegram(`🎙 👔 <b>CEO</b> получил голосовое от <b>${member.name}</b>:\n\n<i>"${transcript.slice(0, 400)}"</i>`);
+        return;
+      }
+    } else {
+      await createTaskAndWake(parsed.slug, parsed.cmd, from, parsed.message || transcript, member);
+      await sendTelegram(`🎙 ${parsed.cmd.emoji} <b>${parsed.cmd.name}</b> получил голосовое от <b>${member.name}</b>:\n\n<i>"${transcript.slice(0, 400)}"</i>`);
+      return;
+    }
+  }
+
+  // For non-voice files OR voice without transcript (whisper failed)
   const parsed = parseCommand(caption);
   if (!parsed) {
-    // No command in caption — ignore silently (people share files in group chat)
+    // Check pending agent selection
+    if (pendingAgentTasks[message.from.id]) {
+      const pending = pendingAgentTasks[message.from.id];
+      delete pendingAgentTasks[message.from.id];
+      // Fall through to file handling below with pending agent
+      const slug = pending.slug;
+      const cmd = pending.cmd;
+      const agentId = agentMap[slug];
+      if (agentId) {
+        const ts = new Date().toISOString().slice(0, 16);
+        const taskText = caption || `[${fileType.toUpperCase()}] от ${member.name}`;
+        const fileLabel = fileType === "voice" ? "Голосовое (whisper недоступен)" : fileType === "photo" ? "Фото" : "Файл";
+        const description = [
+          `**${fileLabel} из Telegram от ${from}:**\n`,
+          caption ? `**Подпись:** ${caption}\n` : "",
+          `**Файл:** \`${file.localPath}\``,
+          `**Имя:** ${file.fileName}`,
+          `**Размер:** ${(file.size / 1024).toFixed(1)} KB`,
+          `**Тип:** ${fileType}`,
+          `\n---\n_Получено: ${ts}_`,
+          `\n_Агент может прочитать файл по пути выше через Read tool или Bash._`,
+        ].join("\n");
+        try {
+          const res = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/issues`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: `[TG-${fileType.toUpperCase()}] ${taskText.slice(0, 80)}`, description, priority: "medium", assigneeAgentId: agentId, status: "todo" }),
+          });
+          const task = await res.json();
+          console.log(`  → Task created: ${task.identifier || "?"}`);
+        } catch (err) { console.error(`  → Task creation failed: ${err.message}`); }
+        await fetch(`${PAPERCLIP_URL}/api/agents/${agentId}/wakeup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "telegram_file", context: `${fileType} from ${from}: ${file.localPath}` }) }).catch(() => {});
+        const emoji = fileType === "voice" ? "🎙" : fileType === "photo" ? "📸" : "📎";
+        await sendTelegram(`${emoji} ${cmd.emoji} <b>${cmd.name}</b> получил ${fileType === "voice" ? "голосовое" : fileType === "photo" ? "фото" : "файл"} от <b>${member.name}</b>`);
+        return;
+      }
+    }
+    // No command, no pending — ignore
     return;
   }
   const { slug, message: agentMsg, cmd } = parsed;
@@ -335,51 +399,37 @@ async function handleIncomingFile(message, member, from) {
   const ts = new Date().toISOString().slice(0, 16);
   console.log(`[${ts}] ${from} → ${cmd.emoji} ${cmd.name}: [${fileType}] ${caption.slice(0, 60)}`);
 
-  // Create task with file reference
-  try {
-    const description = [
-      `**${fileType === "photo" ? "Фото" : "Файл"} из Telegram от ${from}:**\n`,
-      caption ? `**Подпись:** ${caption}\n` : "",
-      `**Файл:** \`${file.localPath}\``,
-      `**Имя:** ${file.fileName}`,
-      `**Размер:** ${(file.size / 1024).toFixed(1)} KB`,
-      `**Тип:** ${fileType}`,
-      `\n---\n_Получено: ${ts}_`,
-      `\n_Агент может прочитать файл по пути выше через Read tool или Bash._`,
-    ].join("\n");
+  const fileLabel = fileType === "voice" ? "Голосовое (whisper недоступен)" : fileType === "photo" ? "Фото" : "Файл";
+  const description = [
+    `**${fileLabel} из Telegram от ${from}:**\n`,
+    caption ? `**Подпись:** ${caption}\n` : "",
+    `**Файл:** \`${file.localPath}\``,
+    `**Имя:** ${file.fileName}`,
+    `**Размер:** ${(file.size / 1024).toFixed(1)} KB`,
+    `**Тип:** ${fileType}`,
+    `\n---\n_Получено: ${ts}_`,
+    `\n_Агент может прочитать файл по пути выше через Read tool или Bash._`,
+  ].join("\n");
 
+  try {
     const res = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/issues`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: `[TG-${fileType.toUpperCase()}] ${taskText.slice(0, 80)}`,
-        description,
-        priority: "medium",
-        assigneeAgentId: agentId,
-        status: "todo",
-      }),
+      body: JSON.stringify({ title: `[TG-${fileType.toUpperCase()}] ${taskText.slice(0, 80)}`, description, priority: "medium", assigneeAgentId: agentId, status: "todo" }),
     });
     const task = await res.json();
     console.log(`  → Task created: ${task.identifier || "?"}`);
-  } catch (err) {
-    console.error(`  → Task creation failed: ${err.message}`);
-  }
+  } catch (err) { console.error(`  → Task creation failed: ${err.message}`); }
 
-  // Wake agent
   try {
     await fetch(`${PAPERCLIP_URL}/api/agents/${agentId}/wakeup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        reason: "telegram_file",
-        context: `${fileType} from ${from}: ${file.localPath}`,
-      }),
+      body: JSON.stringify({ reason: "telegram_file", context: `${fileType} from ${from}: ${file.localPath}` }),
     });
-    const emoji = fileType === "photo" ? "📸" : "📎";
-    await sendTelegram(`${emoji} ${cmd.emoji} <b>${cmd.name}</b> получил ${fileType === "photo" ? "фото" : "файл"} от <b>${member.name}</b>\n\n<i>${caption.slice(0, 200) || file.fileName}</i>`);
-  } catch (err) {
-    console.error(`  → Wakeup error: ${err.message}`);
-  }
+    const emoji = fileType === "voice" ? "🎙" : fileType === "photo" ? "📸" : "📎";
+    await sendTelegram(`${emoji} ${cmd.emoji} <b>${cmd.name}</b> получил ${fileType === "voice" ? "голосовое" : fileType === "photo" ? "фото" : "файл"} от <b>${member.name}</b>\n\n<i>${caption.slice(0, 200) || file.fileName}</i>`);
+  } catch (err) { console.error(`  → Wakeup error: ${err.message}`); }
 }
 
 // ---------- Task creation ----------
@@ -440,7 +490,7 @@ async function createTaskAndWake(agentSlug, cmd, from, text, member) {
         ],
         [
           { text: "🚫 Блок", callback_data: `status:blocked:${taskId}` },
-          { text: "⚡ Срочно", callback_data: `priority:urgent:${taskId}` },
+          { text: "⚡ Срочно", callback_data: `priority:critical:${taskId}` },
         ],
       ] : [];
       const sendRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
@@ -559,7 +609,8 @@ async function handleStatus() {
   let services = "";
   try {
     const crm = await fetch(`${TWENTY_URL}/healthz`).then(r => r.ok ? "🟢" : "🔴").catch(() => "🔴");
-    const sync = await fetch("http://localhost:3089/health").then(r => r.ok ? "🟢" : "🔴").catch(() => "🔴");
+    const syncUrl = process.env.CRM_SYNC_URL || "http://localhost:3089";
+    const sync = await fetch(`${syncUrl}/health`).then(r => r.ok ? "🟢" : "🔴").catch(() => "🔴");
     services = `CRM: ${crm} | Sync: ${sync}`;
   } catch {
     services = "проверка не удалась";
@@ -1391,7 +1442,7 @@ async function handleTasksInline(chtId, msgId, page = 1) {
     const tasks = allTasks.slice(offset, offset + TASKS_PAGE_SIZE);
 
     const si = { todo: "⬜", in_progress: "🔄", blocked: "🚫", backlog: "📥" };
-    const pi = { urgent: "🔴", high: "🟠", medium: "🟡", low: "⚪" };
+    const pi = { critical: "🔴", high: "🟠", medium: "🟡", low: "⚪" };
     let msg = `📋 <b>Open Tasks</b> (${page}/${pages})\n<i>Total: ${total}</i>\n\n`;
     for (const t of tasks) {
       const assignee = t.assignee?.name || "—";
@@ -1862,7 +1913,32 @@ const server = http.createServer(async (req, res) => {
 
         const member = resolveTeamMember(message);
         const from = `${member.name} (${member.role}, ${member.handle})`;
-        const text = message.text || "";
+
+        // Voice message → transcribe first, then treat as text
+        let text = message.text || "";
+        if (!text && (message.voice || message.video_note)) {
+          const fileId = (message.voice || message.video_note).file_id;
+          const file = await downloadTelegramFile(fileId);
+          if (file) {
+            const whisperUrl = process.env.WHISPER_URL || "http://host.docker.internal:3090";
+            try {
+              const wRes = await fetch(`${whisperUrl}/transcribe`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filePath: file.localPath }),
+                signal: AbortSignal.timeout(45000),
+              });
+              const wData = await wRes.json();
+              if (wData.transcript) {
+                text = wData.transcript;
+                console.log(`  Voice transcribed: ${text.slice(0, 80)}`);
+                await sendTelegram(`🎙 <i>${text.slice(0, 500)}</i>`);
+              }
+            } catch (err) {
+              console.log(`  Whisper error: ${err.message?.slice(0, 60)}`);
+            }
+          }
+        }
         const lower = text.toLowerCase().trim().replace(/@\w+bot\b/i, "").trim();
 
         // If user types /command while pending — cancel pending state
@@ -2179,7 +2255,7 @@ try {
   console.log("   Bot commands registered ✓");
 } catch {}
 
-server.listen(Number(PORT), "127.0.0.1", () => {
+server.listen(Number(PORT), "0.0.0.0", () => {
   console.log(`\n🤖 AmriTech Telegram Command Router`);
   console.log(`   Port: ${PORT} | Agents: ${Object.keys(agentMap).length}`);
   console.log(`   Commands: ${Object.keys(COMMANDS).join(", ")}, /help`);

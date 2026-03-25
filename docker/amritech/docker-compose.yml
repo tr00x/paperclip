@@ -1,0 +1,184 @@
+# =============================================================================
+# AmriTech Infrastructure Stack
+# Всё с restart: always — Docker сам поднимает при падении
+#
+# НЕ включает Paperclip сервер (он на хосте — запускает агентов)
+# Paperclip управляется launchd (com.amritech.paperclip.plist)
+#
+# Запуск:  docker compose up -d
+# Стоп:    docker compose down
+# Логи:    docker compose logs -f <service>
+# Статус:  docker compose ps
+# =============================================================================
+
+name: amritech
+
+services:
+  # ─────────────────────────────────────────────────────────
+  # Telegram Webhook Bot (port 3088)
+  # ─────────────────────────────────────────────────────────
+  telegram-webhook:
+    build:
+      context: ../..
+      dockerfile: docker/amritech/Dockerfile.webhook
+    ports:
+      - "3088:3088"
+    environment:
+      PORT: "3088"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      COMPANY_ID: ${COMPANY_ID}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      PAPERCLIP_URL: http://host.docker.internal:4444
+      TWENTY_URL: http://twenty-server:3000
+      TWENTY_API_KEY: ${TWENTY_API_KEY}
+      CRM_SYNC_URL: http://crm-sync:3089
+    volumes:
+      - /tmp/amritech-tg-files:/tmp/amritech-tg-files
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3088/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+
+  # ─────────────────────────────────────────────────────────
+  # CRM Auto-Sync (port 3089)
+  # ─────────────────────────────────────────────────────────
+  crm-sync:
+    image: node:22-slim
+    working_dir: /app
+    command: ["node", "index.js"]
+    ports:
+      - "3089:3089"
+    environment:
+      PORT: "3089"
+      PAPERCLIP_URL: http://host.docker.internal:4444
+      TWENTY_URL: http://twenty-server:3000
+      TWENTY_API_KEY: ${TWENTY_API_KEY}
+      COMPANY_ID: ${COMPANY_ID}
+    volumes:
+      - ../../mcp-servers/crm-sync/index.js:/app/index.js:ro
+      - ../../mcp-servers/crm-sync/package.json:/app/package.json:ro
+    restart: always
+
+  # ─────────────────────────────────────────────────────────
+  # Twenty CRM — Database (Postgres 16)
+  # ─────────────────────────────────────────────────────────
+  twenty-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: default
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${TWENTY_PG_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - twenty_db-data:/var/lib/postgresql/data
+    restart: always
+
+  # ─────────────────────────────────────────────────────────
+  # Twenty CRM — Redis
+  # ─────────────────────────────────────────────────────────
+  twenty-redis:
+    image: redis:alpine
+    command: ["--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: always
+
+  # ─────────────────────────────────────────────────────────
+  # Twenty CRM — Server (internal 3000, exposed 5555)
+  # ─────────────────────────────────────────────────────────
+  twenty-server:
+    image: twentycrm/twenty:latest
+    ports:
+      - "5555:3000"
+    environment:
+      NODE_PORT: 3000
+      PG_DATABASE_URL: postgres://postgres:${TWENTY_PG_PASSWORD}@twenty-db:5432/default
+      SERVER_URL: ${TWENTY_SERVER_URL}
+      REDIS_URL: redis://twenty-redis:6379
+      APP_SECRET: ${TWENTY_APP_SECRET}
+      STORAGE_TYPE: local
+      EMAIL_FROM_ADDRESS: ${SMTP_USER}
+      EMAIL_FROM_NAME: "AmriTech CRM"
+      EMAIL_DRIVER: smtp
+      EMAIL_SMTP_HOST: ${SMTP_HOST}
+      EMAIL_SMTP_PORT: "${SMTP_PORT}"
+      EMAIL_SMTP_USER: ${SMTP_USER}
+      EMAIL_SMTP_PASSWORD: "${SMTP_PASSWORD}"
+    volumes:
+      - twenty_server-local-data:/app/packages/twenty-server/.local-storage
+    depends_on:
+      twenty-db:
+        condition: service_healthy
+      twenty-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: always
+
+  # ─────────────────────────────────────────────────────────
+  # Twenty CRM — Worker
+  # ─────────────────────────────────────────────────────────
+  twenty-worker:
+    image: twentycrm/twenty:latest
+    command: ["yarn", "worker:prod"]
+    environment:
+      PG_DATABASE_URL: postgres://postgres:${TWENTY_PG_PASSWORD}@twenty-db:5432/default
+      SERVER_URL: ${TWENTY_SERVER_URL}
+      REDIS_URL: redis://twenty-redis:6379
+      APP_SECRET: ${TWENTY_APP_SECRET}
+      STORAGE_TYPE: local
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
+      EMAIL_FROM_ADDRESS: ${SMTP_USER}
+      EMAIL_FROM_NAME: "AmriTech CRM"
+      EMAIL_DRIVER: smtp
+      EMAIL_SMTP_HOST: ${SMTP_HOST}
+      EMAIL_SMTP_PORT: "${SMTP_PORT}"
+      EMAIL_SMTP_USER: ${SMTP_USER}
+      EMAIL_SMTP_PASSWORD: "${SMTP_PASSWORD}"
+    volumes:
+      - twenty_server-local-data:/app/packages/twenty-server/.local-storage
+    depends_on:
+      twenty-db:
+        condition: service_healthy
+      twenty-server:
+        condition: service_healthy
+    restart: always
+
+  # ─────────────────────────────────────────────────────────
+  # Cloudflare Tunnel — tg.amritech.us → telegram-webhook
+  # ─────────────────────────────────────────────────────────
+  tunnel-tg:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TG_TOKEN}
+    restart: always
+
+  tunnel-dispatch:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_DISPATCH_TOKEN}
+    restart: always
+
+  tunnel-crm:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_CRM_TOKEN}
+    restart: always
+
+volumes:
+  twenty_db-data:
+    external: true
+  twenty_server-local-data:
+    external: true

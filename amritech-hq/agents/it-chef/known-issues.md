@@ -25,25 +25,33 @@
 - **Prevention:** Добавить rate limit в SDR (макс 3-5/heartbeat). Перейти на SendGrid для outbound outreach. IONOS оставить для входящих.
 - **Auto-fixable:** Частично — account name фикс. SMTP provider — бизнес-решение Tim'а.
 
-### 2026-03-24 — Cloudflare Named Tunnels (static subdomains)
-- **Architecture:** 3 named tunnels, all managed by watchdog
-  - `dispatch.amritech.us` → `localhost:4444` (Paperclip UI + API)
-  - `tg.amritech.us` → `localhost:3088` (Telegram webhook)
-  - `crm.amritech.us` → `localhost:5555` (Twenty CRM)
-- **How they run:** `cloudflared tunnel --no-autoupdate run --token $TOKEN`
-- **Tokens:** in `scripts/watchdog.sh` (DISPATCH_TOKEN, TG_TUNNEL_TOKEN, CRM_TUNNEL_TOKEN)
-- **Monitoring:** watchdog probes each URL every 60s, restarts if probe fails
-- **TG Webhook:** permanently set to `https://tg.amritech.us/webhook` (no more random trycloudflare URLs)
-- **Auth:** Cloudflare Access on dispatch + crm (Zero Trust, email OTP). TG has no auth (Telegram needs raw access)
-- **If tunnel dies:** watchdog restarts automatically. If watchdog is also down → manually run:
-  ```bash
-  cloudflared tunnel --no-autoupdate run --token "$(cloudflared tunnel token dispatch)" &
-  cloudflared tunnel --no-autoupdate run --token "$(cloudflared tunnel token tg)" &
-  cloudflared tunnel --no-autoupdate run --token "$(cloudflared tunnel token crm)" &
-  ```
-- **If DNS broken:** Check Cloudflare dashboard → Tunnels → verify routes exist with correct hostnames
-- **Logs:** `/tmp/cloudflared-dispatch.log`, `/tmp/cloudflared-tg.log`, `/tmp/cloudflared-crm.log`
-- **Auto-fixable:** Yes — watchdog handles restart. DNS/route issues need dashboard.
+### 2026-03-25 — Docker Migration (Hybrid Architecture)
+- **Что в Docker:** TG webhook, CRM sync, Twenty CRM (server+worker+db+redis), 3 CF tunnels
+- **Что на хосте:** Paperclip server + embedded PG (порт 54329) + agents
+- **Docker compose:** `/Users/timur/paperclip/docker/amritech/docker-compose.yml`
+- **Все Docker сервисы** имеют `restart: always` — поднимаются сами
+- **Paperclip** на хосте управляется watchdog v2 (launchd `com.amritech.watchdog`)
+- **Агенты работают НА ХОСТЕ** — обращаются к CRM через `localhost:5555` (Docker port mapping)
+- **НЕ ПЫТАЙСЯ** перенести агентов в Docker — им нужны MCP серверы и API ключи с хоста
+- **Логи Docker:** `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml logs <service>`
+
+### 2026-03-25 — Cloudflare Tunnels (in Docker)
+- **Architecture:** 3 named tunnels, all in Docker с `restart: always`
+  - `tunnel-tg` → `tg.amritech.us` → `telegram-webhook:3088` (Docker internal)
+  - `tunnel-dispatch` → `dispatch.amritech.us` → `host.docker.internal:4444` (Paperclip on host)
+  - `tunnel-crm` → `crm.amritech.us` → `twenty-server:3000` (Docker internal)
+- **Routing:** configured in Cloudflare Dashboard (Zero Trust → Tunnels), NOT local config files
+- **Tokens:** in `.env` file at `/Users/timur/paperclip/docker/amritech/.env`
+- **If tunnel dies:** Docker `restart: always` handles it. If stuck: `docker compose restart tunnel-tg`
+- **Auth:** Cloudflare Access on dispatch + crm (Zero Trust, email OTP). TG has no auth
+- **Auto-fixable:** Yes — Docker handles restart
+
+### 2026-03-25 — Twenty DB WAL Corruption
+- **Симптом:** `PANIC: could not locate a valid checkpoint record` в логах twenty-db
+- **Root Cause:** Жёсткая остановка контейнера (docker kill) без graceful shutdown
+- **Fix:** `docker run --rm -u postgres -v twenty_db-data:/var/lib/postgresql/data postgres:16 pg_resetwal -f /var/lib/postgresql/data`
+- **Prevention:** Всегда `docker compose stop`, не `docker kill`. Исключение: restart loop
+- **Auto-fixable:** Yes — добавлено в Auto-Fix Playbook
 
 ### 2026-03-22 — Duplicate key errors в Paperclip
 - **Симптом:** "duplicate key" errors в логах при создании heartbeat_run_events
