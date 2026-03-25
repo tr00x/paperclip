@@ -1477,6 +1477,9 @@ const server = http.createServer(async (req, res) => {
         const cbData = cb.data || "";
         const member = resolveTeamMember(cb);
 
+        // Team-only: ignore callbacks from non-team members
+        if (cb.from?.username && !Object.keys(TEAM_MEMBERS).includes(cb.from.username)) { res.writeHead(200).end("ok"); return; }
+
         // Dedup: prevent double-click (except noop and menu navigation)
         if (!cbData.startsWith("menu:") && cbData !== "noop" && !cbData.startsWith("crm:") && !cbData.startsWith("action:") && !cbData.startsWith("tasks:page:") && !cbData.startsWith("lead:") && !cbData.startsWith("leadact:")) {
           if (isCallbackDuplicate(cb.id)) {
@@ -1848,6 +1851,9 @@ const server = http.createServer(async (req, res) => {
       if (message) {
         if (message.from?.is_bot) { res.writeHead(200).end("ok"); return; }
         if (chatId && message.chat?.id !== chatId) { res.writeHead(200).end("ok"); return; }
+        // Team-only: ignore messages from non-team members
+        const ALLOWED_USERS = new Set(Object.keys(TEAM_MEMBERS)); // tr00x, ikberik, UlaAmri
+        if (message.from?.username && !ALLOWED_USERS.has(message.from.username)) { res.writeHead(200).end("ok"); return; }
         if (isDuplicate(message.message_id)) { res.writeHead(200).end("ok"); return; }
 
         const member = resolveTeamMember(message);
