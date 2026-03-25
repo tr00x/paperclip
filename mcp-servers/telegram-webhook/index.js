@@ -396,6 +396,7 @@ async function createTaskAndWake(agentSlug, cmd, from, text, member) {
 
   // Create a task so the agent has context
   let taskId = null;
+  let taskIdentifier = "";
   try {
     const res = await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/issues`, {
       method: "POST",
@@ -410,6 +411,7 @@ async function createTaskAndWake(agentSlug, cmd, from, text, member) {
     });
     const task = await res.json();
     taskId = task.id;
+    taskIdentifier = task.identifier || "";
     console.log(`  → Task created: ${task.identifier || "?"}`);
   } catch (err) {
     console.error(`  → Task creation failed: ${err.message}`);
@@ -429,7 +431,8 @@ async function createTaskAndWake(agentSlug, cmd, from, text, member) {
 
     if (res.ok) {
       // Send with task buttons so user can track/manage right from TG
-      const confirmText = `${cmd.emoji} <b>${cmd.name}</b> принял задачу от <b>${member.name}</b>\n\n<i>${text.slice(0, 200)}</i>\n\n<i>↩ Reply = комментарий · Кнопки = действия</i>`;
+      const taskLink = taskIdentifier ? `<a href="https://dispatch.amritech.us/AMRA/issues/${taskIdentifier}">${taskIdentifier}</a> · ` : "";
+      const confirmText = `${cmd.emoji} <b>${cmd.name}</b> accepted task from <b>${member.name}</b>\n${taskLink}<i>${text.slice(0, 200)}</i>\n\n<i>↩ Reply = comment · Buttons = actions</i>`;
       const buttons = taskId ? [
         [
           { text: "💬 Комментарий", callback_data: `comment:${taskId}` },
@@ -1389,10 +1392,11 @@ async function handleTasksInline(chtId, msgId, page = 1) {
 
     const si = { todo: "⬜", in_progress: "🔄", blocked: "🚫", backlog: "📥" };
     const pi = { urgent: "🔴", high: "🟠", medium: "🟡", low: "⚪" };
-    let msg = `📋 <b>Открытые задачи</b> (стр. ${page}/${pages})\n<i>Всего: ${total}</i>\n\n`;
+    let msg = `📋 <b>Open Tasks</b> (${page}/${pages})\n<i>Total: ${total}</i>\n\n`;
     for (const t of tasks) {
       const assignee = t.assignee?.name || "—";
-      msg += `${si[t.status]||"▪️"}${pi[t.priority]||""} <b>${t.identifier}</b> ${(t.title||"").slice(0,40)}\n   → ${assignee}\n`;
+      const link = `https://dispatch.amritech.us/AMRA/issues/${t.identifier}`;
+      msg += `${si[t.status]||"▪️"}${pi[t.priority]||""} <a href="${link}">${t.identifier}</a> ${(t.title||"").slice(0,35)}\n   → ${assignee}\n`;
     }
     const btns = [];
     const nav = [];
@@ -2014,12 +2018,13 @@ const server = http.createServer(async (req, res) => {
             if (Array.isArray(tasks) && tasks.length > 0) {
               const statusIcon = { todo: "⬜", in_progress: "🔄", blocked: "🚫", backlog: "📥" };
               const prioIcon = { urgent: "🔴", high: "🟠", medium: "🟡", low: "⚪", none: "⚪" };
-              let msg = "📋 <b>Открытые задачи</b>\n\n";
+              let msg = "📋 <b>Open Tasks</b>\n\n";
               for (const t of tasks.slice(0, 15)) {
                 const si = statusIcon[t.status] || "▪️";
                 const pi = prioIcon[t.priority] || "";
                 const assignee = t.assignee?.name || "—";
-                msg += `${si}${pi} <b>${t.identifier}</b> ${(t.title || "").slice(0, 50)}\n   → ${assignee}\n`;
+                const link = `https://dispatch.amritech.us/AMRA/issues/${t.identifier}`;
+                msg += `${si}${pi} <a href="${link}">${t.identifier}</a> ${(t.title || "").slice(0, 45)}\n   → ${assignee}\n`;
               }
               if (tasks.length > 15) msg += `\n... и ещё ${tasks.length - 15}`;
               await sendTelegram(msg);
