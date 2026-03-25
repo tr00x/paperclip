@@ -152,13 +152,12 @@ Comment on relevant Paperclip tasks with status updates. If multiple leads proce
 
 ## Email Rate Limit
 
-**Максимум 15 emails за один heartbeat** (суммарно: initial + followups).
+**Максимум 10 emails за один heartbeat** (суммарно: initial + followups).
 
-- Пауза 10 сек между отправками (чтобы SMTP не зарейтлимитил)
-- Если SMTP вернул 450/rate limit → СТОП, остальные в следующий heartbeat
-- Запись в CRM notes для незавершённых: `"Queued — rate limit reached {datetime}"`
-
-IONOS Business: ~500 писем/день. Мы шлём ~30-50. Лимита не будет.
+- **ОБЯЗАТЕЛЬНО жди 30 секунд между каждой отправкой** (IONOS rate limit)
+- Если SMTP вернул 450/rate limit → СТОП, остальные в следующий heartbeat. НЕ ретраить.
+- Запись в CRM notes для незавершённых: `"Queued — SMTP rate limit, next heartbeat"`
+- Если 450 на первом же письме → алерт IT Chef: `[TECH-ISSUE] SDR: SMTP полностью заблокирован`
 
 ---
 
