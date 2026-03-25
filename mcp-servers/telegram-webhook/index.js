@@ -1786,7 +1786,7 @@ const server = http.createServer(async (req, res) => {
                   { text: "❌ Close", callback_data: `leadact:status:${l.id}:closed` },
                 ],
               ];
-              if (l.id) btns.push([{ text: "🔗 Open in CRM", url: `https://crm.amritech.us/objects/leads/${l.id}` }]);
+              if (l.id) btns.push([{ text: "🔗 Open in CRM", url: `https://crm.amritech.us/object/lead/${l.id}` }]);
               btns.push([{ text: "« Back to leads", callback_data: "crm:hot" }]);
               await editOrSend(cb.message.chat.id, cb.message.message_id, card, btns);
             }
