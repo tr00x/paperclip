@@ -137,7 +137,7 @@ defTool("update_lead", "Update a lead's status, outreach status, notes, or other
     if (args.notes) input.notes = args.notes;
     if (args.icpScore != null) input.icpScore = args.icpScore;
     if (args.lastContactDate) input.lastContactDate = args.lastContactDate;
-    const data = await gql(`mutation($id: ID!, $input: LeadUpdateInput!) { updateLead(id: $id, data: $input) { id name status outreachStatus } }`, { id: args.id, input });
+    const data = await gql(`mutation($id: UUID!, $input: LeadUpdateInput!) { updateLead(id: $id, data: $input) { id name status outreachStatus } }`, { id: args.id, input });
     return ok(`Lead updated: ${data.updateLead.name} → status:${data.updateLead.status}, outreach:${data.updateLead.outreachStatus}`);
   } catch (e) { return err(e); }
 });
@@ -309,7 +309,7 @@ defTool("update_client", "Update client record", {
     const input = {};
     if (args.services) input.services = args.services;
     if (args.name) input.name = args.name;
-    const data = await gql(`mutation($id: ID!, $input: ClientUpdateInput!) { updateClient(id: $id, data: $input) { id name } }`, { id: args.id, input });
+    const data = await gql(`mutation($id: UUID!, $input: ClientUpdateInput!) { updateClient(id: $id, data: $input) { id name } }`, { id: args.id, input });
     return ok(`Client updated: ${data.updateClient.name}`);
   } catch (e) { return err(e); }
 });
@@ -353,7 +353,7 @@ defTool("update_invoice", "Update an invoice's status or details", {
     if (args.name) input.name = args.name;
     if (args.dueDate) input.dueDate = args.dueDate;
     if (args.status) input.status = args.status;
-    const data = await gql(`mutation($id: ID!, $input: InvoiceUpdateInput!) { updateInvoice(id: $id, data: $input) { id name } }`, { id: args.id, input });
+    const data = await gql(`mutation($id: UUID!, $input: InvoiceUpdateInput!) { updateInvoice(id: $id, data: $input) { id name } }`, { id: args.id, input });
     return ok(`Invoice updated: ${data.updateInvoice.name}`);
   } catch (e) { return err(e); }
 });
