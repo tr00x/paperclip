@@ -9,7 +9,7 @@ LOG="/tmp/paperclip-watchdog.log"
 PAPERCLIP_DIR="/Users/timur/paperclip"
 PAPERCLIP_PORT=4444
 WEBHOOK_PORT=3088
-CHECK_INTERVAL=60
+CHECK_INTERVAL=30
 
 # Telegram config
 TG_BOT_TOKEN="8651584857:AAHRriyGLbrkziN-jggPn_ST-mMilgayInY"
@@ -196,24 +196,42 @@ ensure_named_tunnel() {
   local TOKEN="$2"
   local CHECK_URL="$3"
   local LOG_FILE="/tmp/cloudflared-${NAME}.log"
+  local PID_FILE="/tmp/cloudflared-${NAME}.pid"
 
-  # Check if this specific tunnel is running
-  if pgrep -f "run --token.*${NAME}" >/dev/null 2>&1 || pgrep -f "tunnel.*${TOKEN:0:20}" >/dev/null 2>&1; then
-    # Probe to verify it's actually working
-    PROBE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$CHECK_URL" 2>/dev/null)
-    if [ "$PROBE" = "200" ]; then
-      return 0
+  # Check if tunnel process is alive via PID file
+  if [ -f "$PID_FILE" ]; then
+    local PID=$(cat "$PID_FILE")
+    if kill -0 "$PID" 2>/dev/null; then
+      # Process alive — probe to verify tunnel actually works
+      PROBE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 --max-time 5 "$CHECK_URL" 2>/dev/null)
+      # 200 = direct access, 302 = Cloudflare Access redirect (both mean tunnel works)
+      if [ "$PROBE" = "200" ] || [ "$PROBE" = "302" ] || [ "$PROBE" = "403" ]; then
+        return 0
+      fi
+      log "${NAME} tunnel probe=$PROBE — killing PID $PID"
+      kill "$PID" 2>/dev/null
+      sleep 1
+      kill -9 "$PID" 2>/dev/null
     fi
-    log "${NAME} tunnel process alive but probe returned $PROBE — restarting..."
-    # Kill only this tunnel's process
-    pkill -f "${TOKEN:0:20}" 2>/dev/null
-    sleep 2
   fi
 
-  log "${NAME} tunnel down, starting..."
+  # Also kill any orphan cloudflared with this token
+  pkill -f "${TOKEN:0:30}" 2>/dev/null
+  sleep 1
+
+  log "${NAME} tunnel starting..."
   nohup cloudflared tunnel --no-autoupdate run --token "$TOKEN" >> "$LOG_FILE" 2>&1 &
+  echo $! > "$PID_FILE"
   log "${NAME} tunnel started (PID: $!)"
-  sleep 3
+  sleep 2
+
+  # Verify it came up
+  PROBE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$CHECK_URL" 2>/dev/null)
+  if [ "$PROBE" = "200" ] || [ "$PROBE" = "302" ] || [ "$PROBE" = "403" ]; then
+    log "${NAME} tunnel verified (probe=$PROBE)"
+  else
+    log "${NAME} tunnel may not be ready yet (probe=$PROBE) — will retry next cycle"
+  fi
 }
 
 ensure_cloudflare_tunnels() {
