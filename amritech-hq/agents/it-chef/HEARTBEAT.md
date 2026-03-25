@@ -28,22 +28,30 @@ curl -s http://localhost:4444/api/health || echo "DOWN"
 
 ### 2b. Twenty CRM (порт 5555)
 ```bash
-docker ps --filter name=twenty-server --format "{{.Status}}"
 curl -s http://localhost:5555/healthz || echo "DOWN"
+docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml ps twenty-server
 ```
-Если DOWN → `cd /Users/timur/paperclip/twenty-crm && docker compose restart`
+Если DOWN → `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml restart twenty-server`
 
 ### 2c. CRM Sync (порт 3089)
 ```bash
-curl -s http://localhost:3089/health | jq
+curl -s http://localhost:3089/health || echo "DOWN"
 ```
-Если DOWN → проверь логи: `tail -20 /tmp/crm-sync.log`. Перезапусти если нужно.
+Если DOWN → `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml restart crm-sync`
 
 ### 2d. Telegram Webhook (порт 3088)
 ```bash
-curl -s http://localhost:3088/health | jq
+curl -s http://localhost:3088/health || echo "DOWN"
 ```
-Если DOWN → проверь логи: `tail -20 /tmp/telegram-webhook.log`. Перезапусти если нужно.
+Если DOWN → `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml restart telegram-webhook`
+
+### 2g. Cloudflare Tunnels
+```bash
+curl -s -o /dev/null -w "%{http_code}" https://tg.amritech.us/health
+curl -s -o /dev/null -w "%{http_code}" https://dispatch.amritech.us/api/health
+curl -s -o /dev/null -w "%{http_code}" https://crm.amritech.us/healthz
+```
+Если DOWN → `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml restart tunnel-tg` (или tunnel-dispatch, tunnel-crm)
 
 ### 2e. Email (SMTP + IMAP)
 ```bash
@@ -87,10 +95,10 @@ GET /api/companies/{companyId}/issues?assigneeAgentId={your-id}&status=todo,in_p
 Для каждой:
 1. Прочитай описание ошибки
 2. Диагностируй root cause (логи, health checks, docker)
-3. Придумай решение
-4. Отправь в TG формат диагностики (из SOUL.md)
-5. Жди одобрения Tim'а ИЛИ чини сам если критично
-6. Отчитайся в задаче комментарием
+3. **ЧИНИ СРАЗУ** — не жди Tim'а. Ты CTO.
+4. Отчитайся в задаче комментарием (что было → что сделал)
+5. Отправь в TG отчёт о фиксе
+6. Закрой задачу (status → done)
 
 ---
 
@@ -134,18 +142,46 @@ lsof -i :3089 -sTCP:LISTEN || echo "CRM sync DOWN"
 ## Step 5 — Watchdog Health
 
 ```bash
-pgrep -f "watchdog.sh" || echo "WATCHDOG DOWN"
+pgrep -f "watchdog-v2.sh" || echo "WATCHDOG DOWN"
 ```
 Если мёртв → `launchctl kickstart -kp system/com.amritech.paperclip-watchdog`
 
 ---
 
-## Step 6 — Report и Exit
+## Step 6 — TG Отчёт (ОБЯЗАТЕЛЬНО КАЖДЫЙ heartbeat!)
 
-Если были проблемы или фиксы → комментарий в задачах, отчёт CEO, TG если критичное.
-Если всё ок — тихий exit. Не шуми когда всё работает.
+**ВСЕГДА пиши в TG через send_message.** Без исключений. Даже если всё ок.
 
-**Приоритеты:** Downtime (немедленно) → [TECH-ISSUE] → CRM inconsistencies → Health degradation → Improvements
+**Формат:**
+```
+🔧 IT Chef — Health Check {время}
+
+Сервисы: ✅ Штаб | ✅ CRM | ✅ Webhook | ✅ Sync
+Docker: 9/9 ✅
+Агенты: {idle: N, running: N, error: N}
+Диск: {XX}%
+
+{Если были фиксы:}
+🛠 Фиксы: {что починил}
+
+{Если есть проблемы:}
+⚠️ Проблемы: {что не работает}
+
+{Если задал задачи агентам:}
+📋 Создал задачи: {кому и что}
+```
+
+**Если были серьёзные фиксы → развёрнутый отчёт:**
+```
+🔧 IT Chef — Инцидент
+
+Проблема: {что было}
+Причина: {root cause}
+Фикс: {что сделал}
+Статус: {результат}
+```
+
+**Приоритеты:** Downtime (немедленно) → [TECH-ISSUE] → CRM → Health degradation → Improvements
 
 ---
 
