@@ -32,11 +32,11 @@ function saveTaskMap(map) {
 
 server.tool(
   "send_message",
-  "Send a message to the AmriTech Telegram group chat. ALWAYS pass task_id when your message relates to a Paperclip task — this adds action buttons (Done, Block, Comment, Urgent) and links replies to the task. Without task_id, the message has no buttons and replies go nowhere. If you don't have a task_id, consider adding a comment to the task instead of sending a separate TG message.",
+  "Send a message to the AmriTech Telegram group chat. ALWAYS pass task_id when your message relates to a task — this adds action buttons (Done, Block, Comment, Urgent) and links replies to the task. Without task_id, the message has no buttons and replies go nowhere. If you don't have a task_id, consider adding a comment to the task instead of sending a separate TG message.",
   {
     text: z.string().describe("Message text (supports HTML: <b>, <i>, <code>)"),
     chat_id: z.string().optional().describe("Chat ID (defaults to group)"),
-    task_id: z.string().optional().describe("ALWAYS provide when message relates to a task. Adds inline buttons and links replies to comments. Use the Paperclip issue UUID."),
+    task_id: z.string().optional().describe("ALWAYS provide when message relates to a task. Adds inline buttons and links replies to comments. Use the task UUID."),
     buttons: z.string().optional().describe("Button preset: 'berik_decision' (approve lead), 'ula_call' (call result), 'berik_pricing' (pricing approval)"),
   },
   async ({ text, chat_id, task_id, buttons }) => {

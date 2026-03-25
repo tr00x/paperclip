@@ -590,7 +590,7 @@ async function handleStatus() {
       agentStatus += `${icon} ${a.name || a.urlKey} — ${agoStr}\n`;
     }
   } catch {
-    agentStatus = "❌ Paperclip недоступен\n";
+    agentStatus = "❌ Штаб недоступен\n";
   }
 
   // Pipeline from CRM
@@ -1358,7 +1358,7 @@ async function handleStatusInline(chtId, msgId) {
       const agoStr = ago ? `${ago}м назад` : "никогда";
       agentStatus += `${icon} ${a.name || a.urlKey} — ${agoStr}\n`;
     }
-  } catch { agentStatus = "❌ Paperclip недоступен\n"; }
+  } catch { agentStatus = "❌ Штаб недоступен\n"; }
 
   let pipeline = "";
   if (TWENTY_API_KEY) {
