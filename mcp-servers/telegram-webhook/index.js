@@ -299,7 +299,7 @@ async function handleIncomingFile(message, member, from) {
       // Convert to 16kHz mono WAV (whisper.cpp requirement)
       execSync(`ffmpeg -i "${file.localPath}" -ar 16000 -ac 1 -y "${wavPath}" 2>/dev/null`, { timeout: 15000 });
       // Run whisper.cpp
-      const modelPath = "/usr/local/share/whisper-cpp/for-tests-ggml-tiny.bin";
+      const modelPath = "/usr/local/share/whisper-cpp/ggml-base.bin";
       execSync(`whisper -m "${modelPath}" -l auto -otxt -of "${outPath}" "${wavPath}" 2>/dev/null`, { timeout: 30000 });
       const txtFile = outPath + ".txt";
       const transcript = fs.existsSync(txtFile) ? fs.readFileSync(txtFile, "utf8").trim() : "";
