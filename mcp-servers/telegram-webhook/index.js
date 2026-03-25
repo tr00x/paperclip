@@ -290,6 +290,24 @@ async function handleIncomingFile(message, member, from) {
     return;
   }
 
+  // Voice transcription via whisper
+  if (fileType === "voice" || fileType === "video") {
+    try {
+      const { execSync } = await import("node:child_process");
+      const whisperResult = execSync(`whisper "${file.localPath}" --model tiny --language auto --output_format txt --output_dir /tmp/amritech-tg-files/ 2>/dev/null`, { timeout: 30000 }).toString().trim();
+      const txtFile = file.localPath.replace(/\.[^.]+$/, ".txt");
+      const transcript = fs.existsSync(txtFile) ? fs.readFileSync(txtFile, "utf8").trim() : "";
+      if (transcript) {
+        caption = transcript;
+        console.log(`  Whisper transcript: ${transcript.slice(0, 100)}`);
+        await sendTelegram(`🎙 <b>Transcript:</b>\n<i>${transcript.slice(0, 500)}</i>`);
+      }
+    } catch (err) {
+      console.log(`  Whisper unavailable or failed: ${err.message?.slice(0, 50)}`);
+      // Continue without transcript — file still gets routed
+    }
+  }
+
   // Determine which agent to route to
   const parsed = parseCommand(caption);
   if (!parsed) {
@@ -963,9 +981,12 @@ async function handleCrmQuery(type, targetChatId, page = 1, messageId = null) {
         const statusRu = { new: "🆕новый", contacted: "📧email", engaged: "💬ответил", qualified: "✅подходит", nurture: "💤пауза" };
         msg += `<b>${l.icpScore}⭐ ${l.name}</b>\n`;
         msg += `   ${l.industry || "?"} | ${statusRu[l.status] || l.status} | DM: ${l.decisionMaker || "?"}\n`;
-        msg += `   → /lead_${l.id.slice(0,8)}\n\n`;
+        msg += `\n`;
       }
       const btns = [];
+      // Add top-3 lead detail buttons
+      const leadBtns = leads.slice(0, 3).map(({ node: l }) => ({ text: `${l.icpScore}⭐ ${l.name?.slice(0,20)}`, callback_data: `lead:${l.id}` }));
+      if (leadBtns.length) btns.push(leadBtns);
       const nav = [];
       if (page > 1) nav.push({ text: `← Стр.${page-1}`, callback_data: `crm:hot:${page-1}` });
       nav.push({ text: `${page}/${pages}`, callback_data: "noop" });
@@ -1448,7 +1469,7 @@ const server = http.createServer(async (req, res) => {
         const member = resolveTeamMember(cb);
 
         // Dedup: prevent double-click (except noop and menu navigation)
-        if (!cbData.startsWith("menu:") && cbData !== "noop" && !cbData.startsWith("crm:") && !cbData.startsWith("action:") && !cbData.startsWith("tasks:page:")) {
+        if (!cbData.startsWith("menu:") && cbData !== "noop" && !cbData.startsWith("crm:") && !cbData.startsWith("action:") && !cbData.startsWith("tasks:page:") && !cbData.startsWith("lead:") && !cbData.startsWith("leadact:")) {
           if (isCallbackDuplicate(cb.id)) {
             await answerCb(cb.id, "⏳ Уже обрабатываю...");
             res.writeHead(200).end("ok");
@@ -1722,6 +1743,91 @@ const server = http.createServer(async (req, res) => {
               await answerCb(cb.id, "❌ Ошибка", true);
             }
           } catch (err) { console.error("Approval error:", err.message); }
+        }
+
+        // Lead detail card with actions
+        else if (cbData.startsWith("lead:")) {
+          const leadId = cbData.slice(5);
+          await answerCb(cb.id, "⏳");
+          await sendChatAction(cb.message.chat.id);
+          try {
+            const data = await crmQuery(`{ lead(filter: { id: { eq: "${leadId.replace(/[^a-f0-9-]/g, '')}" } }) { id name companyName status outreachStatus icpScore industry decisionMaker decisionMakerEmail phone { primaryPhoneNumber } lastContactDate notes } }`);
+            const l = data?.data?.lead;
+            if (!l) { await answerCb(cb.id, "Lead not found", true); }
+            else {
+              const statusMap = { new: "🆕 New", contacted: "📧 Contacted", engaged: "💬 Engaged", qualified: "✅ Qualified", nurture: "💤 Nurture", closed: "❌ Closed" };
+              let card = `<b>${l.name}</b>\n\n`;
+              card += `Score: <b>${l.icpScore || "?"}/100</b>\n`;
+              card += `Status: ${statusMap[l.status] || l.status || "?"}\n`;
+              card += `Industry: ${l.industry || "—"}\n`;
+              if (l.decisionMaker) card += `DM: ${l.decisionMaker}\n`;
+              if (l.decisionMakerEmail) card += `Email: <code>${l.decisionMakerEmail}</code>\n`;
+              if (l.phone?.primaryPhoneNumber) card += `Phone: ${l.phone.primaryPhoneNumber}\n`;
+              if (l.notes) card += `\nNotes: <i>${(l.notes || "").slice(0, 200)}</i>\n`;
+              if (l.lastContactDate) {
+                const ago = Math.round((Date.now() - new Date(l.lastContactDate)) / 86400000);
+                card += `\nLast contact: ${ago}d ago`;
+              }
+              const btns = [
+                [
+                  { text: "📧 Send Email", callback_data: `leadact:email:${l.id}` },
+                  { text: "📞 Log Call", callback_data: `leadact:call:${l.id}` },
+                ],
+                [
+                  { text: "✅ Qualified", callback_data: `leadact:status:${l.id}:qualified` },
+                  { text: "💤 Nurture", callback_data: `leadact:status:${l.id}:nurture` },
+                  { text: "❌ Close", callback_data: `leadact:status:${l.id}:closed` },
+                ],
+              ];
+              if (l.id) btns.push([{ text: "🔗 Open in CRM", url: `https://crm.amritech.us/objects/leads/${l.id}` }]);
+              btns.push([{ text: "« Back to leads", callback_data: "crm:hot" }]);
+              await editOrSend(cb.message.chat.id, cb.message.message_id, card, btns);
+            }
+          } catch (err) {
+            console.error("Lead detail error:", err.message);
+          }
+        }
+
+        // Lead actions: status change, email, call
+        else if (cbData.startsWith("leadact:")) {
+          const parts = cbData.split(":");
+          const action = parts[1];
+          const leadId = parts[2];
+
+          if (action === "status") {
+            const newStatus = parts[3];
+            try {
+              await crmQuery(`mutation { updateLead(id: "${leadId.replace(/[^a-f0-9-]/g, '')}", data: { status: "${newStatus}" }) { id } }`);
+              await answerCb(cb.id, `✅ Status → ${newStatus}`);
+              const origText = cb.message?.text || cb.message?.caption || "";
+              await editOrSend(cb.message.chat.id, cb.message.message_id,
+                origText + `\n\n✅ <b>Status → ${newStatus}</b> — ${member.name}`,
+                [[{ text: "« Back", callback_data: "crm:hot" }]]);
+            } catch (err) {
+              await answerCb(cb.id, "❌ Error", true);
+            }
+          } else if (action === "email") {
+            // Create SDR task to email this lead
+            const sdrId = agentMap["sdr"];
+            if (sdrId) {
+              try {
+                await fetch(`${PAPERCLIP_URL}/api/companies/${COMPANY_ID}/issues`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ title: `[AUTO-QUEUE] Email lead ${leadId.slice(0,8)}`, description: `Send outreach email to lead. Lead ID: ${leadId}`, assigneeAgentId: sdrId, status: "todo", priority: "medium" }),
+                });
+                await fetch(`${PAPERCLIP_URL}/api/agents/${sdrId}/wakeup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "telegram_lead_action" }) });
+                await answerCb(cb.id, "📧 SDR task created");
+              } catch { await answerCb(cb.id, "❌ Error", true); }
+            }
+          } else if (action === "call") {
+            // Log a call result
+            setPending(cb.from.id, "comment", `crm-call:${leadId}`);
+            await answerCb(cb.id, "Type call notes in chat");
+            const origText = cb.message?.text || cb.message?.caption || "";
+            await editOrSend(cb.message.chat.id, cb.message.message_id,
+              origText + `\n\n<i>Type call notes in chat — ${member.name}</i>`,
+              [[{ text: "Cancel", callback_data: `lead:${leadId}` }]]);
+          }
         }
 
         res.writeHead(200).end("ok");

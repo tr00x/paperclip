@@ -45,7 +45,7 @@ server.tool(
 
     // Add reply hint to messages with task_id
     const msgText = task_id
-      ? text + `\n\n<i>↩ Reply = комментарий к задаче</i>`
+      ? text + `\n\n<a href="https://dispatch.amritech.us/AMRA/issues/${task_id}">📋 Open task</a> · <i>↩ Reply = comment</i>`
       : text;
     const payload = { chat_id: targetChat, text: msgText, parse_mode: "HTML" };
 
