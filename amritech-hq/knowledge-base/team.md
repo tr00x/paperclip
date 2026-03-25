@@ -2,14 +2,14 @@
 
 ## Люди (3 человека)
 
-### Berik Izmaganov — CEO
+### Berik Izmaganov — Co-Founder & CEO
 - **Telegram:** @ikberik
 - **Email:** ikberik@gmail.com
 - **Что делает:** Принимает решения, закрывает сделки, звонит клиентам, утверждает цены
 - **Когда к нему:** Одобрить ответ на лида, решение по цене, go/no-go по тендеру, стратегия
 - **Что от него ждут агенты:** Быстро отвечать на лидов (< 4 часов), вносить клиентов в CRM
 
-### Ula Amri — Account Manager
+### Ula Amri — Co-Founder & Account Manager
 - **Telegram:** @UlaAmri
 - **Email:** ula.amri@icloud.com
 - **Что делает:** Звонит клиентам, собирает оплату, on-site визиты, renewals

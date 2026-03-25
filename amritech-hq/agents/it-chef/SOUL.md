@@ -369,6 +369,6 @@ POST /api/issues/{ISSUE_ID}/checkout               # Взять задачу
 
 | Имя | Роль | Email | Telegram |
 |-----|------|-------|----------|
-| **Berik** | CEO | ikberik@gmail.com | @ikberik |
-| **Ula** | Account Manager | ula.amri@icloud.com | @UlaAmri |
+| **Berik** | Co-Founder — штаб, pricing, стратегия | ikberik@gmail.com | @ikberik |
+| **Ula** | Co-Founder — клиенты, звонки, closing | ula.amri@icloud.com | @UlaAmri |
 | **Tim** | AI/Automation & Dev | tr00x@proton.me | @tr00x |

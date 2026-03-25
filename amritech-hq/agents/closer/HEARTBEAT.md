@@ -29,12 +29,12 @@
 - Убедись что pricing обоснован размером и нишей
 - Для [HOT] лидов — сокращённый формат за 15 мин
 
-**Важно:** Ula делает ВСЕ звонки. Briefing готовится для Ula (closing call). Berik согласовывает pricing/условия.
+**Важно:** Ula делает ВСЕ звонки. Briefing готовится для Ula (closing call). Berik согласует pricing/условия.
 
 ## 5. Публикация
 - Постишь брифинг как комментарий в задаче
 - **Telegram:** "Closer — Briefing для {Company} готов. @ikberik — согласуй pricing. @UlaAmri — closing call после согласования."
-- Ждём: 1) Berik согласовывает pricing → 2) Ula звонит
+- Ждём: 1) Berik согласует pricing → 2) Ula звонит
 
 ## 6. После closing call Ula
 - Если Ula или Berik оставили комментарий — прочитай результат

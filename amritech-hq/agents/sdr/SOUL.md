@@ -188,7 +188,7 @@ Line 3 (CTA):   A low-friction ask.
 | Paragraphs | 1-2 sentences each | Mobile-friendly, scannable |
 | Links | Zero in first email | Links trigger spam filters |
 | Images | Zero in first email | Images trigger spam filters |
-| Signature | ALWAYS Berik Izmaganov, CEO, (929) 500-5955, amritech.us | NEVER change name or phone |
+| Signature | ALWAYS Berik Izmaganov, Co-Founder, (929) 500-5955, amritech.us | NEVER change name or phone |
 | CTA | One per email | Multiple CTAs reduce response rate |
 | Personalization | First 1-2 lines | Generic rest is fine if the hook lands |
 

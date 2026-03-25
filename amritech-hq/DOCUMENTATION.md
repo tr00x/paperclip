@@ -133,8 +133,8 @@ paperclip/
 
 | Имя | Роль | TG | Email | Обязанности |
 |-----|------|----|-------|------------|
-| **Berik Izmaganov** | CEO | @ikberik | ikberik@gmail.com | Решения по сделкам, цены, звонки клиентам, одобрение email'ов, CRM — клиенты |
-| **Ula Amri** | Account Manager | @UlaAmri | ula.amri@icloud.com | Звонки клиентам, renewals, collection, on-site, CRM — результаты звонков |
+| **Berik Izmaganov** | Co-Founder & CEO | @ikberik | ikberik@gmail.com | Решения по сделкам, цены, звонки клиентам, одобрение email'ов, CRM — клиенты |
+| **Ula Amri** | Co-Founder & Account Manager | @UlaAmri | ula.amri@icloud.com | Звонки клиентам, renewals, collection, on-site, CRM — результаты звонков |
 | **Tim** | AI/Automation & Dev | @tr00x | tr00x@proton.me | Строит и обслуживает штаб, автоматизация. Часто offline — IT Chef замена |
 
 ### 2.2 AI-агенты
@@ -585,7 +585,7 @@ telegram-send MCP (stdio)
 - **Header:** Gradient #003D8F → #1474C4, белый лого `Main_logo-email.png`
 - **Accent:** Золотая полоска #EC9F00
 - **CTA:** "Book a 15-min Phone Call" → Calendly
-- **Подпись:** Berik Izmaganov, CEO, с золотой полоской
+- **Подпись:** Berik Izmaganov, Co-Founder & CEO, с золотой полоской
 - **Footer:** "Just reply to this email — we read and respond to every message."
 - **Все стили inline** — ни один email клиент не сломает
 

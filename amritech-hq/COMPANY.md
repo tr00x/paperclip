@@ -25,12 +25,14 @@ AI штаб для **AmriTech IT Solutions & Business Services** — MSP из Б
 **Слоган:** Local Technology Insights. Enterprise-Level IT Solutions.
 
 ## Команда
-- **Berik Izmaganov** — CEO, закрывает сделки, финальные решения, техническая экспертиза
-- **Ula** — Account Manager, общение с клиентами, renewals, on-site support
-- **Tim** — AI/Automation & Full-Stack Dev, строит и рулит AI штабом, разработка, DevOps
+- **Berik Izmaganov** (@ikberik) — Co-Founder. Управляет штабом, задачами агентов, pricing, стратегия, техническая экспертиза
+- **Ula Amri** (@UlaAmri) — Co-Founder. Все звонки клиентам, closing calls, renewals, on-site. Лицо компании
+- **Tim** (@tr00x) — CTO / AI Engineer. Строит и рулит AI штабом, разработка, DevOps
+
+**Berik и Ula — равноправные сооснователи.** Berik = операции + штаб. Ula = клиенты + продажи.
 
 ## Принцип
-Berik и Ula бегают по клиентам и делают техническую работу. Tim строит машину которая кормит лидами и снимает рутину. AI штаб работает 24/7 пока все трое заняты делом.
+Ula закрывает сделки и ведёт клиентов. Berik рулит штабом и pricing. Tim строит машину. AI штаб работает 24/7.
 
 ## Услуги (полный спектр IT)
 

@@ -75,6 +75,6 @@
 
 ## Основатели
 
-- **Berik Izmaganov** (@ikberik) — CEO. Закрывает сделки, звонит клиентам, принимает решения по ценам.
+- **Berik Izmaganov** (@ikberik) — Co-Founder & CEO. Закрывает сделки, звонит клиентам, принимает решения по ценам.
+- **Ula** (@UlaAmri) — Co-Founder & Account Manager. Звонит клиентам, renewals, on-site визиты.
 - **Tim** (@tr00x) — AI/Automation & Dev. Строит AI-штаб, автоматизация, разработка.
-- **Ula** (@UlaAmri) — Account Manager. Звонит клиентам, renewals, on-site визиты.

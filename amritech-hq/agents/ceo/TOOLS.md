@@ -78,8 +78,8 @@ Use the Telegram MCP tool to send messages to the team bot. Every message must:
 
 | Person | Role | When to @mention |
 |---|---|---|
-| @ikberik | CEO / Senior Tech | Pricing decisions, big deals (>$5k MRR), strategy, budget, go/no-go |
-| @UlaAmri | Account Mgr / Tech | Client relationships, renewals, churn risk, technical projects |
+| @ikberik | Co-Founder / Штаб | Pricing decisions, big deals (>$5k MRR), strategy, budget, go/no-go |
+| @UlaAmri | Co-Founder / Клиенты | Client relationships, renewals, churn risk, technical projects |
 | @tr00x | AI / Automation | Agent issues, technical problems, automation requests, system failures |
 
 ### Guidelines
