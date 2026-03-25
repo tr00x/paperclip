@@ -290,28 +290,35 @@ async function handleIncomingFile(message, member, from) {
     return;
   }
 
-  // Voice transcription via whisper
+  // Voice transcription via whisper.cpp + ffmpeg
   if (fileType === "voice" || fileType === "video") {
     try {
       const { execSync } = await import("node:child_process");
-      const whisperResult = execSync(`whisper "${file.localPath}" --model tiny --language auto --output_format txt --output_dir /tmp/amritech-tg-files/ 2>/dev/null`, { timeout: 30000 }).toString().trim();
-      const txtFile = file.localPath.replace(/\.[^.]+$/, ".txt");
+      const wavPath = file.localPath.replace(/\.[^.]+$/, ".wav");
+      const outPath = file.localPath.replace(/\.[^.]+$/, "");
+      // Convert to 16kHz mono WAV (whisper.cpp requirement)
+      execSync(`ffmpeg -i "${file.localPath}" -ar 16000 -ac 1 -y "${wavPath}" 2>/dev/null`, { timeout: 15000 });
+      // Run whisper.cpp
+      const modelPath = "/usr/local/share/whisper-cpp/for-tests-ggml-tiny.bin";
+      execSync(`whisper -m "${modelPath}" -l auto -otxt -of "${outPath}" "${wavPath}" 2>/dev/null`, { timeout: 30000 });
+      const txtFile = outPath + ".txt";
       const transcript = fs.existsSync(txtFile) ? fs.readFileSync(txtFile, "utf8").trim() : "";
       if (transcript) {
         caption = transcript;
         console.log(`  Whisper transcript: ${transcript.slice(0, 100)}`);
         await sendTelegram(`🎙 <b>Transcript:</b>\n<i>${transcript.slice(0, 500)}</i>`);
       }
+      // Cleanup temp wav
+      try { fs.unlinkSync(wavPath); } catch {}
     } catch (err) {
-      console.log(`  Whisper unavailable or failed: ${err.message?.slice(0, 50)}`);
-      // Continue without transcript — file still gets routed
+      console.log(`  Whisper failed: ${err.message?.slice(0, 80)}`);
     }
   }
 
   // Determine which agent to route to
   const parsed = parseCommand(caption);
   if (!parsed) {
-    await sendTelegram(`📎 Файл получен! Добавь команду в подпись чтобы отправить агенту.\n💡 <i>Пример: /hunter визитка клиента</i>`);
+    await sendTelegram(`📎 File received! Add a command in the caption to route it to an agent.\n💡 <i>Example: /hunter business card photo</i>`);
     return;
   }
   const { slug, message: agentMsg, cmd } = parsed;
