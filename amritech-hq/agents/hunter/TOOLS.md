@@ -81,6 +81,53 @@ Step 4: extract_content → pull full page from interesting results
 
 ---
 
+## Apollo.io (MCP) — Contact & Company Database
+
+**ВАЖНО: FREE TIER — используй экономно!** Максимум 5-10 запросов за heartbeat.
+
+Apollo.io — база контактов и компаний. Используй для:
+- Поиска компаний по ICP (нише, локации, размеру)
+- Обогащения лидов — получить email, телефон, сотрудников по домену
+- Поиска decision maker'ов (НА ПЛАТНОМ ПЛАНЕ — не доступен пока)
+
+### Доступные инструменты
+
+**1. `search_companies`** — поиск компаний
+```
+search_companies(
+  locations: ["New Jersey, NJ"],
+  industries: ["legal services"],
+  min_employees: 10,
+  max_employees: 200,
+  per_page: 10
+)
+```
+Возвращает: название, телефон, сайт, город, кол-во сотрудников, LinkedIn.
+
+**2. `enrich_company`** — обогащение по домену
+```
+enrich_company(domain: "gardenstatedental.com")
+```
+Возвращает: полный профиль компании — индустрия, размер, технологии, телефон, адрес.
+
+### Когда использовать Apollo
+
+| Ситуация | Действие |
+|----------|----------|
+| Нужны новые лиды в нише | `search_companies` с фильтрами |
+| Лид без телефона/email | `enrich_company` по домену |
+| Проверить размер компании | `enrich_company` — точнее чем web search |
+| Нужен decision maker | Пока НЕ доступен (платный план) — используй web search + LinkedIn |
+
+### Rate Limiting (FREE TIER!)
+
+- **Макс 5-10 Apollo запросов за heartbeat** — экономь!
+- Сначала проверь CRM — может данные уже есть
+- Используй web search для бесплатных задач, Apollo для обогащения
+- НЕ делай bulk search через Apollo — это сожрёт лимит
+
+---
+
 ## Twenty CRM (MCP)
 
 Your system of record for all prospect data.

@@ -38,6 +38,39 @@ POST /api/issues/{issueId}/checkout
 
 ---
 
+## Telegram Reporting (ОБЯЗАТЕЛЬНО)
+
+**Центр управления — Telegram.** Каждый heartbeat с полезной работой ДОЛЖЕН закончиться сообщением в TG через `send_message`.
+
+### Когда ОБЯЗАТЕЛЬНО писать в TG:
+- Выполнил задачу → отчёт с результатом
+- Нашёл лид / обогатил данные → краткий результат
+- Отправил email → кому, тема
+- Зафиксировал проблему → что было, что починил
+- Есть блокер → что мешает, от кого ждёшь
+- Approval request → что одобрить
+
+### Когда НЕ писать:
+- Early exit (нет работы) — тихий выход
+- Только прочитал inbox и ничего не сделал
+
+### Формат TG отчёта:
+```
+{Emoji} {Agent Name} — {что сделал}
+
+{1-3 строки деталей}
+
+{Если есть task_id — ОБЯЗАТЕЛЬНО передай его в send_message для кнопок}
+```
+
+**Примеры:**
+- `🔍 Hunter — Обогатил 3 лида через Apollo. Bergen Dental: +phone, +email. 2 без контактов.`
+- `📧 SDR — Отправил Day 0: Cole Schotz PC (SSL expired). Day 3: Garden State Dental.`
+- `🔧 IT Chef — Починил CRM sync. Причина: Docker restart. Downtime: 2 мин.`
+- `👔 CEO — Проверил pipeline. 5 active, 2 blocked. Demand: SDR ускорить follow-ups.`
+
+---
+
 ## Memory Protocol
 
 Ты используешь файловую память в `$AGENT_HOME/`.
