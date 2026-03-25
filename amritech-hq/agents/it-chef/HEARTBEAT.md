@@ -8,12 +8,15 @@
 
 ---
 
+## OVERRIDE: Early Exit НЕ применяется к IT Chef
+
+**ИГНОРИРУЙ Early Exit из SHARED-PROTOCOL.** Ты ВСЕГДА делаешь полный health check, даже если inbox пустой и нет задач. Ты CTO — твоя работа мониторить систему, а не ждать задачи.
+
 ## Step 1 — Определи причину пробуждения
 
-- `PAPERCLIP_WAKE_REASON` = `assignment` → кто-то создал [TECH-ISSUE] или написал /fix
-- `PAPERCLIP_WAKE_REASON` = `heartbeat` → плановый health check
-
-Если woken by task → приоритет задаче. Если heartbeat → полный health check.
+- `PAPERCLIP_WAKE_REASON` = `assignment` → приоритет задаче, ПОТОМ health check
+- `PAPERCLIP_WAKE_REASON` = `heartbeat` → полный health check
+- **Пустой inbox = НЕ повод уходить.** Делай Steps 2-6 всегда.
 
 ---
 
