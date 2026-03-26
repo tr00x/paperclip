@@ -37,6 +37,8 @@ If this resonates with you — if you've ever wanted to see what a fully autonom
 
 ## Screenshots — Real Production Telegram Bot
 
+> **Note:** Screenshots are in Russian — that's how we used it in production. The entire system is fully customizable to any language via the Claude Code customization prompt below.
+
 <p align="center">
   <img src="doc/assets/screenshots/tg-main-menu.jpg" alt="Telegram Main Menu — 12 agents, full command center" width="320" />
 </p>
@@ -64,38 +66,23 @@ This is a complete [Paperclip](https://github.com/paperclipai/paperclip) company
 
 ### The Agents
 
-```
-                          ┌─────────┐
-                          │   CEO   │ Strategy, delegation, KPI tracking
-                          └────┬────┘
-                               │
-              ┌────────────────┼────────────────┐
-              │                │                │
-        ┌─────┴─────┐   ┌─────┴─────┐   ┌──────┴──────┐
-        │  Staff Mgr │   │  IT Chef  │   │ Finance Trk │
-        │ (HR + Ops) │   │  (CTO)    │   │ (Controller)│
-        └─────┬──────┘   └─────┬─────┘   └─────────────┘
-              │                │
-    ┌─────────┼─────────┐     │
-    │         │         │     │
-┌───┴──┐ ┌───┴──┐ ┌────┴┐   │
-│Hunter│ │ SDR  │ │Closer│   │
-│(Lead │ │(Out- │ │(Deal │   │
-│ Gen) │ │bound)│ │Brief)│   │
-└──────┘ └──────┘ └─────┘   │
-                              │
-         ┌────────────────────┼──────────────┐
-         │                    │              │
-   ┌─────┴──────┐  ┌─────────┴───┐  ┌───────┴───────┐
-   │  Contract   │  │  Proposal   │  │   Onboarding  │
-   │  Manager    │  │  Writer     │  │   Agent       │
-   └─────────────┘  └─────────────┘  └───────────────┘
+```mermaid
+graph TD
+    CEO["CEO<br/><small>Strategy & Delegation</small>"]
+    CEO --> SM["Staff Manager<br/><small>HR + Ops</small>"]
+    CEO --> IC["IT Chef<br/><small>CTO</small>"]
+    CEO --> FT["Finance Tracker<br/><small>Controller</small>"]
 
-         ┌──────────────┐  ┌──────────────┐
-         │  Gov Scout   │  │    Legal     │
-         │ (SAM.gov +   │  │  Assistant   │
-         │  tenders)    │  │              │
-         └──────────────┘  └──────────────┘
+    SM --> H["Hunter<br/><small>Lead Gen</small>"]
+    SM --> SDR["SDR<br/><small>Outbound</small>"]
+    SM --> CL["Closer<br/><small>Deal Briefs</small>"]
+
+    IC --> CM["Contract Manager"]
+    IC --> PW["Proposal Writer"]
+    IC --> OA["Onboarding Agent"]
+
+    GS["Gov Scout<br/><small>SAM.gov + Tenders</small>"]
+    LA["Legal Assistant<br/><small>Risk Analysis</small>"]
 ```
 
 | Agent | Role | What It Actually Does |
@@ -365,46 +352,39 @@ Every incident gets recorded in a known-issues database with: symptom, root caus
 
 ### Infrastructure
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                      Docker Host                          │
-│                                                          │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │Paperclip │  │Paperclip │  │PostgreSQL│              │
-│  │  Server  │  │    UI    │  │          │              │
-│  └──────────┘  └──────────┘  └──────────┘              │
-│                                                          │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │Twenty CRM│  │ CRM DB   │  │ Telegram │              │
-│  │ (Server) │  │(Postgres)│  │   Bot    │              │
-│  └──────────┘  └──────────┘  └──────────┘              │
-│                                                          │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │CF Tunnel │  │CF Tunnel │  │CF Tunnel │              │
-│  │   CRM    │  │    TG    │  │   API    │              │
-│  └──────────┘  └──────────┘  └──────────┘              │
-│                                                          │
-│  ┌──────────────────────────────────────────┐           │
-│  │  Watchdog v2                              │           │
-│  │  - Container health monitoring            │           │
-│  │  - Tunnel 530 error detection             │           │
-│  │  - Auto-restart on crash/config change    │           │
-│  │  - TG status reports                      │           │
-│  └──────────────────────────────────────────┘           │
-│                                                          │
-│  ┌──────────────────────────────────────────┐           │
-│  │  12 Claude Code Agents                    │           │
-│  │  - Heartbeat-driven (2h-4h intervals)     │           │
-│  │  - Per-agent MCP server configs           │           │
-│  │  - SOUL + TOOLS + HEARTBEAT architecture  │           │
-│  │  - Early exit when idle                   │           │
-│  └──────────────────────────────────────────┘           │
-│                                                          │
-│  ┌──────────────────────────────────────────┐           │
-│  │  Auto-backup (every 6h)                   │           │
-│  │  Paperclip DB + Twenty CRM snapshots      │           │
-│  └──────────────────────────────────────────┘           │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Docker["Docker Host (9 containers)"]
+        subgraph Core["Core"]
+            PS[Paperclip Server]
+            PU[Paperclip UI]
+            PG[PostgreSQL]
+        end
+        subgraph CRM["CRM Stack"]
+            TS[Twenty CRM Server]
+            TD[Twenty CRM DB]
+            TR[Redis]
+        end
+        subgraph Comms["Communications"]
+            TW[Telegram Webhook]
+            CS[CRM Sync]
+        end
+        subgraph Tunnels["Cloudflare Tunnels"]
+            T1[CF Tunnel — CRM]
+            T2[CF Tunnel — TG]
+            T3[CF Tunnel — API]
+        end
+    end
+    subgraph Host["macOS Host"]
+        WD["Watchdog v2<br/>30s polling, auto-restart, TG alerts"]
+        AG["12 Claude Code Agents<br/>Heartbeat-driven, 2-4h intervals"]
+        BK["Auto-backup<br/>Every 6h — Paperclip DB + CRM"]
+    end
+    AG -->|claude_local| PS
+    AG -->|GraphQL| TS
+    AG -->|MCP| TW
+    WD -->|monitors| Docker
+    WD -->|wakes| AG
 ```
 
 <br/>
