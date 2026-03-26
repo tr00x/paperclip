@@ -573,6 +573,10 @@ If stars show interest, I'll build and release these as complete Paperclip compa
 
 <br/>
 
+## Current State
+
+This repo was published quickly — a raw export from a working production system. The code works, the configs are real, but the packaging isn't polished. If there's interest (stars, forks, issues), I'll clean it up properly — better docs, easier setup, more examples. But for now, I don't see the point of polishing something nobody uses. Prove me wrong.
+
 ## Contributing
 
 Found a bug? Want to add a new agent template? PRs welcome.
