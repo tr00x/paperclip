@@ -206,9 +206,23 @@ Every status change gets a timestamped note in CRM. Every agent action requires 
 
 ---
 
-#### Agent Coordination Protocol (SHARED-PROTOCOL.md)
+#### SHARED-PROTOCOL.md — Corporate Culture for AI Agents
 
-Every agent follows the same coordination sequence on each heartbeat:
+Instead of copy-pasting the same rules into every agent, we have one file — `SHARED-PROTOCOL.md` — that defines company-wide behavior. Think of it as your AI company's employee handbook. Every agent reads it on boot. It covers:
+
+- How to check in and check out tasks (no double work)
+- When to shut up and exit early (save tokens when idle)
+- How to report in Telegram (what to say, what not to say)
+- Approval gates (what needs human sign-off)
+- How to handle conflicts (409 = someone was faster, move on)
+- Memory protocol (what to remember, what to forget)
+- Demand escalation (how to push humans to act)
+
+This means you change behavior for ALL agents in one place. New rule? Edit one file. New escalation policy? One file. New approval gate? One file. No agent gets left behind.
+
+#### Coordination Sequence (from SHARED-PROTOCOL.md)
+
+Every agent follows the same sequence on each heartbeat:
 
 ```
 1. GET /api/agents/me          → Confirm identity, check budget (>80% = critical tasks only)
@@ -503,29 +517,46 @@ The agent architecture is modular. Don't need Gov Scout? Delete the folder. Want
 
 ### One-Click Customization with Claude Code
 
-Don't want to edit configs manually? Just open Claude Code in the repo and paste this prompt:
+Don't want to edit 50+ config files manually? Open Claude Code in this repo and paste this:
 
 ```
-I just cloned the AmriTech AI HQ template. I want to adapt it for my business.
+I cloned the AmriTech AI HQ template and want to make it mine.
 
-Please ask me these questions one by one, then update all configs:
+Read amritech-hq/COMPANY.md, amritech-hq/agents/SHARED-PROTOCOL.md, and
+amritech-hq/agents/ceo/SOUL.md to understand the current setup.
 
-1. What's your company name and what do you do?
-2. Who's on your team? (names, roles, Telegram handles, emails)
-3. What's your target market? (industry, region, company size)
-4. Which agents do you need? (sales, support, finance, legal, etc.)
-5. Which agents should I remove?
-6. What's your SMTP provider? (Gmail, IONOS, SendGrid, etc.)
-7. Do you have a CRM? If not, should I keep Twenty CRM?
-8. What's your Telegram bot token?
-9. What Cloudflare tunnels do you need (if any)?
-10. What's your company goal? (e.g., "$50k MRR by Q4")
+Then interview me — ask these questions one at a time, wait for my answer
+before moving to the next:
 
-After I answer, update: COMPANY.md, all SOUL.md files, TOOLS.md, HEARTBEAT.md,
-.env files, MCP configs, skills, and the team contacts skill.
+1. What's your company name, industry, and location?
+2. What do you sell and who's your ideal customer?
+3. Who's on your team? For each person: name, role, email, Telegram handle.
+4. What's your big goal? (e.g., "$50k MRR by end of year")
+5. Which of these agents do you want to keep, remove, or rename?
+   CEO, Hunter (lead gen), SDR (outbound email), Closer (deal briefs),
+   Staff Manager, IT Chef (CTO), Finance Tracker, Contract Manager,
+   Proposal Writer, Onboarding Agent, Gov Scout, Legal Assistant
+6. Do you have any agents to ADD? (e.g., Customer Support, Social Media)
+7. What's your SMTP provider and credentials?
+8. Telegram bot token and chat ID?
+9. Do you need Cloudflare tunnels for remote access?
+10. Any company rules that ALL agents must follow?
+    (These go into SHARED-PROTOCOL.md — your AI employee handbook)
+
+After the interview, update EVERYTHING:
+- COMPANY.md (company identity and goals)
+- SHARED-PROTOCOL.md (company-wide rules and culture)
+- Every agent's SOUL.md (personality adapted to my business)
+- Every agent's TOOLS.md (MCP server access)
+- Every agent's HEARTBEAT.md (schedules and triggers)
+- All .env and .env.example files
+- All mcp-servers/mcp-*.json configs
+- All skills in amritech-hq/skills/
+- Delete agent folders I don't need
+- Create new agent folders if I added any
 ```
 
-Claude Code will walk you through the setup and rewrite every config file to match your business. No technical knowledge required.
+Claude Code will interview you, then rewrite every file. Zero technical knowledge required — just answer the questions.
 
 <br/>
 
