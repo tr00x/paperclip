@@ -64,6 +64,11 @@ If this resonates with you — if you've ever wanted to see what a fully autonom
 
 This is a complete [Paperclip](https://github.com/paperclipai/paperclip) company deployment — a real org chart of AI agents that ran an MSP (Managed Service Provider) business targeting SMBs in the NYC/NJ/PA area.
 
+**Deep dive docs (English):**
+- [`amritech-hq/COMPANY.md`](amritech-hq/COMPANY.md) — Company profile, services, target niches, competitive advantages
+- [`amritech-hq/DOCUMENTATION.md`](amritech-hq/DOCUMENTATION.md) — Full architecture docs: tech stack, agent workflows, CRM schema, Telegram bot, watchdog, backup system
+- [`amritech-hq/agents/SHARED-PROTOCOL.md`](amritech-hq/agents/SHARED-PROTOCOL.md) — The "employee handbook" — company-wide rules all agents follow
+
 ### The Agents
 
 ```mermaid
@@ -606,7 +611,11 @@ If stars show interest, I'll build and release these as complete Paperclip compa
 
 ## Current State
 
-This repo was published quickly — a raw export from a working production system. The code works, the configs are real, but the packaging isn't polished. If there's interest (stars, forks, issues), I'll clean it up properly — better docs, easier setup, more examples. But for now, I don't see the point of polishing something nobody uses. Prove me wrong.
+This repo was published quickly — a raw export from a working production system. The code works, the configs are real, but the packaging isn't polished.
+
+You might find traces of the original company in some files — names, references, internal jokes. I scrubbed what I could but I'm not going to spend days sanitizing every corner of a repo nobody's using yet. It's all example data anyway, nothing sensitive.
+
+If there's interest (stars, forks, issues), I'll clean it up properly — better docs, easier setup, more examples. But for now, I don't see the point of polishing something nobody uses. Prove me wrong.
 
 ## Contributing
 

@@ -1,15 +1,15 @@
 ---
 name: AmriTech
-description: AI штаб для YourCompany LLC — автономные агенты для лидгена, продаж, госконтрактов и операционки
+description: AI HQ for YourCompany LLC — autonomous agents for lead generation, sales, government contracts, and operations
 slug: amritech
 schema: agentcompanies/v1
 version: 2.1.0
 goals:
-  - Вывести AmriTech на $100k MRR силами 3 человек + AI штаб
-  - Автоматизировать лидген — находить компании с плохим IT в NJ/NY/PA
-  - Автоматизировать продажи — персонализированные письма, брифинги, proposals
-  - Мониторить госконтракты — SAM.gov, NJ/NY порталы
-  - Автоматизировать операционку — контракты, инвойсы, renewals, онбординг
+  - Scale AmriTech to $100k MRR with 3 people + AI HQ
+  - Automate lead generation — find companies with poor IT in NJ/NY/PA
+  - Automate sales — personalized emails, briefings, proposals
+  - Monitor government contracts — SAM.gov, NJ/NY portals
+  - Automate operations — contracts, invoices, renewals, onboarding
 requirements:
   secrets:
     - TELEGRAM_BOT_TOKEN
@@ -18,60 +18,60 @@ requirements:
 
 # AmriTech
 
-AI штаб для **YourCompany LLC** — MSP из Бруклина, Нью-Йорк.
+AI HQ for **YourCompany LLC** — an MSP based in Brooklyn, New York.
 
-**Сайт:** https://yourcompany.example.com/
-**Регион:** NYC, NJ, PA
-**Слоган:** Local Technology Insights. Enterprise-Level IT Solutions.
+**Website:** https://yourcompany.example.com/
+**Region:** NYC, NJ, PA
+**Tagline:** Local Technology Insights. Enterprise-Level IT Solutions.
 
-## Команда
-- **Alex Founder** (@founder_handle) — Co-Founder. Управляет штабом, задачами агентов, pricing, стратегия, техническая экспертиза
-- **Sam Cofounder** (@cofounder_handle) — Co-Founder. Все звонки клиентам, closing calls, renewals, on-site. Лицо компании
-- **Tim** (@cto_handle) — CTO / AI Engineer. Строит и рулит AI штабом, разработка, DevOps
+## Team
+- **Alex Founder** (@founder_handle) — Co-Founder. Manages HQ, agent tasks, pricing, strategy, technical expertise
+- **Sam Cofounder** (@cofounder_handle) — Co-Founder. All client calls, closing calls, renewals, on-site visits. The face of the company
+- **Tim** (@cto_handle) — CTO / AI Engineer. Builds and runs the AI HQ, development, DevOps
 
-**Alex и Sam — равноправные сооснователи.** Alex = операции + штаб. Sam = клиенты + продажи.
+**Alex and Sam are equal co-founders.** Alex = operations + HQ. Sam = clients + sales.
 
-## Принцип
-Sam закрывает сделки и ведёт клиентов. Alex рулит штабом и pricing. Tim строит машину. AI штаб работает 24/7.
+## Operating Principle
+Sam closes deals and manages clients. Alex runs the HQ and pricing. Tim builds the machine. The AI HQ operates 24/7.
 
-## Услуги (полный спектр IT)
+## Services (Full-Spectrum IT)
 
 ### Core Managed IT
-- **Same Day IT Support** — телефон, email, remote access (NY/NJ/PA)
+- **Same Day IT Support** — phone, email, remote access (NY/NJ/PA)
 - **IT Helpdesk Services** — troubleshooting, software issues, general IT support
-- **24/7 Monitoring & Support** — проактивный мониторинг, минимальный downtime
-- **IT Infrastructure Management** — hardware, software, maintenance, оптимизация
+- **24/7 Monitoring & Support** — proactive monitoring, minimal downtime
+- **IT Infrastructure Management** — hardware, software, maintenance, optimization
 
 ### Cybersecurity
-- **Cybersecurity Solutions** — файрволы, endpoint protection, threat mitigation
-- **Network Security** — проактивная защита от киберугроз
+- **Cybersecurity Solutions** — firewalls, endpoint protection, threat mitigation
+- **Network Security** — proactive defense against cyber threats
 
 ### Cloud & Data
-- **Cloud Server Management** — setup, monitoring, security, оптимизация
-- **Scalable Cloud Solutions** — миграция, hybrid, managed cloud
-- **Data Backup & Recovery** — регулярные бэкапы, disaster recovery
+- **Cloud Server Management** — setup, monitoring, security, optimization
+- **Scalable Cloud Solutions** — migration, hybrid, managed cloud
+- **Data Backup & Recovery** — regular backups, disaster recovery
 
 ### Development & Automation
-- **Custom Software Development** — веб, мобайл, интеграции, автоматизация
-- **DevOps** — CI/CD, инфраструктура как код, контейнеризация
-- **AI & Automation** — AI агенты, workflow автоматизация, RPA
+- **Custom Software Development** — web, mobile, integrations, automation
+- **DevOps** — CI/CD, infrastructure as code, containerization
+- **AI & Automation** — AI agents, workflow automation, RPA
 
 ### Networking & Communications
-- **VoIP Solutions** — бизнес телефония, unified communications
-- **Network Design & Setup** — проектирование и развёртывание сетей
+- **VoIP Solutions** — business telephony, unified communications
+- **Network Design & Setup** — network design and deployment
 
 ### Consulting & Strategy
-- **IT Consulting** — аудит, стратегия, оптимизация расходов
+- **IT Consulting** — audits, strategy, cost optimization
 - **SEO & Digital Marketing** — Google ranking, keyword research, on-page optimization
 
-## Целевые ниши
-Юрфирмы, автодилеры, бухгалтерия, CRE (коммерческая недвижимость), архитектурные бюро, клиники/медцентры, стоматология, ветклиники, Hands & Feet салоны.
+## Target Niches
+Law firms, auto dealerships, accounting firms, CRE (commercial real estate), architecture firms, medical clinics, dental practices, veterinary clinics, Hands & Feet salons.
 
-## Избегать для лидгена
-Рестораны, ритейл, стартапы без бюджета.
+## Avoid for Lead Generation
+Restaurants, retail, startups with no budget.
 
-## Конкурентные преимущества
-- Локальные (Brooklyn) — same day on-site support
-- Полный спектр — от батона до гандона, один партнёр на всё IT
-- AI-powered — штаб агентов работает 24/7, автоматизация рутины
-- Трое человек делают работу за 15 — за счёт AI и автоматизации
+## Competitive Advantages
+- Local (Brooklyn) — same day on-site support
+- Full spectrum — from helpdesk to cloud migration, one partner for everything IT
+- AI-powered — agent HQ operates 24/7, routine tasks fully automated
+- Three people doing the work of fifteen — powered by AI and automation

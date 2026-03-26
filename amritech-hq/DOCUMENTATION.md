@@ -1,29 +1,29 @@
-# AmriTech AI HQ — Полная документация
+# AmriTech AI HQ — Complete Documentation
 
-> Версия: HQ v2 | Дата: 2026-03-22 | Автор: Tim (@cto_handle) + Claude Opus
+> Version: HQ v2 | Date: 2026-03-22 | Author: Tim (@cto_handle) + Claude Opus
 
 ---
 
-## 1. Архитектура системы
+## 1. System Architecture
 
-### 1.1 Обзор
+### 1.1 Overview
 
-AmriTech AI HQ — автономный AI-штаб из 12 агентов + 3 человека, работающий на платформе Paperclip. Агенты ищут клиентов, пишут email'ы, готовят briefing'и, следят за контрактами и деньгами. Люди звонят, закрывают сделки, и ведут CRM.
+AmriTech AI HQ is an autonomous AI headquarters consisting of 12 agents + 3 humans, running on the Paperclip platform. Agents find clients, write emails, prepare briefings, monitor contracts, and track finances. Humans make calls, close deals, and manage the CRM.
 
-### 1.2 Стек технологий
+### 1.2 Technology Stack
 
-| Компонент | Технология | Порт | Назначение |
-|-----------|-----------|------|------------|
-| Оркестратор | Paperclip | 4444 | Управление агентами, задачами, heartbeat'ами |
-| CRM | Twenty CRM (Docker) | 5555 | Единый источник данных — лиды, клиенты, контракты |
-| Email | IONOS SMTP/IMAP | — | Отправка/приём email через agent@yourcompany.example.com |
-| Telegram Bot | Custom webhook | 3088 | Двусторонняя связь: люди ↔ агенты |
-| CRM Sync | Custom service | 3089 | Автосинхронизация Paperclip задач → CRM лидов |
-| Tunnel | Cloudflare | — | Удалённый доступ (crm.yourcompany.example.com, dispatch.yourcompany.example.com) |
-| Watchdog | Bash + launchd | — | Автоматический мониторинг и перезапуск всех сервисов |
-| AI Engine | Claude (Anthropic) | — | Мозг каждого агента (claude_local adapter) |
+| Component | Technology | Port | Purpose |
+|-----------|-----------|------|---------|
+| Orchestrator | Paperclip | 4444 | Agent management, tasks, heartbeats |
+| CRM | Twenty CRM (Docker) | 5555 | Single source of truth — leads, clients, contracts |
+| Email | IONOS SMTP/IMAP | — | Sending/receiving email via agent@yourcompany.example.com |
+| Telegram Bot | Custom webhook | 3088 | Bidirectional communication: humans ↔ agents |
+| CRM Sync | Custom service | 3089 | Auto-sync Paperclip tasks → CRM leads |
+| Tunnel | Cloudflare | — | Remote access (crm.yourcompany.example.com, dispatch.yourcompany.example.com) |
+| Watchdog | Bash + launchd | — | Automatic monitoring and restart of all services |
+| AI Engine | Claude (Anthropic) | — | Brain of each agent (claude_local adapter) |
 
-### 1.3 Схема взаимодействия
+### 1.3 Interaction Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -86,7 +86,7 @@ AmriTech AI HQ — автономный AI-штаб из 12 агентов + 3 �
           └─────────────┘
 ```
 
-### 1.4 Файловая структура
+### 1.4 File Structure
 
 ```
 paperclip/
@@ -105,127 +105,127 @@ paperclip/
 │   │   ├── onboarding-agent/
 │   │   └── gov-scout/
 │   ├── skills/
-│   │   ├── amritech-crm-leads/       CRM queries и мутации
-│   │   ├── amritech-html-email/       Email шаблон (gradient, logo, Calendly)
-│   │   ├── amritech-documents/        Создание и доставка документов
-│   │   ├── amritech-team-contacts/    Контакты команды
-│   │   ├── amritech-self-improvement/ Система саморазвития [IMPROVEMENT]
-│   │   ├── amritech-infra-diagnostics/ IT Chef чеклисты + API reference
-│   │   └── amritech-tender-scoring/   Скоринг тендеров
-│   ├── knowledge-base/    База знаний (7 документов)
-│   └── assets/            Логотипы
+│   │   ├── amritech-crm-leads/       CRM queries and mutations
+│   │   ├── amritech-html-email/       Email template (gradient, logo, Calendly)
+│   │   ├── amritech-documents/        Document creation and delivery
+│   │   ├── amritech-team-contacts/    Team contacts
+│   │   ├── amritech-self-improvement/ Self-improvement system [IMPROVEMENT]
+│   │   ├── amritech-infra-diagnostics/ IT Chef checklists + API reference
+│   │   └── amritech-tender-scoring/   Tender scoring
+│   ├── knowledge-base/    Knowledge base (7 documents)
+│   └── assets/            Logos
 ├── mcp-servers/
-│   ├── telegram-webhook/  TG webhook (команды, файлы, quick queries)
+│   ├── telegram-webhook/  TG webhook (commands, files, quick queries)
 │   ├── telegram-send/     TG MCP (send_message, send_document, send_photo)
-│   ├── crm-sync/          Автосинхронизация Paperclip → CRM
-│   └── agent-mcp-config.json  MCP конфиг для агентов
-├── twenty-crm/            Docker compose для Twenty CRM
+│   ├── crm-sync/          Auto-sync Paperclip → CRM
+│   └── agent-mcp-config.json  MCP config for agents
+├── twenty-crm/            Docker compose for Twenty CRM
 ├── scripts/
-│   └── watchdog.sh        (копия в ~/.paperclip/watchdog.sh)
-└── DOCUMENTATION.md       ← этот файл
+│   └── watchdog.sh        (copy at ~/.paperclip/watchdog.sh)
+└── DOCUMENTATION.md       ← this file
 ```
 
 ---
 
-## 2. Команда
+## 2. Team
 
-### 2.1 Люди
+### 2.1 People
 
-| Имя | Роль | TG | Email | Обязанности |
-|-----|------|----|-------|------------|
-| **Alex Founder** | Co-Founder & CEO | @founder_handle | founder@example.com | Решения по сделкам, цены, звонки клиентам, одобрение email'ов, CRM — клиенты |
-| **Sam Cofounder** | Co-Founder & Account Manager | @cofounder_handle | cofounder@example.com | Звонки клиентам, renewals, collection, on-site, CRM — результаты звонков |
-| **Tim** | AI/Automation & Dev | @cto_handle | cto@example.com | Строит и обслуживает штаб, автоматизация. Часто offline — IT Chef замена |
+| Name | Role | TG | Email | Responsibilities |
+|------|------|----|-------|-----------------|
+| **Alex Founder** | Co-Founder & CEO | @founder_handle | founder@example.com | Deal decisions, pricing, client calls, email approvals, CRM — clients |
+| **Sam Cofounder** | Co-Founder & Account Manager | @cofounder_handle | cofounder@example.com | Client calls, renewals, collection, on-site, CRM — call outcomes |
+| **Tim** | AI/Automation & Dev | @cto_handle | cto@example.com | Builds and maintains HQ, automation. Often offline — IT Chef steps in |
 
-### 2.2 AI-агенты
+### 2.2 AI Agents
 
-| # | Агент | Роль | Heartbeat | Model | Ключевые скиллы |
-|---|-------|------|-----------|-------|----------------|
-| 1 | **CEO** | Координатор штаба, лидер | 4ч + events | Opus | gtm-metrics, report-generation, data-analysis |
-| 2 | **Hunter** | Поиск лидов | 6ч (4 цикла/день) | Sonnet | deep-research, lead-scoring, lead-enrichment, crm-data-enrichment |
-| 3 | **SDR** | Cold email + follow-ups | 2ч | Sonnet | ai-sdr, ai-cold-outreach, sales-email-sequences, copywriting |
-| 4 | **Closer** | Briefing для звонков | По задаче | Sonnet | competitive-battlecard-creation, deep-research |
-| 5 | **Staff Manager** | Надзиратель штаба | 4ч | Sonnet | report-generation |
-| 6 | **Contract Manager** | Контракты, renewals | 24ч | Sonnet | contract-review, expansion-retention, churn-analysis |
-| 7 | **Finance Tracker** | MRR, инвойсы, оплаты | Неделя (Пн) | Sonnet | invoice-processing, financial-report-generation, budget-planning |
-| 8 | **IT Chef** | DevOps, починка системы | 1ч | Sonnet | docker-compose, cloud-monitoring, database-backup, security-audit, task-automation |
-| 9 | **Proposal Writer** | Proposals, КП, RFP | По задаче | Sonnet | proposal-generation, technical-writing, presentation-creation |
-| 10 | **Legal Assistant** | Контракты, compliance | По задаче | Sonnet | contract-review-anthropic, compliance-anthropic, nda-triage |
-| 11 | **Onboarding Agent** | Онбординг клиентов | По задаче | Sonnet | onboarding-playbook-creation, customer-feedback-analysis |
-| 12 | **Gov Scout** | Гос. тендеры | 24ч | Sonnet | deep-research, compliance-checklist, tender-scoring |
+| # | Agent | Role | Heartbeat | Model | Key Skills |
+|---|-------|------|-----------|-------|------------|
+| 1 | **CEO** | HQ coordinator, leader | 4h + events | Opus | gtm-metrics, report-generation, data-analysis |
+| 2 | **Hunter** | Lead discovery | 6h (4 cycles/day) | Sonnet | deep-research, lead-scoring, lead-enrichment, crm-data-enrichment |
+| 3 | **SDR** | Cold email + follow-ups | 2h | Sonnet | ai-sdr, ai-cold-outreach, sales-email-sequences, copywriting |
+| 4 | **Closer** | Call briefing preparation | On task | Sonnet | competitive-battlecard-creation, deep-research |
+| 5 | **Staff Manager** | HQ oversight | 4h | Sonnet | report-generation |
+| 6 | **Contract Manager** | Contracts, renewals | 24h | Sonnet | contract-review, expansion-retention, churn-analysis |
+| 7 | **Finance Tracker** | MRR, invoices, payments | Weekly (Mon) | Sonnet | invoice-processing, financial-report-generation, budget-planning |
+| 8 | **IT Chef** | DevOps, system repairs | 1h | Sonnet | docker-compose, cloud-monitoring, database-backup, security-audit, task-automation |
+| 9 | **Proposal Writer** | Proposals, RFPs | On task | Sonnet | proposal-generation, technical-writing, presentation-creation |
+| 10 | **Legal Assistant** | Contracts, compliance | On task | Sonnet | contract-review-anthropic, compliance-anthropic, nda-triage |
+| 11 | **Onboarding Agent** | Client onboarding | On task | Sonnet | onboarding-playbook-creation, customer-feedback-analysis |
+| 12 | **Gov Scout** | Government tenders | 24h | Sonnet | deep-research, compliance-checklist, tender-scoring |
 
-**Общие скиллы у ВСЕХ агентов:**
-- `amritech-crm-leads` — CRM queries и мутации
-- `amritech-team-contacts` — контакты команды
-- `amritech-self-improvement` — система саморазвития
-- `amritech-html-email` — email шаблон
-- `amritech-documents` — создание документов
+**Shared skills across ALL agents:**
+- `amritech-crm-leads` — CRM queries and mutations
+- `amritech-team-contacts` — team contacts
+- `amritech-self-improvement` — self-improvement system
+- `amritech-html-email` — email template
+- `amritech-documents` — document creation
 - `paperclip-create-plugin` — Paperclip API
 - `para-memory-files` — persistent memory
 
-### 2.3 Иерархия
+### 2.3 Hierarchy
 
 ```
-CEO (агент — головной центр)
-├── Staff Manager (надзиратель за агентами И людьми)
-│   └── Мониторит здоровье, CRM дисциплину, отчитывается CEO
+CEO (agent — central command)
+├── Staff Manager (oversees agents AND humans)
+│   └── Monitors health, CRM discipline, reports to CEO
 ├── IT Chef (devops)
-│   └── Чинит всё, ревьюит [IMPROVEMENT], замена Tim'а
+│   └── Fixes everything, reviews [IMPROVEMENT], stands in for Tim
 ├── Sales Pipeline:
-│   ├── Hunter → находит лидов
-│   ├── SDR → шлёт email'ы, follow-ups
-│   └── Closer → готовит briefing → Alex звонит
+│   ├── Hunter → finds leads
+│   ├── SDR → sends emails, follow-ups
+│   └── Closer → prepares briefing → Alex makes the call
 ├── Revenue:
 │   ├── Contract Manager → renewals, churn risk
-│   └── Finance Tracker → MRR, инвойсы, collection
+│   └── Finance Tracker → MRR, invoices, collection
 ├── Delivery:
 │   ├── Onboarding Agent → welcome, IT audit, 30-day plan
-│   └── Legal Assistant → контракты, compliance, red flags
+│   └── Legal Assistant → contracts, compliance, red flags
 ├── Expansion:
-│   ├── Gov Scout → тендеры
-│   └── Proposal Writer → КП, RFP
-└── Люди:
-    ├── Alex — решения, звонки, подписи
-    ├── Sam — звонки клиентам, collection, on-site
-    └── Tim — инфраструктура, автоматизация
+│   ├── Gov Scout → tenders
+│   └── Proposal Writer → proposals, RFPs
+└── People:
+    ├── Alex — decisions, calls, signatures
+    ├── Sam — client calls, collection, on-site
+    └── Tim — infrastructure, automation
 ```
 
 ---
 
-## 3. Как агенты устроены
+## 3. How Agents Work
 
-### 3.1 Анатомия агента
+### 3.1 Agent Anatomy
 
-Каждый агент — это Claude AI инстанс с набором файлов:
+Each agent is a Claude AI instance with a set of files:
 
-| Файл | Назначение |
-|------|------------|
-| **SOUL.md** | Характер, правила, контекст компании, принципы принятия решений. "Кто ты и как ты думаешь." |
-| **HEARTBEAT.md** | Пошаговая процедура каждого цикла. "Что ты делаешь когда просыпаешься." |
-| **TOOLS.md** | Доступные MCP инструменты и API. "Чем ты пользуешься." |
-| **AGENTS.md** | Миссия и ссылки на файлы. Entry point для Paperclip. |
+| File | Purpose |
+|------|---------|
+| **SOUL.md** | Personality, rules, company context, decision-making principles. "Who you are and how you think." |
+| **HEARTBEAT.md** | Step-by-step procedure for each cycle. "What you do when you wake up." |
+| **TOOLS.md** | Available MCP tools and APIs. "What you use." |
+| **AGENTS.md** | Mission and file references. Entry point for Paperclip. |
 
-### 3.2 Жизненный цикл агента
+### 3.2 Agent Lifecycle
 
 ```
 launchd → watchdog → Paperclip (port 4444)
                          │
                     ┌─────▼─────┐
-                    │  SLEEP    │ ← агент спит
+                    │  SLEEP    │ ← agent is sleeping
                     └─────┬─────┘
-                          │ heartbeat timer ИЛИ task assigned ИЛИ wakeup API
+                          │ heartbeat timer OR task assigned OR wakeup API
                     ┌─────▼─────┐
-                    │  WAKE     │ ← агент просыпается
+                    │  WAKE     │ ← agent wakes up
                     └─────┬─────┘
                           │
                     ┌─────▼─────┐
-                    │ READ SOUL │ ← читает свои инструкции
+                    │ READ SOUL │ ← reads its instructions
                     │ READ HB   │
                     └─────┬─────┘
                           │
                     ┌─────▼─────┐
-                    │ EXECUTE   │ ← выполняет HEARTBEAT чеклист
-                    │ HEARTBEAT │   шаг за шагом
+                    │ EXECUTE   │ ← executes HEARTBEAT checklist
+                    │ HEARTBEAT │   step by step
                     └─────┬─────┘
                           │
                     ┌─────▼─────┐
@@ -234,112 +234,112 @@ launchd → watchdog → Paperclip (port 4444)
                     └─────┬─────┘
                           │
                     ┌─────▼─────┐
-                    │ REPORT    │ ← комментарии в задачах, TG
+                    │ REPORT    │ ← comments on tasks, TG
                     └─────┬─────┘
                           │
                     ┌─────▼─────┐
-                    │  SLEEP    │ ← засыпает до следующего цикла
+                    │  SLEEP    │ ← sleeps until next cycle
                     └───────────┘
 ```
 
 ### 3.3 MCP Tools (Model Context Protocol)
 
-Каждый агент имеет доступ к MCP серверам:
+Each agent has access to MCP servers:
 
-| MCP Server | Tools | Кто использует |
-|------------|-------|---------------|
-| **twenty-crm** | 29 tools — leads, contacts, companies, notes | Все кроме Legal |
-| **telegram** | send_message, send_document, send_photo | Все |
+| MCP Server | Tools | Used By |
+|------------|-------|---------|
+| **twenty-crm** | 29 tools — leads, contacts, companies, notes | All except Legal |
+| **telegram** | send_message, send_document, send_photo | All |
 | **email** | send_email, list_emails, search_emails, get_email | SDR, Onboarding, CEO |
 | **word-docs** | create_document, add_heading, add_table, format_text | Proposal Writer, Contract Manager, Legal |
 | **pandoc** | convert between formats (MD↔DOCX↔PDF) | Proposal Writer, Legal |
 | **ddg-search** | web_search (DuckDuckGo) | Hunter, SDR, Closer, Gov Scout |
 | **web-search** | search_web, fetch_url | Hunter, SDR, Closer |
 
-### 3.4 Skills (привязаны через Paperclip API)
+### 3.4 Skills (managed via Paperclip API)
 
-Skills — это markdown файлы с инструкциями. Paperclip синхронизирует их к агентам автоматически.
+Skills are markdown files with instructions. Paperclip syncs them to agents automatically.
 
-**Привязка:** `POST /api/agents/{id}/skills/sync` с `desiredSkills[]`
+**Binding:** `POST /api/agents/{id}/skills/sync` with `desiredSkills[]`
 
-**Типы скиллов:**
-- `local/...` — наши кастомные (amritech-crm-leads и т.д.)
-- `company/...` — привязаны к компании
-- `owner/repo/slug` — из GitHub marketplace (80+ скиллов)
+**Skill types:**
+- `local/...` — our custom skills (amritech-crm-leads, etc.)
+- `company/...` — bound to the company
+- `owner/repo/slug` — from the GitHub marketplace (80+ skills)
 
 ---
 
-## 4. Обмен информацией между агентами
+## 4. Inter-Agent Communication
 
-### 4.1 Каналы обмена
+### 4.1 Communication Channels
 
-| Канал | Как работает | Примеры |
-|-------|-------------|---------|
-| **CRM (Twenty)** | Агенты читают и пишут в одну БД. Один агент обновляет поле — другой видит. | Hunter создаёт лид → SDR читает и шлёт email → обновляет outreachStatus → Closer видит |
-| **Paperclip Tasks** | Агент создаёт задачу другому агенту. Paperclip будит получателя. | SDR создаёт [BRIEFING] → Closer просыпается и готовит briefing |
-| **Paperclip Comments** | Комментарии в задачах — агенты читают историю. | Hunter оставляет сигналы → SDR читает перед email |
-| **Telegram** | Агенты пишут в общий чат. Люди видят и реагируют. | CEO шлёт дайджест → Alex одобряет → SDR продолжает |
-| **Memory (PARA)** | Каждый агент хранит свою память. Не делится напрямую, но IT Chef может прочитать. | Hunter запоминает "dental ниша конвертится лучше" |
+| Channel | How It Works | Examples |
+|---------|-------------|---------|
+| **CRM (Twenty)** | Agents read and write to a shared database. One agent updates a field — another sees it. | Hunter creates a lead → SDR reads and sends email → updates outreachStatus → Closer sees it |
+| **Paperclip Tasks** | An agent creates a task for another agent. Paperclip wakes the recipient. | SDR creates [BRIEFING] → Closer wakes up and prepares the briefing |
+| **Paperclip Comments** | Comments on tasks — agents read the history. | Hunter leaves signals → SDR reads them before writing the email |
+| **Telegram** | Agents write to the shared chat. Humans see and respond. | CEO sends digest → Alex approves → SDR proceeds |
+| **Memory (PARA)** | Each agent stores its own memory. Not shared directly, but IT Chef can read it. | Hunter remembers "dental niche converts better" |
 
-### 4.2 Протоколы передачи
+### 4.2 Handoff Protocols
 
 #### Hunter → SDR (Auto-queue)
 ```
-Условие: ICP 60+ И email DM заполнен
-Действие:
-  1. Hunter ставит CRM status: "qualified"
-  2. Hunter создаёт задачу: [AUTO-QUEUE] {Company} — ICP {score}
-  3. Paperclip будит SDR
-  4. SDR читает задачу + CRM запись → пишет email
+Condition: ICP 60+ AND decision maker email is populated
+Action:
+  1. Hunter sets CRM status: "qualified"
+  2. Hunter creates task: [AUTO-QUEUE] {Company} — ICP {score}
+  3. Paperclip wakes SDR
+  4. SDR reads task + CRM record → writes email
 ```
 
 #### SDR → Closer (Positive Reply)
 ```
-Условие: SDR классифицировал ответ как replied_interested
-Действие:
-  1. SDR обновляет CRM: outreachStatus → replied_interested, status → engaged
-  2. SDR создаёт задачу: [BRIEFING] {Company}
-  3. SDR пишет в TG: "📧 Лид ответил!"
-  4. Closer просыпается → готовит BANT briefing
+Condition: SDR classified reply as replied_interested
+Action:
+  1. SDR updates CRM: outreachStatus → replied_interested, status → engaged
+  2. SDR creates task: [BRIEFING] {Company}
+  3. SDR posts in TG: "Lead replied!"
+  4. Closer wakes up → prepares BANT briefing
 ```
 
 #### Closer → Onboarding + Contract (Closed Won)
 ```
-Условие: Alex подтвердил closed_won
-Действие:
-  1. Closer обновляет CRM: status → closed_won
-  2. Closer создаёт [ONBOARD] для Onboarding Agent
-  3. Closer создаёт [CONTRACT] для Contract Manager
-  4. TG: "🎉 Новый клиент!"
+Condition: Alex confirmed closed_won
+Action:
+  1. Closer updates CRM: status → closed_won
+  2. Closer creates [ONBOARD] for Onboarding Agent
+  3. Closer creates [CONTRACT] for Contract Manager
+  4. TG: "New client!"
 ```
 
 #### Onboarding → Finance (Completion)
 ```
-Условие: 30-дневный онбординг завершён
-Действие:
-  1. Onboarding создаёт [INVOICE] для Finance Tracker
-  2. Onboarding обновляет CRM: Client record
+Condition: 30-day onboarding complete
+Action:
+  1. Onboarding creates [INVOICE] for Finance Tracker
+  2. Onboarding updates CRM: Client record
 ```
 
 #### Any Agent → IT Chef (Tech Issue)
 ```
-Условие: Любая техническая ошибка (MCP fail, CRM down, email error)
-Действие:
-  1. Агент создаёт [TECH-ISSUE] {Agent}: {описание}
-  2. IT Chef просыпается → диагностирует → чинит или спрашивает Tim
+Condition: Any technical error (MCP fail, CRM down, email error)
+Action:
+  1. Agent creates [TECH-ISSUE] {Agent}: {description}
+  2. IT Chef wakes up → diagnoses → fixes or asks Tim
 ```
 
 #### Any Agent → IT Chef (Improvement)
 ```
-Условие: Агент заметил паттерн или возможность улучшения
-Действие:
-  1. Агент создаёт [IMPROVEMENT] {Agent}: {описание} с diff'ом
-  2. IT Chef ревьюит → одобряет (безопасное) или передаёт Tim'у (рискованное)
+Condition: Agent notices a pattern or improvement opportunity
+Action:
+  1. Agent creates [IMPROVEMENT] {Agent}: {description} with diff
+  2. IT Chef reviews → approves (safe) or escalates to Tim (risky)
 ```
 
-### 4.3 CRM как шина данных
+### 4.3 CRM as Data Bus
 
-CRM — центральная точка обмена. Все агенты читают и пишут:
+CRM is the central exchange point. All agents read and write:
 
 ```
                     ┌─────────────┐
@@ -354,59 +354,59 @@ CRM — центральная точка обмена. Все агенты чи
                     └─────────────┘
 ```
 
-**Lead поля для синхронизации:**
+**Lead fields for synchronization:**
 
-| Поле | Кто пишет | Кто читает |
-|------|----------|-----------|
+| Field | Written By | Read By |
+|-------|-----------|---------|
 | name, industry, location, icpScore | Hunter | SDR, CEO, Closer |
 | decisionMaker, decisionMakerEmail | Hunter | SDR |
-| status | Hunter → SDR → Closer → Onboarding | Все |
+| status | Hunter → SDR → Closer → Onboarding | All |
 | outreachStatus | SDR | SDR (follow-up), CEO (reports), Closer |
 | lastContactDate | SDR | SDR (follow-up timing), CEO |
-| notes | Все (append only) | Все |
+| notes | All (append only) | All |
 | signals, signalSources | Hunter | SDR (personalization), Closer |
 | estimatedMrr | Hunter | CEO, Finance |
 
 ---
 
-## 5. Оркестратор (Paperclip)
+## 5. Orchestrator (Paperclip)
 
-### 5.1 Как работает
+### 5.1 How It Works
 
-Paperclip — open-source платформа для оркестрации AI-агентов. Запускается через `pnpm dev:once` (НЕ `pnpm dev` — watch mode запрещён в production).
+Paperclip is an open-source platform for orchestrating AI agents. Started via `pnpm dev:once` (NOT `pnpm dev` — watch mode is prohibited in production).
 
-**Ключевые концепции:**
+**Key concepts:**
 - **Company** — AmriTech (id: `YOUR_COMPANY_ID`)
-- **Agent** — AI сотрудник с адаптером (claude_local), heartbeat, budget
-- **Issue** — задача (todo/in_progress/in_review/blocked/done)
-- **Skill** — markdown инструкция, привязанная к агенту
-- **Heartbeat** — периодическое пробуждение агента
+- **Agent** — AI employee with an adapter (claude_local), heartbeat, budget
+- **Issue** — task (todo/in_progress/in_review/blocked/done)
+- **Skill** — markdown instruction bound to an agent
+- **Heartbeat** — periodic agent wake-up
 
 ### 5.2 API Endpoints
 
-| Endpoint | Method | Назначение |
-|----------|--------|------------|
-| `/api/companies/{id}/agents` | GET | Список агентов |
-| `/api/agents/{id}` | PATCH | Обновить агента (имя, конфиг) |
-| `/api/agents/{id}/skills` | GET | Скиллы агента |
-| `/api/agents/{id}/skills/sync` | **POST** | Привязать скиллы (НЕ PUT!) |
-| `/api/agents/{id}/wakeup` | POST | Разбудить агента |
-| `/api/companies/{id}/issues` | GET/POST | Задачи |
-| `/api/issues/{id}/checkout` | POST | Взять задачу |
-| `/api/companies/{id}/skills` | GET | Все скиллы компании |
-| `/api/companies/{id}/skills/import` | POST | Импорт скилла из local path |
-| `/api/companies/{id}/skills/scan` | POST | Сканировать проекты на скиллы |
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/companies/{id}/agents` | GET | List agents |
+| `/api/agents/{id}` | PATCH | Update agent (name, config) |
+| `/api/agents/{id}/skills` | GET | Agent skills |
+| `/api/agents/{id}/skills/sync` | **POST** | Bind skills (NOT PUT!) |
+| `/api/agents/{id}/wakeup` | POST | Wake up an agent |
+| `/api/companies/{id}/issues` | GET/POST | Tasks |
+| `/api/issues/{id}/checkout` | POST | Check out a task |
+| `/api/companies/{id}/skills` | GET | All company skills |
+| `/api/companies/{id}/skills/import` | POST | Import skill from local path |
+| `/api/companies/{id}/skills/scan` | POST | Scan projects for skills |
 
-### 5.3 Как Paperclip будит агентов
+### 5.3 How Paperclip Wakes Agents
 
-1. **Timer (heartbeat)** — каждые N секунд (интервал в конфиге агента)
-2. **Task assignment** — когда задача назначена агенту
-3. **Wakeup API** — `POST /api/agents/{id}/wakeup` (используется webhook'ом и другими агентами)
-4. **Comment mention** — когда кто-то упомянул агента в комментарии
+1. **Timer (heartbeat)** — every N seconds (interval in agent config)
+2. **Task assignment** — when a task is assigned to the agent
+3. **Wakeup API** — `POST /api/agents/{id}/wakeup` (used by the webhook and other agents)
+4. **Comment mention** — when someone mentions the agent in a comment
 
 ### 5.4 Agent Adapter Config
 
-Каждый агент имеет `adapterConfig`:
+Each agent has an `adapterConfig`:
 
 ```json
 {
@@ -423,20 +423,20 @@ Paperclip — open-source платформа для оркестрации AI-а
 }
 ```
 
-**ВАЖНО:** Файлы инструкций агентов хранятся в ДВУХ местах:
-1. **Source:** `amritech-hq/agents/{slug}/` — наши исходники
-2. **Runtime:** `~/.paperclip/instances/default/companies/{company-id}/agents/{agent-id}/instructions/` — то что Paperclip реально читает
+**IMPORTANT:** Agent instruction files are stored in TWO locations:
+1. **Source:** `amritech-hq/agents/{slug}/` — our source files
+2. **Runtime:** `~/.paperclip/instances/default/companies/{company-id}/agents/{agent-id}/instructions/` — what Paperclip actually reads
 
-При изменении source → нужно скопировать в runtime:
+When source changes → copy to runtime:
 ```bash
 cp amritech-hq/agents/{slug}/*.md ~/.paperclip/.../agents/{agent-id}/instructions/
 ```
 
 ---
 
-## 6. Воронка продаж (Sales Pipeline)
+## 6. Sales Pipeline
 
-### 6.1 Полная воронка
+### 6.1 Full Pipeline
 
 ```
 DISCOVERY → QUALIFICATION → OUTREACH → ENGAGEMENT → MEETING → CLOSE → ONBOARD → REVENUE
@@ -444,86 +444,86 @@ DISCOVERY → QUALIFICATION → OUTREACH → ENGAGEMENT → MEETING → CLOSE �
                                                      +Alex            +Contract
 ```
 
-### 6.2 CRM статусы
+### 6.2 CRM Statuses
 
-| Status | OutreachStatus | Что происходит | Кто отвечает |
-|--------|---------------|---------------|-------------|
-| new | pending | Hunter создал, нет email | Hunter enrichment |
-| qualified | pending | ICP 60+, email есть | SDR берёт в работу |
-| contacted | email_sent | Day 0 email отправлен | SDR ждёт |
-| contacted | follow_up_1 | Day 3 follow-up | SDR ждёт |
-| contacted | follow_up_2 | Day 7 follow-up | SDR ждёт |
-| engaged | replied_interested | Положительный ответ | Alex решает |
-| engaged | replied_question | Вопрос от лида | SDR готовит ответ |
-| engaged | replied_objection | Возражение | SDR обрабатывает |
-| meeting_set | meeting_scheduled | Звонок назначен | Closer + Alex |
-| closed_won | — | Стал клиентом | Onboarding + Contract |
-| closed_lost | — | Отказ | Архив |
-| nurture | no_response | Нет ответа, вернёмся | Hunter пересканирует |
+| Status | OutreachStatus | What Happens | Owner |
+|--------|---------------|-------------|-------|
+| new | pending | Hunter created, no email | Hunter enrichment |
+| qualified | pending | ICP 60+, email available | SDR picks it up |
+| contacted | email_sent | Day 0 email sent | SDR waits |
+| contacted | follow_up_1 | Day 3 follow-up | SDR waits |
+| contacted | follow_up_2 | Day 7 follow-up | SDR waits |
+| engaged | replied_interested | Positive reply | Alex decides |
+| engaged | replied_question | Question from lead | SDR prepares response |
+| engaged | replied_objection | Objection | SDR handles it |
+| meeting_set | meeting_scheduled | Call scheduled | Closer + Alex |
+| closed_won | — | Became a client | Onboarding + Contract |
+| closed_lost | — | Declined | Archive |
+| nurture | no_response | No response, will revisit | Hunter rescans |
 
-### 6.3 Расписание отправки email'ов
+### 6.3 Email Sending Schedule
 
-- **Окно:** Пн-Чт, 8:00-10:00 AM ET
-- **Пт/выходные/вечер:** В очередь на понедельник 9 AM
-- **Подтверждение:** SDR спрашивает Alex перед первичными email'ами
-- **Follow-ups Day 3/7:** Автоматом в рабочие часы без подтверждения
-- **BCC обязательно:** cto@example.com, founder@example.com, cofounder@example.com
+- **Window:** Mon-Thu, 8:00-10:00 AM ET
+- **Fri/weekends/evenings:** Queued for Monday 9 AM
+- **Approval:** SDR asks Alex before initial emails
+- **Follow-ups Day 3/7:** Automatic during business hours without approval
+- **BCC required:** cto@example.com, founder@example.com, cofounder@example.com
 
 ---
 
-## 7. Demand система
+## 7. Demand System
 
-### 7.1 Принцип
+### 7.1 Principle
 
-Агенты не ждут молча. Если нужно действие от человека или другого агента — требуют. Вежливо, но настойчиво. С каждым часом/днём — громче.
+Agents do not wait silently. If they need action from a human or another agent, they demand it. Politely but persistently. With each passing hour/day — louder.
 
-### 7.2 SDR → Alex (ответы лидов)
+### 7.2 SDR → Alex (Lead Replies)
 
-| Прошло | Tier | Сообщение |
-|--------|------|----------|
-| 0-2ч | 1 | Обычное уведомление |
-| 2-4ч | 2 | "📧 @founder_handle, нужно решение — отвечаем?" |
-| 4-8ч | 3 | "⚠️ @founder_handle, лид остывает!" |
-| 8+ч | 4 | "🔴 @founder_handle @cto_handle СРОЧНО!" |
+| Elapsed | Tier | Message |
+|---------|------|---------|
+| 0-2h | 1 | Standard notification |
+| 2-4h | 2 | "@founder_handle, decision needed — do we reply?" |
+| 4-8h | 3 | "@founder_handle, lead is going cold!" |
+| 8+h | 4 | "@founder_handle @cto_handle URGENT!" |
 
-### 7.3 Contract Manager → Sam (renewals)
+### 7.3 Contract Manager → Sam (Renewals)
 
-| До истечения | Сообщение |
-|-------------|----------|
-| 30 дней | "@cofounder_handle, позвони клиенту" |
-| 15 дней | "⚠️ SDR outreach без ответа" |
-| 7 дней | "🔴 КРИТИЧНО! Контракт через 7 дней!" |
+| Until Expiry | Message |
+|-------------|---------|
+| 30 days | "@cofounder_handle, call the client" |
+| 15 days | "SDR outreach with no response" |
+| 7 days | "CRITICAL! Contract expires in 7 days!" |
 
-### 7.4 Finance → все (просрочки)
+### 7.4 Finance → All (Overdue Payments)
 
-| Дней | Действие |
-|------|----------|
+| Days | Action |
+|------|--------|
 | 7 | SDR reminder email |
-| 14 | "@founder_handle, решение?" |
-| 30 | "@cofounder_handle, позвони!" |
-| 45 | Повтор если нет записи в CRM |
-| 60 | "🔴 Formal notice? Pause service?" |
+| 14 | "@founder_handle, decision?" |
+| 30 | "@cofounder_handle, make the call!" |
+| 45 | Repeat if no CRM record |
+| 60 | "Formal notice? Pause service?" |
 
-### 7.5 Staff Manager → все (CRM дисциплина)
+### 7.5 Staff Manager → All (CRM Discipline)
 
-| Проблема | Demand |
-|----------|--------|
-| Alex не внёс клиентов | "📋 @founder_handle, в CRM {N} клиентов без данных" |
-| Sam не записал звонок | "📋 @cofounder_handle, нет записи в CRM после звонка" |
-| CRM данные устарели | "📋 {N} записей не обновлялись >30 дней" |
+| Issue | Demand |
+|-------|--------|
+| Alex hasn't entered clients | "@founder_handle, {N} clients in CRM missing data" |
+| Sam didn't log a call | "@cofounder_handle, no CRM record after the call" |
+| CRM data is stale | "{N} records not updated in >30 days" |
 
-### 7.6 Agent → Agent (требовательность)
+### 7.6 Agent → Agent (Accountability)
 
-- Hunter → SDR: "3 qualified лида без outreach. Лиды остынут."
-- SDR → Hunter: "Лид без email. Не могу начать outreach."
-- Closer → Alex: "Briefing готов 2 дня. Позвонишь?"
-- CEO → всем: Weekly report с KPIs людей
+- Hunter → SDR: "3 qualified leads without outreach. Leads are going cold."
+- SDR → Hunter: "Lead has no email. Cannot start outreach."
+- Closer → Alex: "Briefing has been ready for 2 days. Making the call?"
+- CEO → All: Weekly report with human KPIs
 
 ---
 
-## 8. Telegram интеграция
+## 8. Telegram Integration
 
-### 8.1 Архитектура
+### 8.1 Architecture
 
 ```
 TG Group Chat
@@ -546,53 +546,53 @@ telegram-send MCP (stdio)
     └── send_photo(file_path) → TG API sendPhoto
 ```
 
-### 8.2 Команды
+### 8.2 Commands
 
-**Quick (мгновенные):** `/status`, `/pipeline`, `/leads`, `/fix`, `/help`
+**Quick (instant):** `/status`, `/pipeline`, `/leads`, `/fix`, `/help`
 
-**Agent (будят агента):** `/ceo`, `/staff`, `/hunter`, `/sdr`, `/closer`, `/gov`, `/proposal`, `/contract`, `/finance`, `/legal`, `/onboard`, `/chef`
+**Agent (wakes agent):** `/ceo`, `/staff`, `/hunter`, `/sdr`, `/closer`, `/gov`, `/proposal`, `/contract`, `/finance`, `/legal`, `/onboard`, `/chef`
 
-### 8.3 Файлы и фото
+### 8.3 Files and Photos
 
-**Входящие (люди → агенты):**
-1. Webhook получает `message.photo` или `message.document`
-2. Скачивает через TG API `getFile` → download
-3. Сохраняет в `/tmp/amritech-tg-files/`
-4. Создаёт задачу агенту с путём к файлу
-5. Caption определяет маршрутизацию: `/hunter визитка` → Hunter
+**Incoming (humans → agents):**
+1. Webhook receives `message.photo` or `message.document`
+2. Downloads via TG API `getFile` → download
+3. Saves to `/tmp/amritech-tg-files/`
+4. Creates a task for the agent with the file path
+5. Caption determines routing: `/hunter business card` → Hunter
 
-**Исходящие (агенты → люди):**
-- `send_document` — DOCX, PDF, любой файл
+**Outgoing (agents → humans):**
+- `send_document` — DOCX, PDF, any file
 - `send_photo` — PNG, JPG
 
 ---
 
-## 9. Email система
+## 9. Email System
 
-### 9.1 Конфигурация
+### 9.1 Configuration
 
-| Параметр | Значение |
-|----------|----------|
+| Parameter | Value |
+|-----------|-------|
 | SMTP | smtp.ionos.com:587 (STARTTLS) |
 | IMAP | imap.ionos.com:993 (TLS) |
 | From | agent@yourcompany.example.com |
 | Name | YourCompany LLC |
 | BCC | cto@example.com, founder@example.com, cofounder@example.com |
 
-### 9.2 Email шаблон
+### 9.2 Email Template
 
 - **Layout:** Table-based (email-safe)
-- **Header:** Gradient #003D8F → #1474C4, белый лого `Main_logo-email.png`
-- **Accent:** Золотая полоска #EC9F00
+- **Header:** Gradient #003D8F → #1474C4, white logo `Main_logo-email.png`
+- **Accent:** Gold stripe #EC9F00
 - **CTA:** "Book a 15-min Phone Call" → Calendly
-- **Подпись:** Alex Founder, Co-Founder & CEO, с золотой полоской
+- **Signature:** Alex Founder, Co-Founder & CEO, with gold stripe
 - **Footer:** "Just reply to this email — we read and respond to every message."
-- **Все стили inline** — ни один email клиент не сломает
+- **All styles inline** — no email client will break the layout
 
-### 9.3 Типы email'ов
+### 9.3 Email Types
 
-| Тип | Шаблон | Tone |
-|-----|--------|------|
+| Type | Template | Tone |
+|------|----------|------|
 | Cold outreach | Full (header + CTA) | Helpful, direct |
 | Follow-up Day 3 | Plain reply | New angle, value add |
 | Follow-up Day 7 | Plain reply | Gracious close |
@@ -604,30 +604,30 @@ telegram-send MCP (stdio)
 
 ## 10. CRM Sync Service
 
-### 10.1 Как работает
+### 10.1 How It Works
 
-`crm-sync/index.js` — Node.js сервис на порту 3089.
+`crm-sync/index.js` — Node.js service on port 3089.
 
-1. Каждые 60 секунд polls Paperclip API для задач `[LEAD]` и `[HOT]`
-2. Парсит описание задачи (markdown) → извлекает поля лида
-3. Ищет лид в CRM по имени → create или update
-4. ICP 60+ с email → `status: "qualified"` (auto-queue для SDR)
-5. Safety net: каждые 5 мин проверяет `replied_interested` без [BRIEFING] задачи
+1. Every 60 seconds polls Paperclip API for `[LEAD]` and `[HOT]` tasks
+2. Parses task description (markdown) → extracts lead fields
+3. Searches for lead in CRM by name → create or update
+4. ICP 60+ with email → `status: "qualified"` (auto-queue for SDR)
+5. Safety net: every 5 min checks for `replied_interested` without a [BRIEFING] task
 
-### 10.2 Формат задачи Hunter'а (для парсинга)
+### 10.2 Hunter Task Format (for parsing)
 
 ```markdown
 ## {Company} — {Niche} — ICP Score: {XX}/100
 
 **Fit Score:** {XX}/100 | **Intent Score:** {XX}/100
-**Estimated MRR:** ${X,XXX}/мес
+**Estimated MRR:** ${X,XXX}/mo
 **Employees:** ~{N}
 **Location:** {City, State}
 **Website:** {URL}
 **Current IT:** {Competitor or "Unknown"}
 
 ### Decision Maker
-- **Name:** {Имя Фамилия}
+- **Name:** {First Last}
 - **Email:** {email}
 - **Phone:** {XXX-XXX-XXXX}
 
@@ -639,32 +639,32 @@ telegram-send MCP (stdio)
 
 ## 11. Watchdog
 
-### 11.1 Расположение
+### 11.1 Location
 
-- **Скрипт:** `~/.paperclip/watchdog.sh` (вне проекта Paperclip чтобы не триггерить плашку RESTART)
-- **Source copy:** `scripts/watchdog.sh` (в git для бэкапа)
+- **Script:** `~/.paperclip/watchdog.sh` (outside the Paperclip project to avoid triggering the RESTART banner)
+- **Source copy:** `scripts/watchdog.sh` (in git for backup)
 - **launchd:** `~/Library/LaunchAgents/com.amritech.paperclip-watchdog.plist`
 
-### 11.2 Что мониторит
+### 11.2 What It Monitors
 
-| Сервис | Проверка | При падении |
-|--------|---------|------------|
+| Service | Check | On Failure |
+|---------|-------|-----------|
 | Paperclip (4444) | lsof port check | `pnpm dev:once` |
 | Twenty CRM (5555) | docker ps | `docker compose restart` |
 | TG Webhook (3088) | lsof port check | `node index.js` |
 | CRM Sync (3089) | lsof port check | `node index.js` |
 | Cloudflare Tunnel | pgrep cloudflared | `cloudflared tunnel run` |
 
-### 11.3 Цикл
+### 11.3 Cycle
 
-Каждые 60 секунд:
-1. Rotate log (если >10MB)
-2. Проверить Paperclip
-3. Проверить Twenty CRM
-4. Проверить TG Webhook
-5. Проверить CRM Sync
-6. Проверить Cloudflare Tunnel
-7. Проверить здоровье агентов
+Every 60 seconds:
+1. Rotate log (if >10MB)
+2. Check Paperclip
+3. Check Twenty CRM
+4. Check TG Webhook
+5. Check CRM Sync
+6. Check Cloudflare Tunnel
+7. Check agent health
 8. Sleep 60
 
 ### 11.4 launchd
@@ -673,128 +673,130 @@ telegram-send MCP (stdio)
 RunAtLoad: true
 KeepAlive: true
 ```
-Автостарт при загрузке Mac. Если watchdog умрёт — launchd перезапустит.
+Auto-starts on Mac boot. If watchdog dies — launchd restarts it.
 
 ---
 
-## 12. Система саморазвития
+## 12. Self-Improvement System
 
-### 12.1 Принцип
+### 12.1 Principle
 
-Агенты НЕ меняют свои файлы. Они предлагают изменения через `[IMPROVEMENT]` задачи. IT Chef ревьюит.
+Agents DO NOT modify their own files. They propose changes via `[IMPROVEMENT]` tasks. IT Chef reviews.
 
 ### 12.2 Workflow
 
 ```
-Агент замечает паттерн
+Agent notices a pattern
     ↓
-Создаёт [IMPROVEMENT] задачу IT Chef'у
-(файл, текущее поведение, предлагаемое, данные, ожидаемый результат)
+Creates [IMPROVEMENT] task for IT Chef
+(file, current behavior, proposed change, data, expected outcome)
     ↓
-IT Chef ревьюит:
-├── Безопасно? → Одобряет, вносит изменение, рапорт в TG
-├── Рискованно? → Передаёт Tim'у
-└── Не обосновано? → Отклоняет с объяснением
+IT Chef reviews:
+├── Safe? → Approves, applies change, reports in TG
+├── Risky? → Escalates to Tim
+└── Not justified? → Rejects with explanation
 ```
 
-### 12.3 Что IT Chef одобряет сам
-- Новые паттерны для конкретного агента
-- Уточнения к инструкциям
-- Новые CRM query примеры
-- Оптимизация шагов
-- Read-only скиллы
+### 12.3 What IT Chef Can Approve
 
-### 12.4 Что только Tim
-- Удаление BCC правила
-- Изменение approval gates
-- Изменение escalation каскада
-- Новые агенты
-- Изменение CRM schema
-- Изменения инфраструктуры
+- New patterns for a specific agent
+- Clarifications to instructions
+- New CRM query examples
+- Step optimizations
+- Read-only skills
+
+### 12.4 What Only Tim Can Approve
+
+- Removing the BCC rule
+- Changing approval gates
+- Changing the escalation cascade
+- New agents
+- CRM schema changes
+- Infrastructure changes
 
 ---
 
-## 13. IT Chef — подробно
+## 13. IT Chef — Detailed
 
-### 13.1 Auto-Fix Playbooks (без спроса Tim'а)
+### 13.1 Auto-Fix Playbooks (without asking Tim)
 
-| Проблема | Fix | Рапорт |
-|----------|-----|--------|
-| Сервис упал | Перезапуск | "🔧 Auto-fix: {service} перезапущен" |
-| Docker restart loop | docker compose restart | "🔧 Auto-fix: containers перезапущены" |
-| Stale задача >48ч | Unlock, reset to todo | "🔧 Auto-fix: задача разблокирована" |
-| Дубль лида в CRM | Merge | "🔧 Auto-fix: дубль удалён" |
-| Диск >80% | docker system prune, очистка логов | "🔧 Auto-fix: почистил {N}GB" |
+| Issue | Fix | Report |
+|-------|-----|--------|
+| Service down | Restart | "Auto-fix: {service} restarted" |
+| Docker restart loop | docker compose restart | "Auto-fix: containers restarted" |
+| Stale task >48h | Unlock, reset to todo | "Auto-fix: task unblocked" |
+| Duplicate lead in CRM | Merge | "Auto-fix: duplicate removed" |
+| Disk >80% | docker system prune, clear logs | "Auto-fix: cleaned {N}GB" |
 
 ### 13.2 Known Issues Database
 
-`it-chef/known-issues.md` — после каждого инцидента:
+`it-chef/known-issues.md` — after every incident:
 ```
-### {дата} — {описание}
-- Симптом: {что видели}
-- Root Cause: {почему}
-- Fix: {что сделали}
-- Prevention: {как не допустить}
+### {date} — {description}
+- Symptom: {what was observed}
+- Root Cause: {why}
+- Fix: {what was done}
+- Prevention: {how to prevent}
 - Auto-fixable: Yes/No
 ```
 
 ### 13.3 Proactive Monitoring
 
-| Метрика | Warning | Critical |
-|---------|---------|----------|
-| Диск | >70% | >85% |
-| Docker restarts | >2/час | >5/час |
-| CRM response | >3с | >10с |
-| Agent success rate | <50%/день | <20% |
-| Stale tasks | >3 у агента | >10 total |
+| Metric | Warning | Critical |
+|--------|---------|----------|
+| Disk | >70% | >85% |
+| Docker restarts | >2/hr | >5/hr |
+| CRM response | >3s | >10s |
+| Agent success rate | <50%/day | <20% |
+| Stale tasks | >3 per agent | >10 total |
 
 ---
 
-## 14. Безопасность
+## 14. Security
 
-### 14.1 Текущее состояние
+### 14.1 Current State
 
-| Аспект | Статус |
+| Aspect | Status |
 |--------|--------|
-| CRM данные | Локальные (Docker на Mac Tim'а) |
-| Email | IONOS (свой домен, TLS) |
-| Telegram | Закрытая группа, бот с dedup |
-| Доступ к Paperclip | localhost:4444 (пока только Tim) |
-| Доступ к CRM | localhost:5555 (пока только Tim) |
-| API ключи | В env vars и конфигах (не в git) |
+| CRM data | Local (Docker on Tim's Mac) |
+| Email | IONOS (own domain, TLS) |
+| Telegram | Private group, bot with dedup |
+| Paperclip access | localhost:4444 (Tim only for now) |
+| CRM access | localhost:5555 (Tim only for now) |
+| API keys | In env vars and configs (not in git) |
 
-### 14.2 Cloudflare Access (планируется)
+### 14.2 Cloudflare Access (planned)
 
-- `crm.yourcompany.example.com` и `dispatch.yourcompany.example.com` через named tunnel
-- Cloudflare Access: вход по email + одноразовый код
-- Допущенные email'ы: founder@example.com, cofounder@example.com, cto@example.com
-- Бесплатный план (до 50 юзеров)
+- `crm.yourcompany.example.com` and `dispatch.yourcompany.example.com` via named tunnel
+- Cloudflare Access: login via email + one-time code
+- Allowed emails: founder@example.com, cofounder@example.com, cto@example.com
+- Free plan (up to 50 users)
 
-### 14.3 Что агенты НЕ могут
+### 14.3 What Agents CANNOT Do
 
-- Менять свои SOUL/HEARTBEAT файлы (только через [IMPROVEMENT] → IT Chef)
-- Удалять данные из CRM
-- Контактировать клиентов напрямую (только через Email MCP с BCC)
-- Принимать финансовые решения
-- Подписывать контракты
+- Modify their own SOUL/HEARTBEAT files (only via [IMPROVEMENT] → IT Chef)
+- Delete data from CRM
+- Contact clients directly (only via Email MCP with BCC)
+- Make financial decisions
+- Sign contracts
 
 ---
 
 ## 15. Calendly
 
 - **URL:** https://calendly.com/amritech/15-min-it-discovery-call
-- **Тип:** One-on-one, 15 min, Phone call
-- **Доступность:** Mon-Fri, 9 AM - 5 PM ET
-- **В email'ах:** Кнопка "Book a 15-min Phone Call" ведёт на Calendly
-- **Клиент выбирает время → Alex получает приглашение в календарь**
+- **Type:** One-on-one, 15 min, Phone call
+- **Availability:** Mon-Fri, 9 AM - 5 PM ET
+- **In emails:** "Book a 15-min Phone Call" button links to Calendly
+- **Client selects a time → Alex receives a calendar invite**
 
 ---
 
-## 16. Контакты и конфиг
+## 16. Contacts and Config
 
 ### Agent IDs (Paperclip)
 
-| Агент | ID |
+| Agent | ID |
 |-------|----|
 | CEO | AGENT_UUID_CEO |
 | Hunter | AGENT_UUID_HUNTER |
@@ -822,4 +824,4 @@ IT Chef ревьюит:
 
 ---
 
-*Документация актуальна на 22 марта 2026. При изменениях — обновлять этот файл.*
+*Documentation current as of March 22, 2026. Update this file when changes are made.*
