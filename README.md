@@ -585,6 +585,15 @@ If you build your own HQ pack — I'd love to feature it here.
 
 <br/>
 
+## Built With
+
+- [Paperclip](https://github.com/paperclipai/paperclip) — open-source orchestration for AI companies
+- [Twenty CRM](https://github.com/twentyhq/twenty) — open-source CRM (our pipeline + lead management)
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — CLI for Claude (runs all 12 agents via `claude_local`)
+- [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) — secure HTTPS access without port forwarding
+- [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) — local voice transcription for Telegram voice messages
+- [Apollo.io](https://www.apollo.io/) — contact enrichment for Hunter lead discovery
+
 ## License
 
 MIT — do whatever you want with it.
