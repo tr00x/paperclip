@@ -96,3 +96,5 @@ tests/release-smoke/playwright-report/
 .superset/
 # Planning directory (internal dev notes)
 .planning/
+*.docx
+~$*
