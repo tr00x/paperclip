@@ -139,9 +139,9 @@ Voice messages get downloaded, transcribed via Whisper (base model — tiny prod
 
 **Role-Based Button Presets:**
 Three specialized button sets beyond the standard [Comment/Done/Block/Urgent]:
-- `berik_decision` — CEO lead approval: [Yes, call them! / Skip]
-- `ula_call` — Account manager call tracking: [Called — writing result / Didn't reach / Client agreed! / Rejected]
-- `berik_pricing` — Pricing approval: [Pricing ready — call them / Question about pricing]
+- `ceo_decision` — CEO lead approval: [Yes, call them! / Skip]
+- `account_mgr_call` — Account manager call tracking: [Called — writing result / Didn't reach / Client agreed! / Rejected]
+- `ceo_pricing` — Pricing approval: [Pricing ready — call them / Question about pricing]
 
 **Team-Only Access:**
 Username whitelist checked on every callback and message. Non-team members get silently ignored (200 OK, no error — invisible to outsiders). Optional chat ID enforcement for group-only operation.
@@ -320,7 +320,7 @@ Not interested → gracious close, mark `closed`, remove from sequences. No guil
 
 #### IT Chef — The Self-Healing CTO
 
-Not Tim's assistant. **Tim's full replacement** when he's offline. Autonomous authority over:
+Not the CTO's assistant. **The CTO's full replacement** when they're offline. Autonomous authority over:
 - Restart any Docker container, tunnel, or service
 - Fix agent configs (TOOLS.md, MCP configs)
 - Unlock stuck tasks >48h
@@ -339,7 +339,7 @@ Task stalled >48h             → API unlock, reset to todo
 Disk >80%                     → docker system prune -f, clean logs
 ```
 
-Escalation to Tim only for: SOUL.md changes, new agent hires, customer data deletion, business strategy changes. Everything else — IT Chef handles it.
+Escalation to the human CTO only for: SOUL.md changes, new agent hires, customer data deletion, business strategy changes. Everything else — IT Chef handles it.
 
 Every incident gets recorded in a known-issues database with: symptom, root cause, fix, prevention, auto-fixable flag.
 
@@ -621,5 +621,3 @@ Stars = motivation. Let's build this together.
   Built with <a href="https://github.com/paperclipai/paperclip">Paperclip</a> and too many sleepless nights.<br/>
   <sub>By <a href="https://github.com/tr00x">@tr00x</a></sub>
 </p>
-</content>
-</invoke>
