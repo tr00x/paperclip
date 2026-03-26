@@ -34,15 +34,15 @@ I built this over weeks of sleepless nights — a full AI-powered HQ for an MSP 
 
 > Screenshots are in Russian — that's how we used it. Fully customizable to any language via the [Claude Code prompt below](#one-click-customization-with-claude-code).
 
-| Main Menu | SDR Report | Hunter Report |
-|:---------:|:----------:|:-------------:|
-| <img src="doc/assets/screenshots/tg-main-menu.jpg" width="250"/> | <img src="doc/assets/screenshots/tg-sdr-report.png" width="250"/> | <img src="doc/assets/screenshots/tg-hunter-report.png" width="250"/> |
-| 12 agents, full command center | SMTP throttling, auto-retry | ICP scoring, DM verification |
+| HQ Status (12 agents) | Menu (command center) | Watchdog Alerts |
+|:----------------------:|:---------------------:|:---------------:|
+| <img src="doc/assets/screenshots/tg-hq-status.jpg" width="250"/> | <img src="doc/assets/screenshots/tg-menu.jpg" width="250"/> | <img src="doc/assets/screenshots/tg-watchdog.png" width="250"/> |
+| Live agent status dashboard | 12 buttons, full control | Self-healing Docker restarts |
 
-| Lead Enrichment | Watchdog Alerts |
-|:---------------:|:---------------:|
-| <img src="doc/assets/screenshots/tg-hunter-enrichment.png" width="250"/> | <img src="doc/assets/screenshots/tg-watchdog-alerts.png" width="250"/> |
-| Enrichment queue, stale lead cleanup | Self-healing Docker restarts |
+| Hunter Enrichment | SDR Outreach | Agent Interaction |
+|:-----------------:|:------------:|:-----------------:|
+| <img src="doc/assets/screenshots/tg-hunter-enrichment.png" width="250"/> | <img src="doc/assets/screenshots/tg-sdr-outreach.png" width="250"/> | <img src="doc/assets/screenshots/tg-agent-interaction.png" width="250"/> |
+| ICP scoring, DM verification | SMTP throttle, sequences | Reply to any agent via Telegram |
 
 ---
 
@@ -144,13 +144,12 @@ graph TB
 
 | Server | Used By |
 |--------|---------|
-| Twenty CRM | Hunter, SDR, Closer, CEO |
-| Telegram | All agents |
-| Email SMTP/IMAP | SDR, Onboarding, Contracts |
-| Word Docs | Proposals, Contracts |
-| Web Search | Hunter, Gov Scout |
-| Apollo.io | Hunter |
-| Serena | IT Chef |
+| [Twenty CRM](https://github.com/twentyhq/twenty) (custom lite) | 11 of 12 agents |
+| [Telegram Send](https://core.telegram.org/bots/api) (custom) | 11 of 12 agents |
+| [Email SMTP/IMAP](https://www.npmjs.com/package/@codefuturist/email-mcp) | SDR, IT Chef, Onboarding |
+| [Web Search](https://www.npmjs.com/package/@zhafron/mcp-web-search) | Hunter, SDR, IT Chef, Gov Scout, Closer, Proposal Writer |
+| [Apollo.io](https://www.apollo.io/) (custom) | Hunter |
+| [Serena](https://github.com/oraios/serena) | IT Chef |
 
 </td><td>
 
@@ -410,9 +409,12 @@ You might find traces of the original company in some files. I scrubbed what I c
 | [Paperclip](https://github.com/paperclipai/paperclip) | AI company orchestration |
 | [Twenty CRM](https://github.com/twentyhq/twenty) | Open-source CRM |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Agent runtime (`claude_local`) |
-| [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) | Secure remote access |
-| [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Voice transcription |
-| [Apollo.io](https://www.apollo.io/) | Contact enrichment |
+| [Serena](https://github.com/oraios/serena) | Semantic code analysis MCP for IT Chef |
+| [@codefuturist/email-mcp](https://www.npmjs.com/package/@codefuturist/email-mcp) | Gmail SMTP/IMAP for SDR & Onboarding |
+| [@zhafron/mcp-web-search](https://www.npmjs.com/package/@zhafron/mcp-web-search) | Web search for 6 agents |
+| [Apollo.io](https://www.apollo.io/) | Contact enrichment for Hunter |
+| [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) | Secure remote access (3 tunnels) |
+| [Whisper.cpp](https://github.com/ggerganov/whisper.cpp) | Voice-to-task via Telegram |
 
 ---
 
