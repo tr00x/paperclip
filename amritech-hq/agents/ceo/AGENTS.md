@@ -1,7 +1,7 @@
 ---
 name: ceo
 title: Chief Executive Officer
-company: AmriTech IT Solutions
+company: YourCompany LLC
 reportsTo: null
 directReports:
   - hunter

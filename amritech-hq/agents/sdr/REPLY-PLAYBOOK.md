@@ -18,16 +18,16 @@
 
 1. Update Twenty CRM: `outreachStatus` → `replied_interested`, `status` → `engaged`, `lastContactDate` → now
 2. **Telegram:** уведомление команде (формат из Step 0.5 HEARTBEAT)
-3. **Жди подтверждения @ikberik** — Berik подтверждает, двигаемся ли дальше
+3. **Жди подтверждения @founder_handle** — Alex подтверждает, двигаемся ли дальше
 4. **После подтверждения — AUTO-HANDOFF (2 задачи):**
    1. Задача Closer'у: `[BRIEFING] {Company} — positive reply, meeting prep needed`
       - Описание: CRM ID лида, суть ответа, сигналы Hunter, email thread
       - Assign: Closer agent
-   2. Задача для @UlaAmri: `[CALL] {Company} — intro/discovery call`
-      - Описание: "Лид ответил положительно. Ula — позвони, познакомься, выясни потребности. Запиши результат в CRM."
-      - Telegram: "@UlaAmri, новый горячий лид {Company}! Позвони — intro call. Closer готовит briefing параллельно."
-5. **НЕ отвечай сам** на email — Ula звонит, Berik решает
-6. Draft a suggested response for Berik if the reply contains specific questions
+   2. Задача для @cofounder_handle: `[CALL] {Company} — intro/discovery call`
+      - Описание: "Лид ответил положительно. Sam — позвони, познакомься, выясни потребности. Запиши результат в CRM."
+      - Telegram: "@cofounder_handle, новый горячий лид {Company}! Позвони — intro call. Closer готовит briefing параллельно."
+5. **НЕ отвечай сам** на email — Sam звонит, Alex решает
+6. Draft a suggested response for Alex if the reply contains specific questions
 
 ---
 

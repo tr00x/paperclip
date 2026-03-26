@@ -5,7 +5,7 @@
 - ALL communication with team = Russian: Telegram, Paperclip comments, CEO reports, demands, status updates
 - No $AGENT_HOME (doesn't exist in Paperclip)
 - No "Read SOUL.md/TOOLS.md at runtime" (files already injected, can't re-read)
-- Email: account="amritech", to/bcc=arrays, isHtml=true, BCC=tr00x/ikberik/ula
+- Email: account="yourcompany", to/bcc=arrays, isHtml=true, BCC=cto/founder/cofounder
 
 ## Fake $AGENT_HOME references to remove/fix
 
@@ -39,12 +39,12 @@
 ## Wrong emails to fix
 
 ### onboarding-agent/HEARTBEAT.md
-- Line 136: berik@amritechsolutions.com → agent@amritech.us
-- Line 137: CC: ula@amritechsolutions.com → BCC: tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com
-- Line 184: CC: ula@amritechsolutions.com → same fix
+- Line 136: agent@yourcompany.example.com → agent@yourcompany.example.com
+- Line 137: CC: cofounder@example.com → BCC: cto@example.com, founder@example.com, cofounder@example.com
+- Line 184: CC: cofounder@example.com → same fix
 
 ### proposal-writer/SOUL.md
-- Line 262: berik@amritechsolutions.com → agent@amritech.us
-- Line 264: www.amritechsolutions.com → amritech.us
+- Line 262: agent@yourcompany.example.com → agent@yourcompany.example.com
+- Line 264: yourcompany.example.com → yourcompany.example.com
 
 ## After fixing: sync all to Paperclip + commit

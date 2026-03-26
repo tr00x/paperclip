@@ -2,278 +2,624 @@
   <img src="doc/assets/header.png" alt="Paperclip — runs your business" width="720" />
 </p>
 
+<h1 align="center">AmriTech AI HQ — A Real-World AI Company Running on Paperclip</h1>
+
 <p align="center">
-  <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
-  <a href="https://paperclip.ing/docs"><strong>Docs</strong></a> &middot;
-  <a href="https://github.com/paperclipai/paperclip"><strong>GitHub</strong></a> &middot;
-  <a href="https://discord.gg/m4HZY7xNG3"><strong>Discord</strong></a>
+  <strong>12 autonomous AI agents. 9 Docker containers. 80+ commits of battle-tested config. Zero hand-holding.</strong><br/>
+  <sub>A production-grade setup for running an MSP business with 3 humans and an AI army.</sub>
 </p>
 
 <p align="center">
-  <a href="https://github.com/paperclipai/paperclip/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
-  <a href="https://github.com/paperclipai/paperclip/stargazers"><img src="https://img.shields.io/github/stars/paperclipai/paperclip?style=flat" alt="Stars" /></a>
-  <a href="https://discord.gg/m4HZY7xNG3"><img src="https://img.shields.io/discord/000000000?label=discord" alt="Discord" /></a>
+  <a href="https://github.com/paperclipai/paperclip"><img src="https://img.shields.io/badge/platform-Paperclip-blue" alt="Paperclip" /></a>
+  <a href="https://github.com/tr00x/paperclip/blob/opensource/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
+  <a href="https://github.com/tr00x/paperclip/stargazers"><img src="https://img.shields.io/github/stars/tr00x/paperclip?style=flat" alt="Stars" /></a>
 </p>
 
 <br/>
 
-<div align="center">
-  <video src="https://github.com/user-attachments/assets/773bdfb2-6d1e-4e30-8c5f-3487d5b70c8f" width="600" controls></video>
-</div>
+## The Story
+
+I built this over weeks of sleepless nights. An entire AI-powered headquarters for a managed IT services company — lead generation, sales outreach, contract management, government tenders, client onboarding, finance tracking — all running autonomously on scheduled heartbeats.
+
+12 agents. A self-healing watchdog. CRM integration. Telegram bot with inline menus. Voice messages via Whisper. Branded HTML email templates. Auto-backups every 6 hours. Cloudflare tunnels for remote access. A full approval protocol so agents can't go rogue.
+
+**Then my team never used it.**
+
+So I'm open-sourcing the whole thing. Every agent config. Every skill. Every Docker setup. The self-healing watchdog. The CRM integration. All of it.
+
+If this resonates with you — if you've ever wanted to see what a fully autonomous AI company actually looks like in production — here it is. No toy demos, no "coming soon." This ran real operations.
+
+**If this helped you or inspired you, drop a star. I'll keep building ready-made HQ packs for different industries.**
+
+> **Important:** This runs entirely on **`claude_local`** adapter — just Claude Code CLI on your machine. No OpenClaw, no cloud agents, no external orchestration runtime. Pure Claude Code + Paperclip + Docker.
 
 <br/>
 
-## What is Paperclip?
+## Screenshots — Real Production Telegram Bot
 
-# Open-source orchestration for zero-human companies
+<p align="center">
+  <img src="doc/assets/screenshots/tg-main-menu.jpg" alt="Telegram Main Menu — 12 agents, full command center" width="320" />
+</p>
+<p align="center"><sub>Main menu — 12 AI agents on duty 24/7. Message Agent, CRM, Sales, Tasks, Approvals, Errors — all from your phone.</sub></p>
 
-**If OpenClaw is an _employee_, Paperclip is the _company_**
+<p align="center">
+  <img src="doc/assets/screenshots/tg-sdr-report.png" alt="SDR SMTP throttling report" width="320" />
+  &nbsp;&nbsp;
+  <img src="doc/assets/screenshots/tg-hunter-report.png" alt="Hunter lead enrichment report" width="320" />
+</p>
+<p align="center"><sub>Left: SDR reporting SMTP rate limit with auto-retry. Right: Hunter enrichment cycle — ICP scoring, DM verification, CRM updates.</sub></p>
 
-Paperclip is a Node.js server and React UI that orchestrates a team of AI agents to run a business. Bring your own agents, assign goals, and track your agents' work and costs from one dashboard.
-
-It looks like a task manager — but under the hood it has org charts, budgets, governance, goal alignment, and agent coordination.
-
-**Manage business goals, not pull requests.**
-
-|        | Step            | Example                                                            |
-| ------ | --------------- | ------------------------------------------------------------------ |
-| **01** | Define the goal | _"Build the #1 AI note-taking app to $1M MRR."_                    |
-| **02** | Hire the team   | CEO, CTO, engineers, designers, marketers — any bot, any provider. |
-| **03** | Approve and run | Review strategy. Set budgets. Hit go. Monitor from the dashboard.  |
-
-<br/>
-
-> **COMING SOON: Clipmart** — Download and run entire companies with one click. Browse pre-built company templates — full org structures, agent configs, and skills — and import them into your Paperclip instance in seconds.
-
-<br/>
-
-<div align="center">
-<table>
-  <tr>
-    <td align="center"><strong>Works<br/>with</strong></td>
-    <td align="center"><img src="doc/assets/logos/openclaw.svg" width="32" alt="OpenClaw" /><br/><sub>OpenClaw</sub></td>
-    <td align="center"><img src="doc/assets/logos/claude.svg" width="32" alt="Claude" /><br/><sub>Claude Code</sub></td>
-    <td align="center"><img src="doc/assets/logos/codex.svg" width="32" alt="Codex" /><br/><sub>Codex</sub></td>
-    <td align="center"><img src="doc/assets/logos/cursor.svg" width="32" alt="Cursor" /><br/><sub>Cursor</sub></td>
-    <td align="center"><img src="doc/assets/logos/bash.svg" width="32" alt="Bash" /><br/><sub>Bash</sub></td>
-    <td align="center"><img src="doc/assets/logos/http.svg" width="32" alt="HTTP" /><br/><sub>HTTP</sub></td>
-  </tr>
-</table>
-
-<em>If it can receive a heartbeat, it's hired.</em>
-
-</div>
+<p align="center">
+  <img src="doc/assets/screenshots/tg-hunter-enrichment.png" alt="Hunter lead scoring and task buttons" width="320" />
+  &nbsp;&nbsp;
+  <img src="doc/assets/screenshots/tg-watchdog-alerts.png" alt="Watchdog self-healing alerts" width="320" />
+</p>
+<p align="center"><sub>Left: Hunter closing stale leads + enrichment queue. Right: Watchdog self-healing — Docker restart loops detected, tunnels restarted automatically.</sub></p>
 
 <br/>
 
-## Paperclip is right for you if
+## What's Inside
 
-- ✅ You want to build **autonomous AI companies**
-- ✅ You **coordinate many different agents** (OpenClaw, Codex, Claude, Cursor) toward a common goal
-- ✅ You have **20 simultaneous Claude Code terminals** open and lose track of what everyone is doing
-- ✅ You want agents running **autonomously 24/7**, but still want to audit work and chime in when needed
-- ✅ You want to **monitor costs** and enforce budgets
-- ✅ You want a process for managing agents that **feels like using a task manager**
-- ✅ You want to manage your autonomous businesses **from your phone**
+This is a complete [Paperclip](https://github.com/paperclipai/paperclip) company deployment — a real org chart of AI agents that ran an MSP (Managed Service Provider) business targeting SMBs in the NYC/NJ/PA area.
 
-<br/>
+### The Agents
 
-## Features
+```
+                          ┌─────────┐
+                          │   CEO   │ Strategy, delegation, KPI tracking
+                          └────┬────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+        ┌─────┴─────┐   ┌─────┴─────┐   ┌──────┴──────┐
+        │  Staff Mgr │   │  IT Chef  │   │ Finance Trk │
+        │ (HR + Ops) │   │  (CTO)    │   │ (Controller)│
+        └─────┬──────┘   └─────┬─────┘   └─────────────┘
+              │                │
+    ┌─────────┼─────────┐     │
+    │         │         │     │
+┌───┴──┐ ┌───┴──┐ ┌────┴┐   │
+│Hunter│ │ SDR  │ │Closer│   │
+│(Lead │ │(Out- │ │(Deal │   │
+│ Gen) │ │bound)│ │Brief)│   │
+└──────┘ └──────┘ └─────┘   │
+                              │
+         ┌────────────────────┼──────────────┐
+         │                    │              │
+   ┌─────┴──────┐  ┌─────────┴───┐  ┌───────┴───────┐
+   │  Contract   │  │  Proposal   │  │   Onboarding  │
+   │  Manager    │  │  Writer     │  │   Agent       │
+   └─────────────┘  └─────────────┘  └───────────────┘
 
-<table>
-<tr>
-<td align="center" width="33%">
-<h3>🔌 Bring Your Own Agent</h3>
-Any agent, any runtime, one org chart. If it can receive a heartbeat, it's hired.
-</td>
-<td align="center" width="33%">
-<h3>🎯 Goal Alignment</h3>
-Every task traces back to the company mission. Agents know <em>what</em> to do and <em>why</em>.
-</td>
-<td align="center" width="33%">
-<h3>💓 Heartbeats</h3>
-Agents wake on a schedule, check work, and act. Delegation flows up and down the org chart.
-</td>
-</tr>
-<tr>
-<td align="center">
-<h3>💰 Cost Control</h3>
-Monthly budgets per agent. When they hit the limit, they stop. No runaway costs.
-</td>
-<td align="center">
-<h3>🏢 Multi-Company</h3>
-One deployment, many companies. Complete data isolation. One control plane for your portfolio.
-</td>
-<td align="center">
-<h3>🎫 Ticket System</h3>
-Every conversation traced. Every decision explained. Full tool-call tracing and immutable audit log.
-</td>
-</tr>
-<tr>
-<td align="center">
-<h3>🛡️ Governance</h3>
-You're the board. Approve hires, override strategy, pause or terminate any agent — at any time.
-</td>
-<td align="center">
-<h3>📊 Org Chart</h3>
-Hierarchies, roles, reporting lines. Your agents have a boss, a title, and a job description.
-</td>
-<td align="center">
-<h3>📱 Mobile Ready</h3>
-Monitor and manage your autonomous businesses from anywhere.
-</td>
-</tr>
-</table>
-
-<br/>
-
-## Problems Paperclip solves
-
-| Without Paperclip                                                                                                                     | With Paperclip                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| ❌ You have 20 Claude Code tabs open and can't track which one does what. On reboot you lose everything.                              | ✅ Tasks are ticket-based, conversations are threaded, sessions persist across reboots.                                                |
-| ❌ You manually gather context from several places to remind your bot what you're actually doing.                                     | ✅ Context flows from the task up through the project and company goals — your agent always knows what to do and why.                  |
-| ❌ Folders of agent configs are disorganized and you're re-inventing task management, communication, and coordination between agents. | ✅ Paperclip gives you org charts, ticketing, delegation, and governance out of the box — so you run a company, not a pile of scripts. |
-| ❌ Runaway loops waste hundreds of dollars of tokens and max your quota before you even know what happened.                           | ✅ Cost tracking surfaces token budgets and throttles agents when they're out. Management prioritizes with budgets.                    |
-| ❌ You have recurring jobs (customer support, social, reports) and have to remember to manually kick them off.                        | ✅ Heartbeats handle regular work on a schedule. Management supervises.                                                                |
-| ❌ You have an idea, you have to find your repo, fire up Claude Code, keep a tab open, and babysit it.                                | ✅ Add a task in Paperclip. Your coding agent works on it until it's done. Management reviews their work.                              |
-
-<br/>
-
-## Why Paperclip is special
-
-Paperclip handles the hard orchestration details correctly.
-
-|                                   |                                                                                                               |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Atomic execution.**             | Task checkout and budget enforcement are atomic, so no double-work and no runaway spend.                      |
-| **Persistent agent state.**       | Agents resume the same task context across heartbeats instead of restarting from scratch.                     |
-| **Runtime skill injection.**      | Agents can learn Paperclip workflows and project context at runtime, without retraining.                      |
-| **Governance with rollback.**     | Approval gates are enforced, config changes are revisioned, and bad changes can be rolled back safely.        |
-| **Goal-aware execution.**         | Tasks carry full goal ancestry so agents consistently see the "why," not just a title.                        |
-| **Portable company templates.**   | Export/import orgs, agents, and skills with secret scrubbing and collision handling.                          |
-| **True multi-company isolation.** | Every entity is company-scoped, so one deployment can run many companies with separate data and audit trails. |
-
-<br/>
-
-## What Paperclip is not
-
-|                              |                                                                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Not a chatbot.**           | Agents have jobs, not chat windows.                                                                                  |
-| **Not an agent framework.**  | We don't tell you how to build agents. We tell you how to run a company made of them.                                |
-| **Not a workflow builder.**  | No drag-and-drop pipelines. Paperclip models companies — with org charts, goals, budgets, and governance.            |
-| **Not a prompt manager.**    | Agents bring their own prompts, models, and runtimes. Paperclip manages the organization they work in.               |
-| **Not a single-agent tool.** | This is for teams. If you have one agent, you probably don't need Paperclip. If you have twenty — you definitely do. |
-| **Not a code review tool.**  | Paperclip orchestrates work, not pull requests. Bring your own review process.                                       |
-
-<br/>
-
-## Quickstart
-
-Open source. Self-hosted. No Paperclip account required.
-
-```bash
-npx paperclipai onboard --yes
+         ┌──────────────┐  ┌──────────────┐
+         │  Gov Scout   │  │    Legal     │
+         │ (SAM.gov +   │  │  Assistant   │
+         │  tenders)    │  │              │
+         └──────────────┘  └──────────────┘
 ```
 
-Or manually:
+| Agent | Role | What It Actually Does |
+|-------|------|----------------------|
+| **CEO** | Strategy & Delegation | Reviews KPIs, prioritizes pipeline, delegates to the team, reports to founders. Daily strategist reboot — not an empty coordinator. |
+| **Hunter** | Lead Generation | Scrapes job boards, LinkedIn, NPI registries, Apollo.io — finds companies with bad IT. Search cache, enrichment queue, real pain signal scoring. |
+| **SDR** | Outbound Sales | Sends personalized cold emails via SMTP with branded HTML templates. SMTP throttle (30s between sends, 10 max per heartbeat) to protect deliverability. |
+| **Closer** | Deal Strategy | Prepares call briefs with competitor intel, pricing recommendations, objection handling for one-call closes. |
+| **Staff Manager** | HR & Operations | Monitors all agents, flags issues, manages the AI org chart. Enforces accountability — agents delegate via tasks, demand from humans. |
+| **IT Chef** | CTO / Engineering | Promoted to full CTO — autonomous authority, no human dependency. Self-heals infrastructure, deploys fixes, manages Docker containers. Edits its own TOOLS.md. |
+| **Finance Tracker** | Controller | Tracks invoices, renewals, MRR, alerts on payment gaps. |
+| **Contract Manager** | Legal Ops | Watches contract expirations, renewal deadlines, compliance. |
+| **Proposal Writer** | Document Gen | Creates SOWs, proposals, NDAs from Word templates per deal context. |
+| **Onboarding Agent** | Client Success | Sends branded welcome packages, schedules kickoffs when deals close. |
+| **Gov Scout** | Government Sales | Monitors SAM.gov and state portals for IT tenders. Custom scoring criteria. |
+| **Legal Assistant** | Risk Analysis | Reviews contracts for red flags, advises on liability. Conservative by design. |
 
-```bash
-git clone https://github.com/paperclipai/paperclip.git
-cd paperclip
-pnpm install
-pnpm dev
+<br/>
+
+### Technical Deep Dive
+
+This isn't a weekend project. Here's what went into making it actually work.
+
+---
+
+#### Telegram Bot — Mobile Command Center (2,200+ lines)
+
+The bot is split into two servers: a **webhook receiver** (all business logic, menus, CRM queries — 2,263 lines) and an **MCP tool provider** (minimal send interface for agents). This separation means agents send messages through MCP, but all interactive logic lives in the webhook handler.
+
+**Single-Message UX:**
+The entire menu system edits ONE message in-place. No chat spam. The `editOrSend()` function tries three strategies in order: edit caption (preserves logo photo) → edit text → delete + resend. Every menu navigation, CRM query, and status check updates the same message.
+
+**CRM Live Inside Telegram:**
+10 different CRM views accessible via buttons — hot leads (70+ score), pipeline by status, outreach stats, nurture list, lost deals, tenders, clients. Each view supports pagination (10 items per page) with Previous/Next buttons. All data fetched live via GraphQL from Twenty CRM on every button press. Lead detail cards show full info with action buttons: "Send Email" (creates SDR task), "Log Call", "Change Status".
+
+**Pending State Machine:**
+When you tap an agent button, the bot doesn't create a task immediately. It enters a "pending" state — persisted to `/tmp/tg-pending-state.json` with a 10-minute auto-expiry. Your next text message becomes the task description for that agent. Same pattern for comments, status updates, and search queries. `/commands` cancel pending state.
+
+**Voice → Agent Pipeline:**
+Voice messages get downloaded, transcribed via Whisper (base model — tiny produced empty transcripts, that was a fun debug session), and the transcript becomes a task description routed to the pending agent. If transcription fails, it falls back to file attachment. Files go to `/tmp/amritech-tg-files/` with timestamp naming, and the absolute path is included in the task so agents can read it directly.
+
+**Role-Based Button Presets:**
+Three specialized button sets beyond the standard [Comment/Done/Block/Urgent]:
+- `berik_decision` — CEO lead approval: [Yes, call them! / Skip]
+- `ula_call` — Account manager call tracking: [Called — writing result / Didn't reach / Client agreed! / Rejected]
+- `berik_pricing` — Pricing approval: [Pricing ready — call them / Question about pricing]
+
+**Team-Only Access:**
+Username whitelist checked on every callback and message. Non-team members get silently ignored (200 OK, no error — invisible to outsiders). Optional chat ID enforcement for group-only operation.
+
+**Dedup Strategy:**
+Messages and callbacks are deduplicated to prevent double-processing from Telegram's webhook retries. But menu navigation and CRM pagination are explicitly excluded from dedup — users navigate fast and expect instant response.
+
+---
+
+#### Watchdog v2 — Self-Healing Daemon
+
+A bash script running via macOS launchd (`KeepAlive: true`) that polls every 30 seconds. 10MB rolling logs. Zero external dependencies — it can recover the entire stack even when I'm sleeping.
+
+**What It Monitors (10 Health Checks):**
+
+| Check | Detection | Recovery | Time |
+|-------|-----------|----------|------|
+| Docker Desktop | `docker info` fails | `open -a Docker`, wait 2min | ~120s |
+| Paperclip Server | HTTP 200 missing on `:4444/api/health` | `pkill` + `pnpm dev:once` | ~60s |
+| Stale DB State | SQL query for stuck agents/runs | Direct PG mutations (reset status, unlock tasks) | <10s |
+| Twenty CRM | Container not running | `docker compose up -d` | ~15s |
+| Telegram Webhook | Port 3088 not listening | Restart Node.js with full env | ~2s |
+| CRM Sync | Port 3089 not listening | Same pattern | ~2s |
+| Cloudflare Tunnels (x3) | PID alive but HTTP probe fails | Kill orphan + restart `cloudflared` | ~4s |
+| Backend Code Changes | `restartRequired` flag in health response | Drain active runs (5min max), then restart | 0-5min |
+| Hung Runs | SQL: runs stuck >35 minutes | Mark error, reset agent, unlock issues | <5s |
+| Agent Overdue | Heartbeat >2x interval | POST `/api/agents/{id}/wakeup` | Every 5 cycles |
+
+**The `dev:once` Decision:**
+Original setup used `tsx watch` (file watcher). Problem: every file change restarted the server, which killed all running agent processes mid-heartbeat. Replaced with `dev:once` — single start, no watcher. Watchdog handles restarts when actually needed.
+
+**Direct SQL Mutations:**
+When Paperclip crashes mid-heartbeat, agents get stuck in `running` state with locked tasks. The watchdog runs a Node.js script that connects directly to embedded Postgres and:
+- Clears `heartbeat_runs` stuck >5 minutes → status `error`
+- Resets agents in `error`/`failed` state → `idle`
+- Unlocks issues locked by dead runs (clears `checkout_run_id`, `execution_locked_at`)
+- Clears queued runs >10 minutes old
+
+No ORM, no API — raw SQL for speed and reliability when the server is down.
+
+**Sleep Prevention:**
+Runs `caffeinate -si` via launchd to prevent Mac from sleeping on AC power. Because your AI company shouldn't stop working because your laptop lid closed.
+
+---
+
+#### CRM Integration — Role-Based MCP with GraphQL
+
+The Twenty CRM MCP server implements **dynamic tool gating** — each agent gets only the CRM operations it needs:
+
+```
+Hunter:           create_lead, search_leads, update_lead, create_company, search_companies
+SDR:              get_lead, search_leads, update_lead, get_contact
+Closer:           get_lead, get_company, get_contact, list_pipeline, update_lead
+CEO:              search_leads, pipeline_stats, search_companies
+Gov Scout:        create_tender, search_tenders, create_company, search_companies
+Finance Tracker:  search_invoices, create_invoice, update_invoice, get_client
+Contract Mgr:     search_clients, get_client, update_client
 ```
 
-This starts the API server at `http://localhost:3100`. An embedded PostgreSQL database is created automatically — no setup required.
+Server spawns with `--role=<agent>` flag. Only whitelisted tools get registered with the MCP runtime — others exist in code but are unreachable. This prevents accidental mutations (SDR can't delete leads, Hunter can't touch invoices).
 
-> **Requirements:** Node.js 20+, pnpm 9.15+
-
-<br/>
-
-## FAQ
-
-**What does a typical setup look like?**
-Locally, a single Node.js process manages an embedded Postgres and local file storage. For production, point it at your own Postgres and deploy however you like. Configure projects, agents, and goals — the agents take care of the rest.
-
-If you're a solo-entreprenuer you can use Tailscale to access Paperclip on the go. Then later you can deploy to e.g. Vercel when you need it.
-
-**Can I run multiple companies?**
-Yes. A single deployment can run an unlimited number of companies with complete data isolation.
-
-**How is Paperclip different from agents like OpenClaw or Claude Code?**
-Paperclip _uses_ those agents. It orchestrates them into a company — with org charts, budgets, goals, governance, and accountability.
-
-**Why should I use Paperclip instead of just pointing my OpenClaw to Asana or Trello?**
-Agent orchestration has subtleties in how you coordinate who has work checked out, how to maintain sessions, monitoring costs, establishing governance - Paperclip does this for you.
-
-(Bring-your-own-ticket-system is on the Roadmap)
-
-**Do agents run continuously?**
-By default, agents run on scheduled heartbeats and event-based triggers (task assignment, @-mentions). You can also hook in continuous agents like OpenClaw. You bring your agent and Paperclip coordinates.
-
-<br/>
-
-## Development
-
-```bash
-pnpm dev              # Full dev (API + UI, watch mode)
-pnpm dev:once         # Full dev without file watching
-pnpm dev:server       # Server only
-pnpm build            # Build all
-pnpm typecheck        # Type checking
-pnpm test:run         # Run tests
-pnpm db:generate      # Generate DB migration
-pnpm db:migrate       # Apply migrations
+**Pipeline State Machine:**
+```
+New → Contacted → Replied → Meeting → Proposal → Closed Won / Closed Lost
+                                                         ↓
+                                                      Nurture (re-score in 30 days)
 ```
 
-See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
+**Outreach Status Tracking (SDR-specific):**
+```
+email_sent → follow_up_1 → follow_up_2 → replied_interested / cold / not_interested / no_response
+```
+
+Every status change gets a timestamped note in CRM. Every agent action requires a CRM update — work without a CRM record doesn't count as done.
+
+---
+
+#### Agent Coordination Protocol (SHARED-PROTOCOL.md)
+
+Every agent follows the same coordination sequence on each heartbeat:
+
+```
+1. GET /api/agents/me          → Confirm identity, check budget (>80% = critical tasks only)
+2. GET /api/agents/me/inbox-lite → Check for assigned tasks
+   └─ If WAKE_COMMENT_ID set  → Read the comment first (may contain urgent context)
+3. Early Exit Check            → No tasks + no wake trigger = EXIT silently (save tokens)
+4. POST /api/issues/{id}/checkout → Lock task with optimistic concurrency
+   └─ 409 Conflict = another agent was faster → skip, no retry
+5. Do the work
+6. Update CRM + Comment on task + Report in Telegram
+7. X-Paperclip-Run-Id header on all mutations → idempotency across replays
+```
+
+**The Demand System:**
+Agents don't politely suggest. They file demands with deadlines and escalation cascades:
+```
+0-2h:  Normal notification
+2h:    "@founder — {company} replied 2 hours ago. Decision needed."
+4-8h:  "Warning: lead going cold. No response in {N} hours."
+8h+:   "URGENT: @founder @cto — {company} waiting {N} hours, no decision!"
+```
+Dedup logic: demand tier is recorded in CRM notes (`DEMAND_TIER:2 sent at {datetime}`) — same tier won't fire twice.
+
+**Approval Gates:**
+Mandatory approval required for: first email to new lead, proposals to clients, new agent hires, any spend >$500. Approval request goes to Paperclip API + Telegram buttons. No workaround, no override.
+
+---
+
+#### Lead Intelligence Engine (Hunter)
+
+**Three-Dimensional ICP Scoring:**
+```
+ICP Score = (Fit × 0.40) + (Tech × 0.30) + (Intent × 0.30)
+```
+
+Each dimension scores 0-100 independently:
+
+**Fit** — Is this a good target?
+- Employees: Sweet spot 20-100 (score 100), 100-200 (75), 10-20 (50), 200-500 (25)
+- Industry: Law/Medical/Dental = 100. CRE/Accounting = 75. Restaurant/Retail = 0.
+- Geography: Brooklyn/Manhattan/JC = 100. NYC boroughs = 75. Outside tri-state = 0.
+
+**Tech** — Are they in pain?
+- No MSP + in-house IT complaints = 100
+- Unreliable break-fix guy = 85
+- Strong happy MSP = 0 (auto-skip)
+
+**Intent** — Are they buying now?
+- "Replace IT provider" in job posting = 100
+- Hiring IT helpdesk = 80
+- Data breach in news = 75
+- Glassdoor "slow computers" complaints = 60
+- New office/expansion = 50
+
+**Free Recon Script** (zero tokens, no API calls):
+```bash
+recon.sh domain.com → SSL expiry, DMARC/SPF records, WordPress version, HTTP vs HTTPS
+```
+Each finding adds +5 to +20 to the score. Expired SSL + missing DMARC + old WordPress = easy +45 points before any paid enrichment.
+
+**Score Routing:**
+| Score | Action | SLA |
+|-------|--------|-----|
+| 80-100 [HOT] | CEO task, urgent alert | 4 hours |
+| 60-79 [LEAD] | SDR outreach task | 24 hours |
+| 40-59 Nurture | CRM only, re-score in 30 days | Monthly |
+| <40 Skip | Do not pursue | Archive |
+
+---
+
+#### SDR Email System — Throttled, Templated, Tracked
+
+**Rate Limiting (Learned the Hard Way):**
+IONOS SMTP returns 450 errors after too many sends. Solution: 30-second minimum gap between sends, max 10 per heartbeat. First 450 on initial email → critical alert to IT Chef. Failed sends logged in CRM with "Queued — SMTP rate limit, next heartbeat."
+
+**4-Touch Email Sequence:**
+```
+Day 0:  Initial — 3 lines: pain observation + proof + low-friction CTA
+Day 3:  Follow-up #1 — completely different angle (industry stat, mini case study)
+Day 7:  Follow-up #2 — social proof or final value prop
+Day 14: Breakup — gracious close, open door for future
+```
+
+Every email uses the branded HTML template (enforced — skill must be loaded before every send). Subject lines: 2-5 words, lowercase, about THEIR situation. Body: 50-100 words max. Zero links, zero images (spam filter bypass).
+
+**Send Window:**
+Monday-Thursday, 8:00-10:00 AM ET only. Friday/weekends/evenings → queue in CRM, notify founder, await confirmation. Follow-ups on Day 3/7 auto-send during business hours (pre-approved).
+
+**Reply Classification (7 categories):**
+Positive interest (25-35%) → route to Closer immediately, 1-hour response SLA.
+Question about pricing → draft answer, route to CEO for approval before sending.
+Referral ("talk to our office manager") → create Hunter task with [REFERRAL] tag.
+Not interested → gracious close, mark `closed`, remove from sequences. No guilt-tripping.
+
+---
+
+#### IT Chef — The Self-Healing CTO
+
+Not Tim's assistant. **Tim's full replacement** when he's offline. Autonomous authority over:
+- Restart any Docker container, tunnel, or service
+- Fix agent configs (TOOLS.md, MCP configs)
+- Unlock stuck tasks >48h
+- Clean up CRM data corruption
+- Approve agent [IMPROVEMENT] suggestions (non-critical ones)
+- Edit its own TOOLS.md (self-modification capability)
+
+Auto-fix playbooks (no human approval needed):
+```
+Docker service crashed        → docker restart (restart: always handles most)
+Paperclip fell                → pkill + pnpm dev:once
+CRM Sync stalled              → docker restart crm-sync
+Container restart loop        → docker compose up -d --force-recreate
+PostgreSQL WAL corrupted      → pg_resetwal (from hard kill)
+Task stalled >48h             → API unlock, reset to todo
+Disk >80%                     → docker system prune -f, clean logs
+```
+
+Escalation to Tim only for: SOUL.md changes, new agent hires, customer data deletion, business strategy changes. Everything else — IT Chef handles it.
+
+Every incident gets recorded in a known-issues database with: symptom, root cause, fix, prevention, auto-fixable flag.
+
+---
+
+#### Engineering Decisions That Mattered
+
+| Decision | Why |
+|----------|-----|
+| **`dev:once` not `dev:watch`** | Watch mode killed agent processes on every file change. Watchdog handles restarts instead. |
+| **Hybrid deploy (host + Docker)** | Agents need host MCP servers + API keys. CRM needs persistent Docker volumes. Neither works alone. |
+| **Optimistic concurrency (409, no retry)** | If another agent grabs the task, retrying wastes tokens. Move to next task immediately. |
+| **Role-based CRM tools** | SDR can't accidentally delete leads. Hunter can't touch invoices. Reduces blast radius. |
+| **Three separate Cloudflare tunnels** | One tunnel down ≠ all down. Independent restart cycles. |
+| **30-second SMTP throttle** | IONOS rate limits. Learned after 450 errors killed a whole outreach batch. |
+| **Pending state with 10-min expiry** | User taps agent, types message — but if they forget, state cleans itself. |
+| **SQL direct mutations in watchdog** | When the server is dead, you can't use the API. Raw PG is the only reliable path. |
+| **52% token reduction** | Rewrote all agent instructions to be more concise. At 12 agents × 2-4h heartbeats, every token counts. |
+| **Mandatory TG reporting** | Silent agents get ignored. Forced Telegram reports create accountability and audit trail. |
+| **Demand escalation tiers** | Polite suggestions don't work. Timed demands with escalation actually get humans to act. |
 
 <br/>
 
-## Roadmap
+### Infrastructure
 
-- ⚪ Get OpenClaw onboarding easier
-- ⚪ Get cloud agents working e.g. Cursor / e2b agents
-- ⚪ ClipMart - buy and sell entire agent companies
-- ⚪ Easy agent configurations / easier to understand
-- ⚪ Better support for harness engineering
-- 🟢 Plugin system (e.g. if you want to add a knowledgebase, custom tracing, queues, etc)
-- ⚪ Better docs
+```
+┌──────────────────────────────────────────────────────────┐
+│                      Docker Host                          │
+│                                                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
+│  │Paperclip │  │Paperclip │  │PostgreSQL│              │
+│  │  Server  │  │    UI    │  │          │              │
+│  └──────────┘  └──────────┘  └──────────┘              │
+│                                                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
+│  │Twenty CRM│  │ CRM DB   │  │ Telegram │              │
+│  │ (Server) │  │(Postgres)│  │   Bot    │              │
+│  └──────────┘  └──────────┘  └──────────┘              │
+│                                                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
+│  │CF Tunnel │  │CF Tunnel │  │CF Tunnel │              │
+│  │   CRM    │  │    TG    │  │   API    │              │
+│  └──────────┘  └──────────┘  └──────────┘              │
+│                                                          │
+│  ┌──────────────────────────────────────────┐           │
+│  │  Watchdog v2                              │           │
+│  │  - Container health monitoring            │           │
+│  │  - Tunnel 530 error detection             │           │
+│  │  - Auto-restart on crash/config change    │           │
+│  │  - TG status reports                      │           │
+│  └──────────────────────────────────────────┘           │
+│                                                          │
+│  ┌──────────────────────────────────────────┐           │
+│  │  12 Claude Code Agents                    │           │
+│  │  - Heartbeat-driven (2h-4h intervals)     │           │
+│  │  - Per-agent MCP server configs           │           │
+│  │  - SOUL + TOOLS + HEARTBEAT architecture  │           │
+│  │  - Early exit when idle                   │           │
+│  └──────────────────────────────────────────┘           │
+│                                                          │
+│  ┌──────────────────────────────────────────┐           │
+│  │  Auto-backup (every 6h)                   │           │
+│  │  Paperclip DB + Twenty CRM snapshots      │           │
+│  └──────────────────────────────────────────┘           │
+└──────────────────────────────────────────────────────────┘
+```
+
+<br/>
+
+### MCP Servers (Tool Access)
+
+Each agent gets a tailored set of MCP servers — not everyone gets everything:
+
+| MCP Server | Purpose | Used By |
+|-----------|---------|---------|
+| **Twenty CRM** | Lead/deal management, pipeline ops | Hunter, SDR, Closer, CEO, Staff Mgr |
+| **Telegram** | Team notifications, founder alerts, inline menus | All agents |
+| **Email (SMTP/IMAP)** | Send/receive branded business emails | SDR, Onboarding, Contract Mgr |
+| **Word Docs** | Generate proposals, contracts, NDAs from templates | Proposal Writer, Contract Mgr |
+| **Web Search** | Research leads, check domains, competitor intel | Hunter, Gov Scout, Closer |
+| **Pandoc** | Document format conversion | Proposal Writer |
+| **Apollo.io** | Contact enrichment, company data | Hunter |
+| **Serena** | Codebase navigation, self-modification | IT Chef |
+
+<br/>
+
+### Skills (Shared Knowledge)
+
+Skills are injected at runtime — agents load them on demand, not at boot:
+
+| Skill | What It Does |
+|-------|-------------|
+| `crm-leads` | CRM conventions, lead scoring formula, pipeline stage definitions |
+| `html-email` | Branded HTML email template — mobile-optimized, company colors. Enforced on every send. |
+| `documents` | SOW/NDA/MSA templates, formatting rules, clause library |
+| `team-contacts` | Team directory, escalation paths, who handles what |
+| `infra-diagnostics` | Docker troubleshooting runbook, container restart procedures |
+| `self-improvement` | Agent self-evaluation protocol — what went well, what to improve |
+| `tender-scoring` | Government tender qualification criteria, go/no-go matrix |
+
+<br/>
+
+## Getting Started
+
+### How It Runs
+
+This entire system runs on a **Mac** with a **Claude Max subscription** ($100/mo). That's it.
+
+- **No OpenClaw.** No cloud agents. No external AI runtimes.
+- **No per-token API costs.** Claude Max = unlimited usage for all 12 agents.
+- **`claude_local` adapter** — Paperclip talks directly to Claude Code CLI on your machine.
+- **Docker** handles CRM, Telegram bot, tunnels. **Claude Code** handles all agent intelligence.
+
+**Total cost to run a 12-agent AI company: one Claude Max subscription + whatever your SMTP/domain costs.**
+
+### Prerequisites
+
+- **macOS** (tested on Apple Silicon, should work on Intel)
+- [Paperclip](https://github.com/paperclipai/paperclip) installed and running
+- Docker & Docker Compose
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) with an active subscription (Max or Pro)
+- A Telegram bot (for notifications + command center)
+- SMTP credentials (for outbound email)
+- Cloudflare account (for tunnels — optional, for remote access)
+
+### Setup
+
+1. **Clone this repo**
+   ```bash
+   git clone https://github.com/tr00x/paperclip.git
+   cd paperclip
+   git checkout opensource
+   ```
+
+2. **Copy environment templates**
+   ```bash
+   cp .env.example .env
+   cp docker/amritech/.env.example docker/amritech/.env
+   cp twenty-crm/.env.example twenty-crm/.env
+   # Edit each .env with your actual credentials
+   ```
+
+3. **Start infrastructure**
+   ```bash
+   cd docker/amritech
+   docker-compose up -d
+   ```
+
+4. **Register your company in Paperclip**
+   ```bash
+   pnpm dev
+   # Use the UI or CLI to create your company and import the amritech-hq/ config
+   ```
+
+5. **Configure MCP servers**
+   ```bash
+   cd mcp-servers
+   # Edit each mcp-*.json with your API keys, tokens, and credentials
+   ```
+
+6. **Launch agents**
+   ```bash
+   # Each agent runs as a Claude Code instance with its own config
+   # See amritech-hq/agents/*/HEARTBEAT.md for schedule configs
+   ```
+
+<br/>
+
+## Adapting This For Your Business
+
+This HQ was built for an MSP, but the architecture works for any service business:
+
+1. **Fork this repo**
+2. **Edit `amritech-hq/COMPANY.md`** — your company goals, team, region
+3. **Customize agent SOULs** — each `agents/*/SOUL.md` defines personality and domain knowledge
+4. **Adjust HEARTBEAT schedules** — how often each agent wakes up and what it checks
+5. **Swap MCP servers** — plug in your CRM, email, tools
+6. **Add your skills** — shared knowledge in `skills/` that agents can load at runtime
+
+The agent architecture is modular. Don't need Gov Scout? Delete the folder. Want to add a Support Agent? Create a new directory with SOUL.md, TOOLS.md, and HEARTBEAT.md.
+
+### One-Click Customization with Claude Code
+
+Don't want to edit configs manually? Just open Claude Code in the repo and paste this prompt:
+
+```
+I just cloned the AmriTech AI HQ template. I want to adapt it for my business.
+
+Please ask me these questions one by one, then update all configs:
+
+1. What's your company name and what do you do?
+2. Who's on your team? (names, roles, Telegram handles, emails)
+3. What's your target market? (industry, region, company size)
+4. Which agents do you need? (sales, support, finance, legal, etc.)
+5. Which agents should I remove?
+6. What's your SMTP provider? (Gmail, IONOS, SendGrid, etc.)
+7. Do you have a CRM? If not, should I keep Twenty CRM?
+8. What's your Telegram bot token?
+9. What Cloudflare tunnels do you need (if any)?
+10. What's your company goal? (e.g., "$50k MRR by Q4")
+
+After I answer, update: COMPANY.md, all SOUL.md files, TOOLS.md, HEARTBEAT.md,
+.env files, MCP configs, skills, and the team contacts skill.
+```
+
+Claude Code will walk you through the setup and rewrite every config file to match your business. No technical knowledge required.
+
+<br/>
+
+## What I Learned
+
+Building a 12-agent autonomous company taught me things no tutorial will:
+
+- **Agents need governance, not freedom.** Without approval gates and budget limits, they will go off the rails. The approval protocol saved us multiple times.
+- **Self-healing is non-negotiable.** Agents crash. Containers die. Tunnels drop. The watchdog saved me countless times. If you don't have auto-restart, you don't have a production system.
+- **Context is everything.** The SOUL → TOOLS → HEARTBEAT pattern gives agents identity, capability, and rhythm. Without all three, they're just expensive autocomplete.
+- **MCP servers are the real power.** Agents without tools are useless. The CRM + Email + Telegram stack is what made this actually functional.
+- **Heartbeats > always-on.** Scheduled execution with sleep between beats is cheaper and more reliable than persistent connections. Early exit when idle cuts costs further.
+- **Token optimization matters.** We achieved 52% token reduction by rewriting agent instructions. At scale, every token counts.
+- **Telegram is the control plane.** Having a mobile command center with inline CRM, agent messaging, and pipeline views means you can run the company from your phone.
+- **Agents that can't demand are useless.** Passive agents that "suggest" things get ignored. Ours file demands, set deadlines, and escalate. That's what makes them work.
+
+<br/>
+
+## ClipMart — Coming Soon
+
+Paperclip is building **[ClipMart](https://github.com/paperclipai/paperclip)** — a marketplace where you can download and run entire agent companies with one click. Full org structures, agent configs, skills, and MCP setups — packaged and ready to deploy.
+
+From the [Paperclip roadmap](https://github.com/paperclipai/paperclip):
+> - ClipMart — buy and sell entire agent companies
+> - Plugin system (already live)
+> - Cloud agents (Cursor, e2b)
+> - Better docs and easier configurations
+
+**When ClipMart launches, I'll be publishing full HQ packs there** — ready to install, pre-configured, battle-tested. This repo is the first one.
+
+<br/>
+
+## Planned HQ Packs
+
+If stars show interest, I'll build and release these as complete Paperclip company templates:
+
+| Pack | Agents | Status |
+|------|--------|--------|
+| **MSP / IT Services** (this repo) | CEO, Hunter, SDR, Closer, IT Chef, Staff Mgr, Finance, Contracts, Proposals, Onboarding, Gov Scout, Legal | Done |
+| **Marketing Agency** | Content Writer, Social Manager, SEO Analyst, Client Manager, Campaign Tracker | Planned |
+| **Dev Shop** | Project Manager, QA Agent, Deployment Bot, Client Liaison, Sprint Planner | Planned |
+| **E-commerce** | Inventory Tracker, Customer Support, Review Manager, Pricing Optimizer | Planned |
+| **Consulting Firm** | Researcher, Report Writer, Client Manager, Proposal Generator | Planned |
+| **Real Estate** | Lead Scraper, Listing Manager, Follow-up Agent, Market Analyst | Planned |
 
 <br/>
 
 ## Contributing
 
-We welcome contributions. See the [contributing guide](CONTRIBUTING.md) for details.
+Found a bug? Want to add a new agent template? PRs welcome.
 
-<br/>
-
-## Community
-
-- [Discord](https://discord.gg/m4HZY7xNG3) — Join the community
-- [GitHub Issues](https://github.com/paperclipai/paperclip/issues) — bugs and feature requests
-- [GitHub Discussions](https://github.com/paperclipai/paperclip/discussions) — ideas and RFC
+If you build your own HQ pack — I'd love to feature it here.
 
 <br/>
 
 ## License
 
-MIT &copy; 2026 Paperclip
+MIT — do whatever you want with it.
 
-## Star History
+<br/>
 
-[![Star History Chart](https://api.star-history.com/image?repos=paperclipai/paperclip&type=date&legend=top-left)](https://www.star-history.com/?repos=paperclipai%2Fpaperclip&type=date&legend=top-left)
+## Star This Repo
+
+If this saved you time, showed you something new, or just made you think "damn, someone actually did this" — **hit the star button**.
+
+Stars = motivation. Let's build this together.
 
 <br/>
 
 ---
 
 <p align="center">
-  <img src="doc/assets/footer.jpg" alt="" width="720" />
+  Built with <a href="https://github.com/paperclipai/paperclip">Paperclip</a> and too many sleepless nights.<br/>
+  <sub>By <a href="https://github.com/tr00x">@tr00x</a></sub>
 </p>
-
-<p align="center">
-  <sub>Open source under MIT. Built for people who want to run companies, not babysit agents.</sub>
-</p>
+</content>
+</invoke>

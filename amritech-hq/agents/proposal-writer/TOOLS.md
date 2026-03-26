@@ -20,8 +20,8 @@
 ```
 - Font: Calibri or Arial, 11pt body, 14pt headings
 - Margins: 1 inch all sides
-- Header: Document title (left), AmriTech IT Solutions (right)
-- Footer: "AmriTech IT Solutions -- Confidential" (left), page number (right)
+- Header: Document title (left), YourCompany LLC (right)
+- Footer: "YourCompany LLC -- Confidential" (left), page number (right)
 - Line spacing: 1.15
 - Table style: header row bold with shading, alternating row colors
 ```

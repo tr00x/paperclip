@@ -1,6 +1,6 @@
 ---
 name: AmriTech
-description: AI штаб для AmriTech IT Solutions & Business Services — автономные агенты для лидгена, продаж, госконтрактов и операционки
+description: AI штаб для YourCompany LLC — автономные агенты для лидгена, продаж, госконтрактов и операционки
 slug: amritech
 schema: agentcompanies/v1
 version: 2.1.0
@@ -18,21 +18,21 @@ requirements:
 
 # AmriTech
 
-AI штаб для **AmriTech IT Solutions & Business Services** — MSP из Бруклина, Нью-Йорк.
+AI штаб для **YourCompany LLC** — MSP из Бруклина, Нью-Йорк.
 
-**Сайт:** https://amritech.us/
+**Сайт:** https://yourcompany.example.com/
 **Регион:** NYC, NJ, PA
 **Слоган:** Local Technology Insights. Enterprise-Level IT Solutions.
 
 ## Команда
-- **Berik Izmaganov** (@ikberik) — Co-Founder. Управляет штабом, задачами агентов, pricing, стратегия, техническая экспертиза
-- **Ula Amri** (@UlaAmri) — Co-Founder. Все звонки клиентам, closing calls, renewals, on-site. Лицо компании
-- **Tim** (@tr00x) — CTO / AI Engineer. Строит и рулит AI штабом, разработка, DevOps
+- **Alex Founder** (@founder_handle) — Co-Founder. Управляет штабом, задачами агентов, pricing, стратегия, техническая экспертиза
+- **Sam Cofounder** (@cofounder_handle) — Co-Founder. Все звонки клиентам, closing calls, renewals, on-site. Лицо компании
+- **Tim** (@cto_handle) — CTO / AI Engineer. Строит и рулит AI штабом, разработка, DevOps
 
-**Berik и Ula — равноправные сооснователи.** Berik = операции + штаб. Ula = клиенты + продажи.
+**Alex и Sam — равноправные сооснователи.** Alex = операции + штаб. Sam = клиенты + продажи.
 
 ## Принцип
-Ula закрывает сделки и ведёт клиентов. Berik рулит штабом и pricing. Tim строит машину. AI штаб работает 24/7.
+Sam закрывает сделки и ведёт клиентов. Alex рулит штабом и pricing. Tim строит машину. AI штаб работает 24/7.
 
 ## Услуги (полный спектр IT)
 

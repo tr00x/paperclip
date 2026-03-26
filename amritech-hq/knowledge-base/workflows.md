@@ -11,7 +11,7 @@ Score 60+ с email → SDR получает автоматом
     ↓
 SDR пишет персонализированный email
     ↓
-Berik подтверждает время отправки
+Alex подтверждает время отправки
     ↓
 SDR отправляет (Пн-Чт, 8-10 AM ET)
     ↓
@@ -20,8 +20,8 @@ Day 3 → SDR шлёт follow-up #1 (автоматом)
 Day 7 → SDR шлёт follow-up #2 (автоматом)
     ↓
 Лид ответил?
-    ├── ДА (положительно) → SDR уведомляет → Berik подтверждает → Ula intro call + Closer briefing → Berik pricing → Ula closing call
-    ├── ДА (вопрос) → SDR готовит ответ → Berik подтверждает → SDR отправляет
+    ├── ДА (положительно) → SDR уведомляет → Alex подтверждает → Sam intro call + Closer briefing → Alex pricing → Sam closing call
+    ├── ДА (вопрос) → SDR готовит ответ → Alex подтверждает → SDR отправляет
     ├── ДА (отказ) → SDR закрывает вежливо → архив
     └── НЕТ → Day 14 → финальное письмо → nurture (вернёмся через 90 дней)
 ```
@@ -31,76 +31,76 @@ Day 7 → SDR шлёт follow-up #2 (автоматом)
 1. **SDR** видит ответ в IMAP
 2. **SDR** классифицирует: "positive interest"
 3. **SDR** обновляет CRM: `outreachStatus → replied_interested`
-4. **SDR** пишет в TG: "📧 Лид ответил! Ждём решения @ikberik"
-5. **Berik** видит в TG → одобряет: "звоните"
-6. **SDR** создаёт 2 задачи: **Closer** (briefing) + **Ula** (intro call)
-7. **Ula** звонит клиенту — знакомство, потребности, rapport. Записывает в CRM.
-8. **Closer** готовит briefing с учётом заметок Ula (BANT, конкуренты, pricing)
-9. **Closer** пишет в TG: "Briefing готов. @UlaAmri — closing call. Pricing и условия согласованы с @ikberik."
-10. **Berik** согласовывает pricing/условия (в TG или CRM)
-11. **Ula** делает closing call — презентует цену, условия, закрывает сделку
+4. **SDR** пишет в TG: "📧 Лид ответил! Ждём решения @founder_handle"
+5. **Alex** видит в TG → одобряет: "звоните"
+6. **SDR** создаёт 2 задачи: **Closer** (briefing) + **Sam** (intro call)
+7. **Sam** звонит клиенту — знакомство, потребности, rapport. Записывает в CRM.
+8. **Closer** готовит briefing с учётом заметок Sam (BANT, конкуренты, pricing)
+9. **Closer** пишет в TG: "Briefing готов. @cofounder_handle — closing call. Pricing и условия согласованы с @founder_handle."
+10. **Alex** согласовывает pricing/условия (в TG или CRM)
+11. **Sam** делает closing call — презентует цену, условия, закрывает сделку
 12. Если закрыли → **Onboarding** + **Contract Manager** + **Finance** запускаются автоматом
 
-**Правило:** Ula = ВСЕ звонки (intro, closing, check-in, renewal). Berik = решения (pricing, одобрения, стратегия).
+**Правило:** Sam = ВСЕ звонки (intro, closing, check-in, renewal). Alex = решения (pricing, одобрения, стратегия).
 
 ## Что происходит при renewal
 
 1. **Contract Manager** видит что контракт через 90 дней
 2. 60 дней → performance review
-3. 30 дней → создаёт задачу SDR (email) + demand Ula (звонок)
-4. **Ula** звонит клиенту, записывает в CRM
-5. 15 дней → если нет ответа → эскалация к Berik
+3. 30 дней → создаёт задачу SDR (email) + demand Sam (звонок)
+4. **Sam** звонит клиенту, записывает в CRM
+5. 15 дней → если нет ответа → эскалация к Alex
 6. 7 дней → КРИТИЧНО → все тегнуты в TG
 
 ## Что происходит при просрочке оплаты
 
 1. **Finance Tracker** видит overdue invoice
 2. 7 дней → SDR шлёт friendly reminder email
-3. 14 дней → demand к Berik: "Решение?"
-4. 30 дней → demand к Ula: "Позвони!"
-5. 45 дней → повторный demand если Ula не записал результат в CRM
+3. 14 дней → demand к Alex: "Решение?"
+4. 30 дней → demand к Sam: "Позвони!"
+5. 45 дней → повторный demand если Sam не записал результат в CRM
 6. 60 дней → КРИТИЧНО: "Formal notice? Pause service?"
 
 ## Что происходит при новом клиенте
 
-1. Berik закрыл сделку → **Closer** обновляет CRM: `closed_won`
+1. Alex закрыл сделку → **Closer** обновляет CRM: `closed_won`
 2. **Closer** автоматом создаёт задачи:
    - `[ONBOARD]` для Onboarding Agent
    - `[CONTRACT]` для Contract Manager
 3. **Onboarding** отправляет welcome email + IT audit checklist
-4. **Ula** делает check-in звонок на Day 3
+4. **Sam** делает check-in звонок на Day 3
 5. 30 дней → Onboarding завершён → **Finance** создаёт первый invoice
 
 ## Demand система (агенты гоняют людей)
 
 Агенты не ждут молча. Если нужно действие от человека — они напоминают:
 
-### SDR → Berik (одобрение по лидам)
+### SDR → Alex (одобрение по лидам)
 | Прошло | Сообщение |
 |--------|----------|
-| 2ч | "Лид ответил 2ч назад. @ikberik, решение — звоним?" |
-| 4ч | "⚠️ Лид остывает! @ikberik одобри — @UlaAmri ждёт" |
-| 8ч | "🔴 СРОЧНО @ikberik @tr00x!" |
+| 2ч | "Лид ответил 2ч назад. @founder_handle, решение — звоним?" |
+| 4ч | "⚠️ Лид остывает! @founder_handle одобри — @cofounder_handle ждёт" |
+| 8ч | "🔴 СРОЧНО @founder_handle @cto_handle!" |
 
-### Closer → Ula (closing calls)
+### Closer → Sam (closing calls)
 | Прошло | Сообщение |
 |--------|----------|
-| 24ч после одобрения Berik | "@UlaAmri, pricing согласован. Позвони {company}!" |
-| 48ч | "⚠️ @UlaAmri, {company} ждёт 2 дня!" |
-| 72ч | "🔴 @UlaAmri @ikberik @tr00x — closing call не сделан 3 дня" |
+| 24ч после одобрения Alex | "@cofounder_handle, pricing согласован. Позвони {company}!" |
+| 48ч | "⚠️ @cofounder_handle, {company} ждёт 2 дня!" |
+| 72ч | "🔴 @cofounder_handle @founder_handle @cto_handle — closing call не сделан 3 дня" |
 
-### Contract Manager → Ula (renewals)
+### Contract Manager → Sam (renewals)
 | До истечения | Сообщение |
 |-------------|----------|
-| 30 дней | "@UlaAmri, позвони клиенту" |
+| 30 дней | "@cofounder_handle, позвони клиенту" |
 | 15 дней | "⚠️ SDR outreach без ответа" |
 | 7 дней | "🔴 КРИТИЧНО!" |
 
 ### Finance → все (оплата)
 | Просрочка | Сообщение |
 |-----------|----------|
-| 14 дней | "@ikberik, решение?" |
-| 30 дней | "@UlaAmri, позвони!" |
+| 14 дней | "@founder_handle, решение?" |
+| 30 дней | "@cofounder_handle, позвони!" |
 | 60 дней | "🔴 Formal notice?" |
 
 ## Саморазвитие агентов

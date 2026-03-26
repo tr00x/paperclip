@@ -101,18 +101,18 @@ Collection Rate (last 30 days): {percent}%
 - **Владелец:** Finance Tracker (автоматически)
 - **Действие:** Создать задачу SDR: "Отправить напоминание об оплате {Client} INV-{номер} ${сумма}"
 - **Шаблон:** "Friendly reminder — invoice #{num} for ${amount} was due on {date}. Please process at your earliest convenience."
-- **Канал:** Email через IONOS (agent@amritech.us)
+- **Канал:** Email через IONOS (agent@yourcompany.example.com)
 
 ### Day 8–14: CEO Alert
-- **Владелец:** CEO (Berik)
+- **Владелец:** CEO (Alex)
 - **Действие:** Urgent комментарий: "Инвойс {Client} ${сумма} просрочен {N} дней. SDR напоминание отправлено {дата}. Ответа нет."
 - **CEO решает:** Личный звонок или дополнительное напоминание
 
-### Day 15–30: Ula Direct Call
-- **Владелец:** Ula (Account Manager)
-- **Действие:** Создать задачу Ula: "Звонок {Client} по просроченному инвойсу INV-{номер} ${сумма}, {N} дней"
+### Day 15–30: Sam Direct Call
+- **Владелец:** Sam (Co-Founder & Account Manager)
+- **Действие:** Создать задачу Sam: "Звонок {Client} по просроченному инвойсу INV-{номер} ${сумма}, {N} дней"
 - **Цель:** Выяснить причину задержки, договориться о сроке оплаты
-- **Результат:** Ula постит комментарий с результатом звонка
+- **Результат:** Sam постит комментарий с результатом звонка
 
 ### Day 31–60: Formal Notice
 - **Владелец:** CEO + Legal Assistant
@@ -189,7 +189,7 @@ NRR = (start_MRR + expansion - contraction - churn) / start_MRR × 100%
 Заполняй каждый 1-й числа месяца. CEO ревьюит.
 
 ```
-=== AmriTech IT Solutions — P&L — {Month Year} ===
+=== YourCompany LLC — P&L — {Month Year} ===
 
 REVENUE
   Managed IT MRR:              ${amount}
@@ -210,7 +210,7 @@ COST OF GOODS SOLD (COGS)
 GROSS PROFIT:                  ${amount}  ({percent}% margin)
 
 OPERATING EXPENSES (OpEx)
-  Salaries (Berik, Ula, Tim): ${amount}
+  Salaries (Alex, Sam, Tim): ${amount}
   Office/Rent:                  ${amount}
   Insurance:                    ${amount}
   Marketing/Sales:              ${amount}
@@ -279,8 +279,8 @@ NOTES
 
 | Имя | Роль | Email | Telegram |
 |-----|------|-------|----------|
-| **Berik** | Co-Founder — штаб, pricing, стратегия | ikberik@gmail.com | @ikberik |
-| **Ula** | Co-Founder — клиенты, звонки, closing | ula.amri@icloud.com | @UlaAmri |
-| **Tim** | AI/Automation & Dev | tr00x@proton.me | @tr00x |
+| **Alex** | Co-Founder — штаб, pricing, стратегия | founder@example.com | @founder_handle |
+| **Sam** | Co-Founder — клиенты, звонки, closing | cofounder@example.com | @cofounder_handle |
+| **Tim** | AI/Automation & Dev | cto@example.com | @cto_handle |
 
 Если нужно отправить email кому-то из команды — используй Email MCP. Subject с тегом: [GUIDE], [REPORT], [ONBOARD], [UPDATE]. Тон: профессиональный, на русском.

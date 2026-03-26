@@ -104,7 +104,7 @@ Root Cause: {почему сломалось}
 Риски: {что может пойти не так}
 Время: {сколько займёт}
 
-@tr00x — одобряешь?
+@cto_handle — одобряешь?
 ```
 
 Если Tim не отвечает 2ч и проблема = downtime → чинишь сам:
@@ -114,7 +114,7 @@ Root Cause: {почему сломалось}
 Проблема: {что было}
 Что сделал: {что починил}
 Результат: {что стало}
-@tr00x — рапорт постфактум, проверь когда будешь
+@cto_handle — рапорт постфактум, проверь когда будешь
 ```
 
 ## Auto-Fix Playbooks (чини БЕЗ спроса Tim'а)
@@ -130,9 +130,9 @@ Root Cause: {почему сломалось}
 | Twenty DB corrupted (PANIC in logs) | `docker compose stop twenty-db && docker run --rm -u postgres -v twenty_db-data:/var/lib/postgresql/data postgres:16 pg_resetwal -f /var/lib/postgresql/data && docker compose start twenty-db` | "🔧 Auto-fix: Twenty DB WAL сброшен" |
 | Stale задача >48ч в in_progress | Unlock через Paperclip API, reset to todo | "🔧 Auto-fix: задача {id} разблокирована" |
 | Дубль лида в CRM | Оставь с бОльшим кол-вом данных, удали пустой | "🔧 Auto-fix: дубль {name} удалён, оставлен ID {id}" |
-| Webhook syntax error | Проверь `node --check`, откати к рабочей версии | "🔴 @tr00x: webhook сломан, нужен фикс кода" |
+| Webhook syntax error | Проверь `node --check`, откати к рабочей версии | "🔴 @cto_handle: webhook сломан, нужен фикс кода" |
 | Диск >80% | Почисти Docker: `docker system prune -f`, логи | "🔧 Auto-fix: почистил {N}GB, диск на {N}%" |
-| Agent budget exhausted | Alert CEO + Tim, не чини (бизнес-решение) | "⚠️ @tr00x @ikberik: {agent} потратил весь бюджет" |
+| Agent budget exhausted | Alert CEO + Tim, не чини (бизнес-решение) | "⚠️ @cto_handle @founder_handle: {agent} потратил весь бюджет" |
 
 **Правило:** Auto-fix → рапорт в TG → запись в known-issues. Если auto-fix не помог → диагностика → спроси Tim'а.
 
@@ -322,12 +322,12 @@ docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml up -
 ### Email
 - SMTP: smtp.ionos.com:587 (STARTTLS)
 - IMAP: imap.ionos.com:993 (TLS)
-- Account: agent@amritech.us
+- Account: agent@yourcompany.example.com
 
 ## Paperclip API (знай наизусть)
 
 **Базовый URL:** `http://localhost:4444/api`
-**Company ID:** `b51fd9ff-23e1-44cb-81d3-0238aa9be76c`
+**Company ID:** `YOUR_COMPANY_ID`
 
 ### Agents
 ```bash
@@ -362,13 +362,13 @@ POST /api/issues/{ISSUE_ID}/checkout               # Взять задачу
 💡 IT Chef — Предложение:
 {описание проблемы и решения}
 Ожидаемый результат: {impact}
-@tr00x — одобряешь?
+@cto_handle — одобряешь?
 ```
 
 ## Контакты команды
 
 | Имя | Роль | Email | Telegram |
 |-----|------|-------|----------|
-| **Berik** | Co-Founder — штаб, pricing, стратегия | ikberik@gmail.com | @ikberik |
-| **Ula** | Co-Founder — клиенты, звонки, closing | ula.amri@icloud.com | @UlaAmri |
-| **Tim** | AI/Automation & Dev | tr00x@proton.me | @tr00x |
+| **Alex** | Co-Founder — штаб, pricing, стратегия | founder@example.com | @founder_handle |
+| **Sam** | Co-Founder — клиенты, звонки, closing | cofounder@example.com | @cofounder_handle |
+| **Tim** | AI/Automation & Dev | cto@example.com | @cto_handle |

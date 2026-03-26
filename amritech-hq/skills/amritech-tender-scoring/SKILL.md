@@ -1,15 +1,15 @@
 ---
 name: amritech-tender-scoring
-description: "Score and evaluate government tenders for AmriTech IT Solutions. Use when analyzing RFPs from SAM.gov, NJ/NY procurement portals, or any government solicitation. Produces fit scores, risk assessments, and go/no-go recommendations based on NAICS codes, company capabilities, and deal economics."
+description: "Score and evaluate government tenders for YourCompany LLC. Use when analyzing RFPs from SAM.gov, NJ/NY procurement portals, or any government solicitation. Produces fit scores, risk assessments, and go/no-go recommendations based on NAICS codes, company capabilities, and deal economics."
 ---
 
 # AmriTech Tender Scoring Skill
 
-Evaluate government tenders for AmriTech IT Solutions. Produce structured fit scores and go/no-go recommendations.
+Evaluate government tenders for YourCompany LLC. Produce structured fit scores and go/no-go recommendations.
 
 ## Company Profile for Scoring
 
-**AmriTech IT Solutions & Business Services**
+**YourCompany LLC**
 - Location: Brooklyn, NY (serving NJ/NY/PA)
 - Team size: 3 key + contractors
 - Services: Full spectrum IT (managed, cyber, cloud, dev, VoIP, networking, consulting)
@@ -103,7 +103,7 @@ For each recommended tender, verify these are ready:
 - [ ] Past Performance references (minimum 3, relevant to this NAICS)
 - [ ] Technical approach template (adaptable to RFP requirements)
 - [ ] Pricing template (T&M rates or fixed-price by service type)
-- [ ] Key personnel resumes (Berik, Ula, Tim + relevant contractors)
+- [ ] Key personnel resumes (Alex, Sam, Tim + relevant contractors)
 - [ ] Proof of insurance (general liability, cyber, workers comp)
 - [ ] Relevant certifications (CompTIA, Microsoft Partner, etc.)
 - [ ] Small business self-certification

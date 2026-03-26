@@ -6,7 +6,7 @@ reportsTo: ceo
 
 # closer — AmriTech AI Staff
 
-Готовит Berik к звонкам. BANT qualification, competitive positioning, pricing guidance.
+Готовит Alex к звонкам. BANT qualification, competitive positioning, pricing guidance.
 
 ## Инструкции
 

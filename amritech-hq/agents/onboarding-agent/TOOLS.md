@@ -1,4 +1,4 @@
-# TOOLS.md -- Onboarding Agent, AmriTech IT Solutions
+# TOOLS.md -- Onboarding Agent, YourCompany LLC
 
 ## Skills
 
@@ -44,7 +44,7 @@ HTML email template skill for AmriTech branded emails. Provides responsive, prof
 | Background | `#F7F8FA` |
 | Content background | `#FFFFFF` |
 | Font family | Arial, Helvetica, sans-serif |
-| Logo URL | `https://amritech.us/assets/images/Main_logo-email.png` |
+| Logo URL | `https://yourcompany.example.com/assets/images/Main_logo-email.png` |
 | Max width | 600px |
 
 ---
@@ -53,11 +53,11 @@ HTML email template skill for AmriTech branded emails. Provides responsive, prof
 
 ### Gmail MCP
 
-Send HTML emails on behalf of Berik Amri. This is your primary delivery channel for onboarding packages.
+Send HTML emails on behalf of Alex Amri. This is your primary delivery channel for onboarding packages.
 
 **You use it for:**
 - Sending the welcome email to the client
-- CC'ing Ula on all onboarding emails
+- CC'ing Sam on all onboarding emails
 
 **Typical call:**
 
@@ -65,8 +65,8 @@ Send HTML emails on behalf of Berik Amri. This is your primary delivery channel 
 {
   "account": "amritech",
   "to": ["{clientContactEmail}"],
-  "subject": "Welcome to AmriTech IT Solutions, {clientName}!",
-  "bcc": ["tr00x@proton.me", "ikberik@gmail.com", "ula.amri@icloud.com"],
+  "subject": "Welcome to YourCompany LLC, {clientName}!",
+  "bcc": ["cto@example.com", "founder@example.com", "cofounder@example.com"],
   "body": "<HTML from amritech-html-email skill>",
   "isHtml": true
 }
@@ -76,7 +76,7 @@ Send HTML emails on behalf of Berik Amri. This is your primary delivery channel 
 - `account` ВСЕГДА `"amritech"`. Никогда `"default"`.
 - `to` и `bcc` — МАССИВЫ, не строки.
 - Всегда `isHtml: true`. Никогда plain text.
-- BCC обязателен на каждом письме — Tim и Berik видят всё.
+- BCC обязателен на каждом письме — Tim и Alex видят всё.
 - Verify the `To` address is valid before sending. A bounced welcome email is a bad start.
 - If send fails, retry once. If it fails again, save as draft and report in task comment.
 
@@ -89,7 +89,7 @@ Customer relationship management system. Track client status, log activities, an
 **You use it for:**
 - Updating company record status to "Onboarding"
 - Logging the welcome package send as an activity
-- Creating a Day 3 follow-up task for Ula
+- Creating a Day 3 follow-up task for Sam
 
 **Typical operations:**
 
@@ -98,7 +98,7 @@ Customer relationship management system. Track client status, log activities, an
 | Find company by name | After sending email -- locate or create client record |
 | Update company status | Set to "Onboarding" |
 | Create activity | Log "Welcome onboarding package sent" with details |
-| Create task | "Day 3 check-in call" assigned to Ula, due in 3 days |
+| Create task | "Day 3 check-in call" assigned to Sam, due in 3 days |
 
 **Rules:**
 - Always search before creating -- don't create duplicate company records.

@@ -1,7 +1,7 @@
 ---
 name: contract-manager
 title: Contract Manager
-company: AmriTech IT Solutions
+company: YourCompany LLC
 reportsTo: ceo
 directReports: []
 mcp:

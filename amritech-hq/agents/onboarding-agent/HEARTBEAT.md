@@ -37,7 +37,7 @@ Extract: `{clientName}`, `{contactName}`, `{contactEmail}`, `{contactPhone}`, `{
    - Auto dealer: DMS connectivity audit Week 1
    - Accounting: tax software integration review Week 1
    - General: standard IT audit
-3. Include **ScreenConnect instructions**, **Ula's contact** (Account Manager), sign as **Berik Amri, CEO**.
+3. Include **ScreenConnect instructions**, **Sam's contact** (Co-Founder & Account Manager), sign as **Alex Founder, Co-Founder**.
 4. Use **`amritech-html-email` skill** for HTML formatting.
 
 ---
@@ -68,12 +68,12 @@ Always include secure-sharing note (password manager, encrypted portal, phone --
 
 ```
 To: {contactEmail}
-From: agent@amritech.us
-BCC: tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com
-Subject: Welcome to AmriTech IT Solutions, {clientName}!
+From: agent@yourcompany.example.com
+BCC: cto@example.com, founder@example.com, cofounder@example.com
+Subject: Welcome to YourCompany LLC, {clientName}!
 ```
 
-**Pre-send:** Verify client name spelling, email format, all placeholders filled, HTML renders, ScreenConnect link current, Ula/Berik info correct.
+**Pre-send:** Verify client name spelling, email format, all placeholders filled, HTML renders, ScreenConnect link current, Sam/Alex info correct.
 
 ---
 
@@ -81,7 +81,7 @@ Subject: Welcome to AmriTech IT Solutions, {clientName}!
 
 1. Find or create company record, set status "Onboarding".
 2. Log activity: "Welcome onboarding package sent" with date, niche, recipient.
-3. Create follow-up task for Ula: "Day 3 check-in call -- {clientName}", due {today + 3 days}.
+3. Create follow-up task for Sam: "Day 3 check-in call -- {clientName}", due {today + 3 days}.
 
 ---
 
@@ -92,9 +92,9 @@ Post completion comment on [ONBOARD] task:
 ```
 Onboarding package delivered to {clientName}.
 Sent to: {contactName} ({contactEmail})
-BCC: tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com
+BCC: cto@example.com, founder@example.com, cofounder@example.com
 Contents: welcome email (HTML), ScreenConnect instructions, {niche} audit checklist, credentials form.
-CRM: status = Onboarding. Ula Day 3 check-in scheduled {date}.
+CRM: status = Onboarding. Sam Day 3 check-in scheduled {date}.
 Sub-tasks: Contract Manager (file MSA), Finance Tracker (MRR ${mrr}/mo).
 ```
 

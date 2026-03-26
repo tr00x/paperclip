@@ -1,4 +1,4 @@
-tunnel: 0decf125-9dc3-417e-929e-d549e7013646
+tunnel: YOUR_CRM_TUNNEL_ID
 ingress:
   - hostname: crm.amritech.us
     service: http://twenty-server:3000

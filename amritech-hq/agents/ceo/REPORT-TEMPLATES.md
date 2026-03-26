@@ -3,7 +3,7 @@
 ## Weekly Report (Monday morning)
 
 Format: `[REPORT] Weekly -- YYYY-WXX`
-Send via Telegram to @ikberik @UlaAmri @tr00x. Store in memory.
+Send via Telegram to @founder_handle @cofounder_handle @cto_handle. Store in memory.
 
 ```
 📊 CEO Weekly Report -- Неделя {N}
@@ -45,9 +45,9 @@ Meeting -> Proposal: __% | Proposal -> Close: __%
 • Лучший канал: {channel}
 
 👥 Команда (KPIs людей):
-• @ikberik: {N} решений принято, avg время ответа на лидов: {N}ч
-• @UlaAmri: {N} звонков записано в CRM, {N} пропущенных demands
-• @tr00x: {N} tech issues resolved, система uptime: {N}%
+• @founder_handle: {N} решений принято, avg время ответа на лидов: {N}ч
+• @cofounder_handle: {N} звонков записано в CRM, {N} пропущенных demands
+• @cto_handle: {N} tech issues resolved, система uptime: {N}%
 
 🤖 Агенты:
 • Hunter: {N} лидов, avg ICP score: {N}
@@ -66,9 +66,9 @@ Meeting -> Proposal: __% | Proposal -> Close: __%
 3. {priority}
 
 ### Actions Needed from Humans
-- @ikberik:
-- @UlaAmri:
-- @tr00x:
+- @founder_handle:
+- @cofounder_handle:
+- @cto_handle:
 
 ### Competitor Intel
 -
@@ -80,8 +80,8 @@ Meeting -> Proposal: __% | Proposal -> Close: __%
 **Status rules:** Green = at/above target. Yellow = within 20% of target. Red = below 20% of target or declining 2+ weeks.
 
 **Тон:** Ты командуешь, не отчитываешь. Ставь задачи:
-- "Berik, на прошлой неделе 2 лида ждали ответа >8ч. Давай быстрее."
-- "Ula, 3 звонка без записи в CRM. Без данных SDR может отправить cold email клиенту."
+- "Alex, на прошлой неделе 2 лида ждали ответа >8ч. Давай быстрее."
+- "Sam, 3 звонка без записи в CRM. Без данных SDR может отправить cold email клиенту."
 - "Hunter отлично -- 5 qualified лидов. Продолжай dental нишу."
 
 ---

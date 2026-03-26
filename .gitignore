@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .env
+.env.*
+!.env.example
 *.tsbuildinfo
 drizzle/meta/
 .vite/
@@ -11,6 +13,15 @@ data/
 .pnpm-store/
 tmp-*
 cli/tmp/
+
+# Serena IDE plugin state
+.serena/
+
+# Word temp files
+~$*
+
+# Claude Code memory/worktree files
+.claude/
 
 # Scratch/seed scripts (but not scripts/ dir)
 check-*.mjs
@@ -35,7 +46,6 @@ tmp/
 # Editor / tool temp files
 *.tmp
 .vscode/
-.claude/settings.local.json
 .paperclip-local/
 /.idea/
 /.agents/
@@ -84,5 +94,5 @@ tests/e2e/playwright-report/
 tests/release-smoke/test-results/
 tests/release-smoke/playwright-report/
 .superset/
-.claude/worktrees/
-mcp-servers/*/.env
+# Planning directory (internal dev notes)
+.planning/

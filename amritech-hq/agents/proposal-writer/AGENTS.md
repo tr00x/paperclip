@@ -1,7 +1,7 @@
 ---
 name: proposal-writer
 title: Proposal Writer
-company: AmriTech IT Solutions
+company: YourCompany LLC
 reportsTo: ceo
 directReports: []
 mcp:

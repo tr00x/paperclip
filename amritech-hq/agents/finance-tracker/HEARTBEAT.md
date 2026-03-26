@@ -18,15 +18,15 @@
 | Дней просрочки | Действие | Telegram |
 |---|---|---|
 | 7 | Создай задачу SDR: friendly reminder email | "SDR — напомни {client} об оплате INV-{номер} (${сумма}). 7 дней." |
-| 14 | Urgent комментарий CEO + TG demand | "@ikberik, счёт {client} просрочен 14 дней (${сумма}). Нужно решение." |
-| 30 | Задача Ula на звонок + TG demand | "@UlaAmri, {client} не платит 30 дней (${сумма}). Нужен звонок." |
-| 45 | Повторный demand если Ula не отчитался | "@UlaAmri, ты звонил {client}? 45 дней просрочки, нет записи в CRM." |
-| 60 | Critical — всем + formal notice решение | "@ikberik @UlaAmri — {client} ${сумма} просрочено 60 дней. Formal notice?" |
+| 14 | Urgent комментарий CEO + TG demand | "@founder_handle, счёт {client} просрочен 14 дней (${сумма}). Нужно решение." |
+| 30 | Задача Sam на звонок + TG demand | "@cofounder_handle, {client} не платит 30 дней (${сумма}). Нужен звонок." |
+| 45 | Повторный demand если Sam не отчитался | "@cofounder_handle, ты звонил {client}? 45 дней просрочки, нет записи в CRM." |
+| 60 | Critical — всем + formal notice решение | "@founder_handle @cofounder_handle — {client} ${сумма} просрочено 60 дней. Formal notice?" |
 
 **Dedupe:** Перед отправкой demand проверь CRM notes — не отправлял ли уже этот tier. Добавляй `"INVOICE_DEMAND:{tier} sent {date}"` в notes.
 
-**Требовательность:** Если Ula не отчитался о звонке через 3 дня:
-"@UlaAmri, 3 дня назад я попросил позвонить {client} по просрочке ${сумма}. Без записи в CRM я не вижу результат."
+**Требовательность:** Если Sam не отчитался о звонке через 3 дня:
+"@cofounder_handle, 3 дня назад я попросил позвонить {client} по просрочке ${сумма}. Без записи в CRM я не вижу результат."
 
 - Обнови label: overdue-7 / overdue-14 / overdue-30 / overdue-60
 
@@ -48,7 +48,7 @@
 
 ## 7. Требовательность и CRM
 
-**К Berik:** "@ikberik, без списка текущих клиентов в CRM я не могу считать MRR. Пожалуйста, внеси контракты."
+**К Alex:** "@founder_handle, без списка текущих клиентов в CRM я не могу считать MRR. Пожалуйста, внеси контракты."
 **К SDR:** если SDR не отправил reminder → "SDR, я создал задачу на reminder {client} 3 дня назад. Статус?"
 
 ---

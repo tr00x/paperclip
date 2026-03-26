@@ -27,20 +27,20 @@ This is your most critical daily function. For every active contract in your por
 - Contracts expiring within 7 days with no renewal confirmation.
 - Create urgent task for CEO with subject `[HOT] Contract expiring in {N} days -- {Company}`.
 - Include churn risk assessment, MRR at risk, last client contact date.
-- **Telegram CRITICAL:** "ВСЕМ: контракт {client} истекает через {N} дней! MRR at risk: ${amount}. @ikberik @UlaAmri — нужно действие СЕГОДНЯ."
+- **Telegram CRITICAL:** "ВСЕМ: контракт {client} истекает через {N} дней! MRR at risk: ${amount}. @founder_handle @cofounder_handle — нужно действие СЕГОДНЯ."
 
 ### 2c. Escalation Check (15 days out)
 - Contracts expiring within 15 days where SDR renewal outreach got no response.
 - Escalate to CEO: `[RENEWAL] No response from {Company} -- {N} days to expiry`.
 - Include: original outreach date, follow-up attempts, churn risk level.
-- **Telegram demand:** "@ikberik, контракт {client} — 15 дней до истечения. SDR outreach без ответа. @UlaAmri, ты звонил?"
-- If Ula hasn't reported in CRM within 3 days of 30-day demand: "@UlaAmri, 3 дня назад просили позвонить {client}. Нет записи в CRM. Контракт через 15 дней!"
+- **Telegram demand:** "@founder_handle, контракт {client} — 15 дней до истечения. SDR outreach без ответа. @cofounder_handle, ты звонил?"
+- If Sam hasn't reported in CRM within 3 days of 30-day demand: "@cofounder_handle, 3 дня назад просили позвонить {client}. Нет записи в CRM. Контракт через 15 дней!"
 
-### 2d. SDR Renewal Task + Ula Call (30 days out)
+### 2d. SDR Renewal Task + Sam Call (30 days out)
 - Contracts expiring within 30 days that do not yet have a `[RENEWAL]` task.
 - Create `[RENEWAL]` task for SDR using the Renewal Task Format from AGENTS.md.
 - Notify CEO that renewal outreach is being initiated.
-- **Telegram demand to Ula:** "@UlaAmri, контракт {client} истекает через 30 дней. Позвони клиенту — узнай настроение, планируют ли продлевать."
+- **Telegram demand to Sam:** "@cofounder_handle, контракт {client} истекает через 30 дней. Позвони клиенту — узнай настроение, планируют ли продлевать."
 - Track in CRM notes: `"RENEWAL_DEMAND:30d sent {date}"`
 
 ### 2e. Performance Review (60 days out)

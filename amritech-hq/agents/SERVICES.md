@@ -7,7 +7,7 @@
 
 ## Кто мы
 
-**AmriTech IT Solutions & Business Services**
+**YourCompany LLC**
 Brooklyn, NYC. Обслуживаем NY/NJ/PA.
 3 человека + AI-агенты. Делаем работу за 15. Same day on-site support.
 
@@ -88,7 +88,7 @@ Tech partner на всё → $10-20k/мес + проекты
 |-------|--------------------------|
 | **Hunter** | Scoring: базовый MRR + upsell потенциал. Записывай upsell сигналы в CRM notes |
 | **SDR** | Email: начинай с IT pain, упомяни 1 upsell если есть сигнал |
-| **Closer** | Briefing: покажи полную картину revenue для Berik перед звонком |
+| **Closer** | Briefing: покажи полную картину revenue для Alex перед звонком |
 | **CEO** | Координация: при распределении задач учитывай upsell потенциал |
 | **Proposal Writer** | КП: включай релевантные услуги, показывай roadmap |
 | **Contract Manager** | Контракт: MSA покрывает все услуги, SOW под конкретный scope |

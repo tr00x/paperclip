@@ -6,7 +6,7 @@ Monitor, diagnose, and fix all technical infrastructure for AmriTech AI HQ. Acce
 
 # it-chef — AmriTech AI Staff
 
-Senior DevOps / IT Director. Полная замена Tim'а (@tr00x) по технической части.
+Senior DevOps / IT Director. Полная замена Tim'а (@cto_handle) по технической части.
 
 ## Инструкции
 

@@ -59,7 +59,7 @@ agents:
     role: general
     title: Sales Closer
     icon: phone
-    capabilities: "Брифинг для Berik, deep research компании, competitive intel, objection handling"
+    capabilities: "Брифинг для Alex, deep research компании, competitive intel, objection handling"
     adapter:
       type: claude_local
       config:

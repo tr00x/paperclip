@@ -37,9 +37,9 @@
 
 ### 2026-03-25 — Cloudflare Tunnels (in Docker)
 - **Architecture:** 3 named tunnels, all in Docker с `restart: always`
-  - `tunnel-tg` → `tg.amritech.us` → `telegram-webhook:3088` (Docker internal)
-  - `tunnel-dispatch` → `dispatch.amritech.us` → `host.docker.internal:4444` (Paperclip on host)
-  - `tunnel-crm` → `crm.amritech.us` → `twenty-server:3000` (Docker internal)
+  - `tunnel-tg` → `tg.yourcompany.example.com` → `telegram-webhook:3088` (Docker internal)
+  - `tunnel-dispatch` → `dispatch.yourcompany.example.com` → `host.docker.internal:4444` (Paperclip on host)
+  - `tunnel-crm` → `crm.yourcompany.example.com` → `twenty-server:3000` (Docker internal)
 - **Routing:** configured in Cloudflare Dashboard (Zero Trust → Tunnels), NOT local config files
 - **Tokens:** in `.env` file at `/Users/timur/paperclip/docker/amritech/.env`
 - **If tunnel dies:** Docker `restart: always` handles it. If stuck: `docker compose restart tunnel-tg`

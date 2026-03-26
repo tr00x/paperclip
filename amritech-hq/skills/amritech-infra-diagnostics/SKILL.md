@@ -75,7 +75,7 @@ kill $(lsof -ti :3089); sleep 2
 
 **SMTP:** smtp.ionos.com:587 (STARTTLS)
 **IMAP:** imap.ionos.com:993 (TLS)
-**Account:** agent@amritech.us
+**Account:** agent@yourcompany.example.com
 
 **Проверка SMTP:**
 ```bash
@@ -84,7 +84,7 @@ curl -v --connect-timeout 10 smtp://smtp.ionos.com:587 2>&1 | head -10
 
 **Проверка IMAP:**
 ```bash
-curl --connect-timeout 10 imaps://imap.ionos.com:993 --user "agent@amritech.us:PASSWORD" -X "EXAMINE INBOX" 2>&1 | tail -10
+curl --connect-timeout 10 imaps://imap.ionos.com:993 --user "agent@yourcompany.example.com:PASSWORD" -X "EXAMINE INBOX" 2>&1 | tail -10
 ```
 
 **Частые проблемы:**
@@ -140,19 +140,19 @@ curl -s -X POST "http://localhost:4444/api/companies/{COMPANY_ID}/skills/import"
 **Agent IDs (AmriTech):**
 | Агент | ID |
 |-------|-----|
-| CEO | 8513a0bf-95df-422a-a4d8-196a9af6e553 |
-| Hunter | 852aecf1-4990-49e0-9bfb-a95480335bf6 |
-| SDR | facf95b6-0726-428f-b126-5481fe12f712 |
-| Closer | b7f32756-6402-4ed8-8318-51fee6f48f12 |
-| Staff Manager | 8711ab15-3f67-426f-a026-c9ec1ee13cd4 |
-| Contract Manager | 11a4b478-a72b-49a9-aa92-675584bc8235 |
-| Finance Tracker | 1c10c555-4c88-43c7-a718-edbd55dcc78d |
-| Proposal Writer | f682c7a1-f474-49b5-bad1-7f5bcc972323 |
-| Legal | 0a553ac8-0fe5-45d6-9578-b41c1296b109 |
-| Gov Scout | 7208fb61-e913-4ef0-830f-32fbea383fbf |
-| Onboarding | 8e633ecf-13d0-41e1-91fe-f9133612d302 |
+| CEO | AGENT_UUID_CEO |
+| Hunter | AGENT_UUID_HUNTER |
+| SDR | AGENT_UUID_SDR |
+| Closer | AGENT_UUID_CLOSER |
+| Staff Manager | AGENT_UUID_STAFF_MGR |
+| Contract Manager | AGENT_UUID_CONTRACT_MGR |
+| Finance Tracker | AGENT_UUID_FINANCE |
+| Proposal Writer | AGENT_UUID_PROPOSAL |
+| Legal | AGENT_UUID_LEGAL |
+| Gov Scout | AGENT_UUID_GOV_SCOUT |
+| Onboarding | AGENT_UUID_ONBOARDING |
 
-**Company ID:** b51fd9ff-23e1-44cb-81d3-0238aa9be76c
+**Company ID:** YOUR_COMPANY_ID
 
 ---
 

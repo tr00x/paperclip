@@ -1,4 +1,4 @@
-# SDR Tools — AmriTech IT Solutions
+# SDR Tools — YourCompany LLC
 
 ## MCP Servers
 
@@ -26,7 +26,7 @@ Always send emails as HTML with `isHtml: true`. **MANDATORY:** Load the `amritec
   "account": "amritech",
   "to": ["prospect@company.com"],
   "subject": "On-site IT for [Company]'s NJ office",
-  "bcc": ["tr00x@proton.me", "ikberik@gmail.com", "ula.amri@icloud.com"],
+  "bcc": ["cto@example.com", "founder@example.com", "cofounder@example.com"],
   "body": "<full HTML from amritech-html-email skill template>",
   "isHtml": true
 }

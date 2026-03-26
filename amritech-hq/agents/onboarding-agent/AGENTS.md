@@ -1,7 +1,7 @@
 ---
 name: onboarding-agent
 title: Onboarding Agent
-company: AmriTech IT Solutions
+company: YourCompany LLC
 reportsTo: ceo
 directReports: []
 mcp:

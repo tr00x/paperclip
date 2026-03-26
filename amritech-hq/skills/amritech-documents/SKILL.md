@@ -35,7 +35,7 @@ description: "Create professional documents (guides, reports, proposals) as DOCX
 Каждый документ включает:
 
 **Header:**
-- Логотип: `AmriTech IT Solutions & Business Services`
+- Логотип: `YourCompany LLC`
 - Дата документа
 - Тип: [GUIDE], [REPORT], [PROPOSAL], [CONTRACT], [MEMO]
 
@@ -46,8 +46,8 @@ description: "Create professional documents (guides, reports, proposals) as DOCX
 - Bold для ключевых терминов
 
 **Footer:**
-- AmriTech IT Solutions & Business Services
-- (929) 500-5955 | amritech.us
+- YourCompany LLC
+- (555) 000-0000 | yourcompany.example.com
 - Brooklyn, NY · Serving NYC / NJ / PA
 - Confidential (если применимо)
 
@@ -77,7 +77,7 @@ create_document: "/tmp/amritech-guide-crm.docx"
 add_heading: "CRM Quick Start Guide", level=1
 add_paragraph: "Этот гайд поможет вам начать работу с AmriTech CRM..."
 add_heading: "1. Вход в систему", level=2
-add_paragraph: "Откройте crm.amritech.us в браузере..."
+add_paragraph: "Откройте crm.yourcompany.example.com в браузере..."
 add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2", "Введите логин"]]
 ```
 
@@ -88,9 +88,9 @@ add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2",
 ```
 1. Создай документ через Word MCP → сохрани в /tmp/
 2. Отправь через Email MCP:
-   - to: "ula.amri@icloud.com"
+   - to: "cofounder@example.com"
    - subject: "[GUIDE] CRM Quick Start — AmriTech"
-   - body: "Привет Ula! Вот гайд по CRM. Детали в документе."
+   - body: "Привет Sam! Вот гайд по CRM. Детали в документе."
    - attachment: "/tmp/amritech-guide-crm.docx"
 ```
 
@@ -104,8 +104,8 @@ add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2",
 ```
 📄 Создан документ: {название}
 Тип: {GUIDE/REPORT/PROPOSAL}
-Для: @UlaAmri / @ikberik
-Отправлен на: ula.amri@icloud.com
+Для: @cofounder_handle / @founder_handle
+Отправлен на: cofounder@example.com
 
 Краткое содержание: {2-3 строки}
 ```
@@ -113,7 +113,7 @@ add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2",
 ## Типы документов
 
 ### 1. Гайд / Инструкция
-**Для кого:** Berik, Ula (новые процессы)
+**Для кого:** Alex, Sam (новые процессы)
 **Формат:** DOCX с пошаговыми инструкциями + скриншоты (если доступны)
 **Структура:**
 1. Цель гайда
@@ -123,7 +123,7 @@ add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2",
 5. Контакт для вопросов
 
 ### 2. Еженедельный отчёт
-**Для кого:** Berik (CEO)
+**Для кого:** Alex (Co-Founder & CEO)
 **Формат:** HTML email (используй `amritech-html-email`) ИЛИ DOCX для архива
 **Структура:**
 1. Ключевые метрики
@@ -132,7 +132,7 @@ add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2",
 4. План на следующую неделю
 
 ### 3. Proposal / КП
-**Для кого:** Клиент (через Berik)
+**Для кого:** Клиент (через Alex)
 **Формат:** DOCX — профессиональный, branded
 **Структура:**
 1. Executive Summary
@@ -144,7 +144,7 @@ add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2",
 7. Next Steps
 
 ### 4. Контракт / MSA
-**Для кого:** Клиент (через Legal → Berik)
+**Для кого:** Клиент (через Legal → Alex)
 **Формат:** DOCX — юридический
 **Обязательно:** пройти через Legal Assistant для review
 
@@ -156,7 +156,7 @@ add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2",
 ## Правила
 
 1. **Язык:** Внутренние документы — русский. Клиентские — английский.
-2. **BCC:** Клиентские документы — обязательно BCC tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com
+2. **BCC:** Клиентские документы — обязательно BCC cto@example.com, founder@example.com, cofounder@example.com
 3. **Confidential:** На proposals и contracts добавляй `CONFIDENTIAL` в footer
 4. **Версионирование:** В имени файла: `amritech-{type}-{client}-{date}.docx`
 5. **Сохранение:** Документы → `/tmp/` (для отправки) + комментарий в Paperclip task
@@ -165,6 +165,6 @@ add_table: [["Шаг", "Действие"], ["1", "Откройте CRM"], ["2",
 
 | Кому | Email | Telegram |
 |------|-------|----------|
-| Berik | ikberik@gmail.com | @ikberik |
-| Ula | ula.amri@icloud.com | @UlaAmri |
-| Tim | tr00x@proton.me | @tr00x |
+| Alex | founder@example.com | @founder_handle |
+| Sam | cofounder@example.com | @cofounder_handle |
+| Tim | cto@example.com | @cto_handle |

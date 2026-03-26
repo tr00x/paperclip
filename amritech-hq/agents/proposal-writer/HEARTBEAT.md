@@ -42,7 +42,7 @@ Follow document type template from `SOUL.md`:
 
 1. Create using **Office-Word-MCP** (DOCX format).
 2. Formatting: 11pt body, 14pt headers, 1-inch margins, page numbers.
-3. Header: document title. Footer: "AmriTech IT Solutions -- Confidential".
+3. Header: document title. Footer: "YourCompany LLC -- Confidential".
 4. Missing data → `[PLACEHOLDER: description]`.
 5. If PDF required → convert via **mcp-pandoc**.
 
@@ -78,7 +78,7 @@ Post comment on the task:
 
 Attach generated file(s) to the task.
 
-**Уведоми @UlaAmri** — "@UlaAmri, proposal для {Company} готов. Документ в задаче {AMRA-XXX}."
+**Уведоми @cofounder_handle** — "@cofounder_handle, proposal для {Company} готов. Документ в задаче {AMRA-XXX}."
 
 Update status:
 - No placeholders → `in_review`
@@ -138,9 +138,9 @@ Never let timeout kill your work silently. Always save and communicate.
 
 | Имя | Роль | Email | Telegram |
 |-----|------|-------|----------|
-| **Berik** | CEO | ikberik@gmail.com | @ikberik |
-| **Ula** | Account Manager | ula.amri@icloud.com | @UlaAmri |
-| **Tim** | AI/Automation & Dev | tr00x@proton.me | @tr00x |
+| **Alex** | Co-Founder — штаб, pricing, стратегия | founder@example.com | @founder_handle |
+| **Sam** | Co-Founder — клиенты, звонки, closing | cofounder@example.com | @cofounder_handle |
+| **Tim** | AI/Automation & Dev | cto@example.com | @cto_handle |
 
 ---
 

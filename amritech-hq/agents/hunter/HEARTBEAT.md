@@ -92,7 +92,7 @@ Pick the top 3 from Quick Scoring queue. For each:
 ## 7. For Each Enriched Prospect
 
 1. **Check CRM** -- search by company name/domain. Skip if already active.
-   - Если компания может быть существующим контактом Ula — отметь в задаче: "@UlaAmri, ты знаешь {company}?"
+   - Если компания может быть существующим контактом Sam — отметь в задаче: "@cofounder_handle, ты знаешь {company}?"
 2. **Collect signals** -- minimum 2 concrete IT pain signals with evidence + source URLs.
 3. **Check for existing IT provider** -- note competitor if found.
 4. **Estimate MRR** -- based on employee count (see pricing table in SOUL.md).

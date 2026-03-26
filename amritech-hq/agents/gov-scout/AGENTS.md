@@ -1,7 +1,7 @@
 ---
 name: gov-scout
 title: Government Contracts Scout
-company: AmriTech IT Solutions
+company: YourCompany LLC
 reportsTo: ceo
 directReports: []
 mcp:

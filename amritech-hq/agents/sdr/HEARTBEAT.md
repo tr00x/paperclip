@@ -32,7 +32,7 @@ Use `search_leads` MCP tool with these filters:
 
 **5. Leads awaiting reply decision (demand check):**
 `search_leads(outreachStatus: "replied_interested")` + `search_leads(outreachStatus: "replied_question")`
-→ For each: calculate hours since `lastContactDate`. If >2h, send demand to @ikberik (see Demand Escalation below).
+→ For each: calculate hours since `lastContactDate`. If >2h, send demand to @founder_handle (see Demand Escalation below).
 
 Add all results to your work queue. Process them BEFORE checking Paperclip inbox.
 
@@ -56,7 +56,7 @@ Check IMAP inbox for replies to outreach emails:
      Тон: позитивный / вопрос / отказ / referral
      Жду указаний — отвечать?
      ```
-   - **Positive replies: DO NOT respond.** Notify team, wait for @ikberik.
+   - **Positive replies: DO NOT respond.** Notify team, wait for @founder_handle.
    - **"Not interested" / "unsubscribe":** Close gracefully yourself, notify in TG after.
 3. If no match in CRM → not a lead reply. Ignore or forward to CEO.
 
@@ -78,9 +78,9 @@ For each new lead:
 3. **Write initial email (Day 0):** follow ALL email rules from SOUL.md, use HTML template, subject about THEM, first sentence about THEM, one CTA: 15-minute call
 4. **Check send window BEFORE sending:**
    - **Будни (Пн-Чт), 8:00-10:00 AM ET** — отправляй сразу
-   - **Пятница, выходные, вечер/ночь** — НЕ отправляй! Поставь в очередь, сообщи в TG, жди подтверждение от @ikberik
+   - **Пятница, выходные, вечер/ночь** — НЕ отправляй! Поставь в очередь, сообщи в TG, жди подтверждение от @founder_handle
    - **Исключение:** Day 3/7 фоллоуапы отправляются автоматом в рабочие часы (уже одобрены)
-5. **Send via Email MCP** (IONOS SMTP — agent@amritech.us). **BCC:** `tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com`
+5. **Send via Email MCP** (IONOS SMTP — agent@yourcompany.example.com). **BCC:** `cto@example.com, founder@example.com, cofounder@example.com`
 6. **Log in Twenty CRM:** activity, subject, date, follow-up Day 3, sequence position 1/3
 7. **Update Paperclip task:** comment + status `in_progress`
 
@@ -94,7 +94,7 @@ Query Twenty CRM for leads with follow-up dates due today or overdue.
 1. **Загрузи скилл `amritech-html-email`** — ОБЯЗАТЕЛЬНО перед каждым follow-up
 2. Find original thread → write Follow-up #1 (3-4 sentences, new angle)
 3. **Используй ПОЛНЫЙ HTML шаблон** (header + logo + signature) — БЕЗ CTA кнопки
-4. Send via Email MCP as reply (BCC: `tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com`)
+4. Send via Email MCP as reply (BCC: `cto@example.com, founder@example.com, cofounder@example.com`)
 5. Log in CRM: activity + update follow-up to Day 7. Comment on task.
 
 **Day 7 Follow-ups:**
@@ -179,9 +179,9 @@ Comment on relevant Paperclip tasks with status updates. If multiple leads proce
 | Часов с ответа | Действие | Кому |
 |---|---|---|
 | 0-2ч | Обычное уведомление (уже отправлено в Step 0.5) | Все в TG |
-| 2ч | "📧 Лид {company} ответил 2ч назад. @ikberik, решение — отвечаем?" | @ikberik |
-| 4-8ч | "⚠️ @ikberik, лид остывает! Ответ от {company} ждёт {N} часов." | @ikberik |
-| 8+ч | "🔴 @ikberik @tr00x СРОЧНО: {company} ответил {N} часов назад, нет решения!" | @ikberik + @tr00x |
+| 2ч | "📧 Лид {company} ответил 2ч назад. @founder_handle, решение — отвечаем?" | @founder_handle |
+| 4-8ч | "⚠️ @founder_handle, лид остывает! Ответ от {company} ждёт {N} часов." | @founder_handle |
+| 8+ч | "🔴 @founder_handle @cto_handle СРОЧНО: {company} ответил {N} часов назад, нет решения!" | @founder_handle + @cto_handle |
 
 **Dedupe:** Добавляй tier в CRM notes: `"DEMAND_TIER:2 sent at {datetime}"`. Не отправляй тот же tier повторно.
 

@@ -4,7 +4,7 @@
 
 **Interval:** 1 час (3600s)
 **Timeout:** 10 минут
-**Reports to:** CEO + Tim (@tr00x)
+**Reports to:** CEO + Tim (@cto_handle)
 
 ---
 
@@ -27,7 +27,7 @@
 curl -s http://localhost:4444/api/health || echo "DOWN"
 ```
 Если DOWN → попробуй: `cd /Users/timur/paperclip && pnpm dev:once`
-Если всё равно DOWN → TG: "@tr00x, Paperclip не отвечает. Попробовал перезапустить — не помогло."
+Если всё равно DOWN → TG: "@cto_handle, Paperclip не отвечает. Попробовал перезапустить — не помогло."
 
 ### 2b. Twenty CRM (порт 5555)
 ```bash
@@ -50,9 +50,9 @@ curl -s http://localhost:3088/health || echo "DOWN"
 
 ### 2g. Cloudflare Tunnels
 ```bash
-curl -s -o /dev/null -w "%{http_code}" https://tg.amritech.us/health
-curl -s -o /dev/null -w "%{http_code}" https://dispatch.amritech.us/api/health
-curl -s -o /dev/null -w "%{http_code}" https://crm.amritech.us/healthz
+curl -s -o /dev/null -w "%{http_code}" https://tg.yourcompany.example.com/health
+curl -s -o /dev/null -w "%{http_code}" https://dispatch.yourcompany.example.com/api/health
+curl -s -o /dev/null -w "%{http_code}" https://crm.yourcompany.example.com/healthz
 ```
 Если DOWN → `docker compose -f /Users/timur/paperclip/docker/amritech/docker-compose.yml restart tunnel-tg` (или tunnel-dispatch, tunnel-crm)
 
@@ -61,7 +61,7 @@ curl -s -o /dev/null -w "%{http_code}" https://crm.amritech.us/healthz
 curl -v --connect-timeout 5 smtp://smtp.ionos.com:587 2>&1 | head -5
 curl -v --connect-timeout 5 imaps://imap.ionos.com:993 2>&1 | head -5
 ```
-Если не подключается → TG: "@tr00x, IONOS SMTP/IMAP недоступен. Внешняя проблема."
+Если не подключается → TG: "@cto_handle, IONOS SMTP/IMAP недоступен. Внешняя проблема."
 
 ### 2f. Docker общий статус
 ```bash

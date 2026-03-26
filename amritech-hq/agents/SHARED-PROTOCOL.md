@@ -43,7 +43,7 @@ POST /api/issues/{issueId}/checkout
 **Центр управления — Telegram.** Каждый heartbeat с полезной работой ДОЛЖЕН закончиться сообщением в TG через `send_message`.
 
 **ЗАПРЕЩЕНО в TG сообщениях:**
-- Ссылки на `app.paperclip.ing` или `paperclip.ing` — используй `dispatch.amritech.us`
+- Ссылки на `app.paperclip.ing` или `paperclip.ing` — используй `dispatch.yourcompany.example.com`
 - Слово "Paperclip" — используй "Штаб"
 - Внутренние технические детали (run ID, agent ID, API paths)
 
@@ -149,14 +149,14 @@ IT Chef ревьюит и применяет. Ты НЕ меняешь свои 
 {Agent} — Предложение:
 {описание наблюдения и идеи}
 Ожидаемый результат: {impact}
-Нужно решение от: @ikberik / @tr00x
+Нужно решение от: @founder_handle / @cto_handle
 ```
 
 ---
 
 ## Approval Protocol (запрос одобрения от людей)
 
-Некоторые действия требуют подтверждения от @ikberik или @tr00x. Не делай их сам — создай approval request и жди решения.
+Некоторые действия требуют подтверждения от @founder_handle или @cto_handle. Не делай их сам — создай approval request и жди решения.
 
 ### Обязательный approval:
 - **Первый email новому лиду** (SDR) — покажи текст письма, тему, кому
@@ -186,7 +186,7 @@ POST /api/companies/{companyId}/approvals
 ```
 
 ### После создания:
-1. Отправь в Telegram: "📋 Approval: {описание}. Жду решения @ikberik / @tr00x"
+1. Отправь в Telegram: "📋 Approval: {описание}. Жду решения @founder_handle / @cto_handle"
 2. Поставь связанную задачу в `blocked` с комментарием "Ждёт approval"
 3. НЕ продолжай работу до получения решения
 4. Когда approval одобрен — продолжай. Отклонён — прими feedback.

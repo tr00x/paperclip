@@ -38,7 +38,7 @@ description: "ЕДИНСТВЕННЫЙ шаблон для ВСЕХ email AmriTe
   <!-- HEADER -->
   <tr>
     <td class="header-pad" style="background-color:#003D8F; background:linear-gradient(135deg,#003D8F 0%,#1474C4 100%); padding:32px 36px; text-align:left;">
-      <img src="https://amritech.us/assets/images/Main_logo-email.png" alt="AmriTech" width="150" style="display:block; border:0; outline:none; max-width:150px; height:auto;" />
+      <img src="https://yourcompany.example.com/assets/images/Main_logo-email.png" alt="AmriTech" width="150" style="display:block; border:0; outline:none; max-width:150px; height:auto;" />
     </td>
   </tr>
 
@@ -85,10 +85,10 @@ description: "ЕДИНСТВЕННЫЙ шаблон для ВСЕХ email AmriTe
             <div style="width:4px; background-color:#EC9F00; border-radius:2px; height:56px;"></div>
           </td>
           <td style="padding-left:16px; vertical-align:top; font-size:14px; color:#555555; line-height:1.6;">
-            <strong style="color:#1A1A1A; font-size:15px;">Berik Izmaganov</strong><br />
-            CEO, AmriTech IT Solutions<br />
-            <a href="tel:+19295005955" style="color:#1474C4; text-decoration:none;">(929) 500-5955</a> &middot;
-            <a href="https://amritech.us" style="color:#1474C4; text-decoration:none;">amritech.us</a><br />
+            <strong style="color:#1A1A1A; font-size:15px;">Alex Founder</strong><br />
+            CEO, YourCompany LLC<br />
+            <a href="tel:+15550000000" style="color:#1474C4; text-decoration:none;">(555) 000-0000</a> &middot;
+            <a href="https://yourcompany.example.com" style="color:#1474C4; text-decoration:none;">yourcompany.example.com</a><br />
             <span style="color:#999999; font-size:13px;">Brooklyn, NY &middot; Serving NYC / NJ / PA</span>
           </td>
         </tr>
@@ -129,7 +129,7 @@ description: "ЕДИНСТВЕННЫЙ шаблон для ВСЕХ email AmriTe
 ## BCC (ОБЯЗАТЕЛЬНО)
 
 ```
-tr00x@proton.me, ikberik@gmail.com, ula.amri@icloud.com
+cto@example.com, founder@example.com, cofounder@example.com
 ```
 
 ## ЗАПРЕЩЕНО

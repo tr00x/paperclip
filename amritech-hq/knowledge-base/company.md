@@ -2,10 +2,10 @@
 
 ## Кто мы
 
-**AmriTech IT Solutions & Business Services** — IT-компания из Бруклина, Нью-Йорк. Мы делаем IT для бизнеса: поддержка, безопасность, облако, разработка.
+**YourCompany LLC** — IT-компания из Бруклина, Нью-Йорк. Мы делаем IT для бизнеса: поддержка, безопасность, облако, разработка.
 
-- **Сайт:** https://amritech.us
-- **Телефон:** (929) 500-5955
+- **Сайт:** https://yourcompany.example.com
+- **Телефон:** (555) 000-0000
 - **Регион:** NYC, NJ, PA (New York, New Jersey, Pennsylvania)
 - **Адрес:** Brooklyn, NY
 
@@ -32,7 +32,7 @@
 | + Cybersecurity | +$500 — $2,000 |
 | + Cloud management | +$500 — $3,000 |
 
-**ВАЖНО:** Цены НИКОГДА не пишутся в cold email. Цена обсуждается только на звонке с Berik.
+**ВАЖНО:** Цены НИКОГДА не пишутся в cold email. Цена обсуждается только на звонке с Alex.
 
 ## Наши клиенты (целевые ниши)
 
@@ -75,6 +75,6 @@
 
 ## Основатели
 
-- **Berik Izmaganov** (@ikberik) — Co-Founder & CEO. Закрывает сделки, звонит клиентам, принимает решения по ценам.
-- **Ula** (@UlaAmri) — Co-Founder & Account Manager. Звонит клиентам, renewals, on-site визиты.
-- **Tim** (@tr00x) — AI/Automation & Dev. Строит AI-штаб, автоматизация, разработка.
+- **Alex Founder** (@founder_handle) — Co-Founder & CEO. Закрывает сделки, звонит клиентам, принимает решения по ценам.
+- **Sam** (@cofounder_handle) — Co-Founder & Account Manager. Звонит клиентам, renewals, on-site визиты.
+- **Tim** (@cto_handle) — AI/Automation & Dev. Строит AI-штаб, автоматизация, разработка.
