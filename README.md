@@ -32,27 +32,17 @@ I built this over weeks of sleepless nights — a full AI-powered HQ for an MSP 
 
 ## Screenshots
 
-> Screenshots are in Russian — that's how we used it. The system is fully customizable to any language via the [Claude Code prompt below](#-one-click-customization-with-claude-code).
+> Screenshots are in Russian — that's how we used it. Fully customizable to any language via the [Claude Code prompt below](#one-click-customization-with-claude-code).
 
-<p align="center">
-  <img src="doc/assets/screenshots/tg-main-menu.jpg" alt="Main Menu" width="280" />
-  &nbsp;
-  <img src="doc/assets/screenshots/tg-sdr-report.png" alt="SDR Report" width="280" />
-  &nbsp;
-  <img src="doc/assets/screenshots/tg-hunter-report.png" alt="Hunter Report" width="280" />
-</p>
-<p align="center">
-  <sub>Main menu with 12 agents &bull; SDR SMTP throttling &bull; Hunter lead enrichment with ICP scoring</sub>
-</p>
+| Main Menu | SDR Report | Hunter Report |
+|:---------:|:----------:|:-------------:|
+| <img src="doc/assets/screenshots/tg-main-menu.jpg" width="250"/> | <img src="doc/assets/screenshots/tg-sdr-report.png" width="250"/> | <img src="doc/assets/screenshots/tg-hunter-report.png" width="250"/> |
+| 12 agents, full command center | SMTP throttling, auto-retry | ICP scoring, DM verification |
 
-<p align="center">
-  <img src="doc/assets/screenshots/tg-hunter-enrichment.png" alt="Hunter Enrichment" width="280" />
-  &nbsp;
-  <img src="doc/assets/screenshots/tg-watchdog-alerts.png" alt="Watchdog Alerts" width="280" />
-</p>
-<p align="center">
-  <sub>Lead scoring + task buttons &bull; Watchdog self-healing Docker restart loops</sub>
-</p>
+| Lead Enrichment | Watchdog Alerts |
+|:---------------:|:---------------:|
+| <img src="doc/assets/screenshots/tg-hunter-enrichment.png" width="250"/> | <img src="doc/assets/screenshots/tg-watchdog-alerts.png" width="250"/> |
+| Enrichment queue, stale lead cleanup | Self-healing Docker restarts |
 
 ---
 
