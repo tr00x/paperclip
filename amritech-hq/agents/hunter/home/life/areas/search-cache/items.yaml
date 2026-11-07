@@ -1,0 +1,12 @@
+# Search Results Cache
+# Hunter записывает сюда результаты web search чтобы не повторять запросы
+# Формат: query → результат + дата
+# Автоочистка: удалять записи старше 7 дней
+#
+# Пример:
+# - query: "dental clinic NJ Bergen County IT support"
+#   date: 2026-03-24
+#   results_count: 8
+#   useful: 3
+#   leads_found: ["Bergen Dental Arts", "Smile Design NJ"]
+#   status: done

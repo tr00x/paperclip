@@ -1,0 +1,5 @@
+tunnel: YOUR_DISPATCH_TUNNEL_ID
+ingress:
+  - hostname: dispatch.amritech.us
+    service: http://host.docker.internal:4444
+  - service: http_status:404

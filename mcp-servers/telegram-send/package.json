@@ -1,0 +1,9 @@
+{
+  "name": "amritech-telegram-send-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^4.3.6"
+  }
+}

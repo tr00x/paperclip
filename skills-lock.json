@@ -1,0 +1,1070 @@
+{
+  "version": 1,
+  "skills": {
+    "Accessibility Testing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "3d16e00e8a7cc98cc872f61cbc43d4d6be0e99db226bbdb54cc47d78079bb4b2"
+    },
+    "Code Review": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "e7ff434ae8ff6f8cc807d7e82fce3ef0b35c1d93077b4083f5520d228690fc4a"
+    },
+    "Debugging": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "7ba59bbd52a77b9bf55fcfaf01a54c2cb8afee5d9dd555d0b75c6430fdbf5e2c"
+    },
+    "File Organization": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "230b8786ada9d73742bca654e946096798dc697d83d5e661c701ccfcb9728df7"
+    },
+    "Frontend Design": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "130e73084dffd65bbcf096b2790a51fd782182fd5754a441e79d3bb403ea071a"
+    },
+    "Logo Design": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "081cda23fd25ec1196d711ca8fa9049aaa2342a49d91ab72188ac093601a9f9c"
+    },
+    "Meeting Scheduler": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "e76e932cd23fdd32e4d66fc176435aa39087dd6931d178943a74e870ac659f7a"
+    },
+    "Project Management": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "7e2655c67497e15ca88de3538ad627f26802b065e2d87fad79a8ca6ef509e998"
+    },
+    "Testing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "5ca86d879e6aefcd852c4be68522168d8886221da47ba6a30f07680bb93d29aa"
+    },
+    "User Flow Mapping": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "a9b16a2a3a8e5717d2664024164d1c319cd30f1beced1a5ff223226186ec8e31"
+    },
+    "Wireframing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "051797ceee3c799feca8a7059fdffe73e03f4f234cb096124523818ebf3faf4b"
+    },
+    "accessibility": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "4703c8270298a73c77efaa5f40f4775d2f9f448d959f1d4cf3fa6e13d3c69ae9"
+    },
+    "ai-cold-outreach": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "64511607c769f25f78b4db55a830799a38a98c11232543701a1d9a9c8fe4478c"
+    },
+    "ai-pricing": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "ff37960c9a45aa1082c033980463329f8f6c2b34826ed89c21b07c037a83d6e3"
+    },
+    "ai-sdr": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "efe929ac838685297351df6b7c732ab73b37f650fe68fcd44ab97f79af6bd912"
+    },
+    "ai-seo": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "8ff9c7d6181c37c92fb225a8559d50ee5413c20e6a7ae240e05bb6a532d64f9b"
+    },
+    "ai-ugc-ads": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "92f981122d6add656bd10cae4404fa94a79db93f3cad2cd978ef12a4eea51b83"
+    },
+    "analytics-reporting": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "fd48693b5fb0b9c38bae4856fa0e6304bcf9f574856fbec6db749c3ccee688a3"
+    },
+    "api-design": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "fe6059d61fd096507fa00ed8f2b18122ac1c5b8928951670c93cd7e725c21866"
+    },
+    "api-integration": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "5f8cd83958d51aac6e896f0bfea61d700f01a0088bef58320cdb2b7494320644"
+    },
+    "assignation-refere-communication-associe-selim-brihi": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "8299656ca872bb74137609ceed31e21a598f16589384b1a7487cf24325051993"
+    },
+    "assignation-refere-recouvrement-creance-selim-brihi": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "2dd67502c09bd24fb6e1962af5e0cb4ee2499cdc77ccdb14dc445b119ced08ee"
+    },
+    "aws-advisor": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "81ed1190ce613ef61907c9a460a7cf8847f330aaa6c88032ab22882bbc832125"
+    },
+    "best-practices": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "2abba650ba22a819e67f8c2fb09d0f5f33a24d66d945ee2ef824751bc97151ce"
+    },
+    "blog-post-writing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "d60007e2b4604d0058600f32da9402f04e0df8c29c8aa83bd95e5b0f2f151cfd"
+    },
+    "budget-planning": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "33f5e5f094d82250f5ca55e1e986842e392b61216940e35e3113f9f69d5a5861"
+    },
+    "canned-responses-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "aee7f62e25e929078ab1bbda442d09c28ba16438d8fecebadd8cf9953fad01f4"
+    },
+    "chatbot-conversation-design": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "db495ef617abff94ba67cbf75ff474c48ec138b56641294545041ff568e14a7e"
+    },
+    "chrome-devtools": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "249d0fb724d83a9dc1b81f5812b894d471b36e6e629407cd43f9b8135fe4630a"
+    },
+    "churn-analysis": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "9c1f07e12a1d57010f3be60c8dfcc69f82c30415ace497b330c82e0f006f1e72"
+    },
+    "ci-cd": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "192e900f4945db59543902205cbeff2dbe02b9fefae97e9609fcfd58450d1d26"
+    },
+    "cloud-monitoring": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "88f5c0edd4a36318af99b114759af9003289213fb07560ace7fccf6c89ea582f"
+    },
+    "cloudflare-deploy": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "b10c934b8deded5e1e0cf722e4a78f7efc6ebd814252e41aca8262d785fbfea0"
+    },
+    "code-documentation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "4edbe2d186f0be5e67c6116cf88f2ca85bee3788fa789686d4a9ac48652794e7"
+    },
+    "codenavi": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "ddca2f0860152b4c864a9d657c3cf8183597c8450f1ddfc7090953afece4cdf0"
+    },
+    "coding-guidelines": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "28a414c715d3c41aae28a25e2f109813ec3f246f76b5567c1e7d6a128cd289ff"
+    },
+    "competitive-battlecard-creation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "267fd0088a770f1fa0a257b9908a16232af02e517a0a4f5756bb918cbac56df2"
+    },
+    "compliance-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "b28078264082139c620df5e16d7e7e4984d84eb44c18b94ba3739f25b4c23c3f"
+    },
+    "compliance-checklist-generation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "f9dd6246f219bca6e9a20c350ca9aef8ffdd2599f3e0e976dca9622ff004517c"
+    },
+    "component-common-domain-detection": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "58c72d63eaf387cf11ae36b223ff80478ba861f53265e42a3c4fbcb3bc739208"
+    },
+    "component-flattening-analysis": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "085696b944897a2d8c96efb6e0a3faab00f910a62a49a45c3293c32458962411"
+    },
+    "component-identification-sizing": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "8ec5eb90e86cc84a346f15f50c86960d8f4ba6876f6fe27d687a1ba43a2448a0"
+    },
+    "confluence-assistant": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "b9f019173a7d864db1d0a9eca13ee920d294806ea4c5cabfb626ccaedbaaeae7"
+    },
+    "content-strategy": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "73fcef9807b33e538bcbab98f7487968d74b8c6fa02879deea75319e0ce7ece7"
+    },
+    "content-to-pipeline": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "adb48ccd986f5571a02be6de8543f09bebcead2102a7e270b14a7cb88a5f6fc1"
+    },
+    "context-compression": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "0ce6d9ed49ca415419c1eca99e0ddc4ea1d09e7531b8f142f85e9e0e503ad864"
+    },
+    "context-injection": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "1a47147610b24fb8e09c8292f5844662acd031cae4aaa8339a3560876c07bc6a"
+    },
+    "context-optimization": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "12fed35d512c77cecc1a58243c91c0c8265c5278453fc7b716476d7ed4ad9b3f"
+    },
+    "context-ranking": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "66195914b2fa7983bf6617b01ec96f29334206c0f3e444304ad53d5a3190c5fd"
+    },
+    "context-retrieval": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "d6eb7aec4e7a2177148e53c63825de2c12cfb90134e8850a47b81349fce2d49d"
+    },
+    "contract-review": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "1ad23e10cb898a9bfb66164d805d3cc22cf98a81a4f2a4a6c5af7d8dd784209b"
+    },
+    "contract-review-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "d833666d9c060827aae9a90e6731874b934a5b69f3eb7d7ef60076dcf010b4c6"
+    },
+    "cookie-policy-malik-taiar": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "59eb33f560bb2fa2b0034f0cbc1e67c782ce6452dd5c1330c41e19ad1ce67b3b"
+    },
+    "copywriting": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "27bd2dc0a0abbf4acd4b9d98546f76103888c0287da2b6cc5b1562b00f72e5d8"
+    },
+    "core-web-vitals": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3b683c894b69bc9186c85cbf3cbe362463b14413a09aa9b0466dc414de58db1d"
+    },
+    "coupling-analysis": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a33a142a73ac2e6b8db300acb3d13dba5077e225cbfad7599b0ac431290ab5c7"
+    },
+    "create-adr": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "47ec663c849e8c1620c6f33a7be0055acdcf838c27ab7c16f44260244b80195a"
+    },
+    "create-rfc": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "131a11e3053a72edd9432dc631b198cda21fae8dfa6ee8a45f31c8ce6e3d1797"
+    },
+    "crm-data-enrichment": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "fc66b784e115e39dd04ebb11fa10aeff0fa0ae283bfbd0f8b468e18f4e035aa4"
+    },
+    "cursor-subagent-creator": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "658a170d783a694e638814bed35a738184795da2d0f0b36489cac94a478cd8d7"
+    },
+    "customer-feedback-analysis": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "357538a46a6422ccd6b3dc11bf13620ad352f5b9b62c9097875ff108a8e55021"
+    },
+    "data-analysis": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "df7923374bdb2f3dded293694395d8a3e6a70a02d9dc8d2cb3848a1b11a16165"
+    },
+    "data-cleaning": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "9bc938bc2a24944bde46a73ea47f57b526478a29ca9006541369f03ced0e5403"
+    },
+    "data-labeling": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "ef4406422b71a855fbc0244e237882fa6fe83b87eeb6804d2055d5cdaad645ba"
+    },
+    "data-visualization": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "1ee6cec5571f95f6d3a26d0e23f886b2d233007e21b70b1fab86d4510dac2b3e"
+    },
+    "database-backup": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "cbfbe14920e031048d6b958245d85f94837a393f0457b11f2ba6f8419b6aee4c"
+    },
+    "database-migration": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "086829b1e641b53970adb30804167877ee290c2a85c1dc638fcbc83af541b56f"
+    },
+    "database-schema-design": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "308f3dfadec82527cac9d560b6ea60976def207ff5ca70449ae53e452c4889bb"
+    },
+    "database-seeding": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "ccf29c2746177c89a0d132cc4987dfde929938ed4e2e3f4d1b66126e315bdb01"
+    },
+    "decomposition-planning-roadmap": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "8de88d993b2556a6b38c26fd79c863f06bf7746faf87c0c9fd1b9a198a49e1ac"
+    },
+    "deep-research": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "70e58d4ce6163d8b9f1e8f3cf34b492863eebae6ce73fd967949688a0ba76a47"
+    },
+    "dependency-scanning": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "3ea999ef0ac1e0fb710730bcb6348d2536dba3b9077f1d17b0d451525c496e5d"
+    },
+    "docker-compose-setup": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "07513e8a4c81e3c3731757a5a96bd1d47eb3cd16f4eb23e7eb372837b27bad4d"
+    },
+    "docs-writer": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "50952880c5c74e9ceddf2250a199ef2e6f28cccdd381c193f67aebee85749f61"
+    },
+    "docx-processing-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "a80016425773ef05d77d65f65862b55e06beb9baa342aa590416b73c988b4091"
+    },
+    "docx-processing-lawvable": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "6864dafb577ccb2b9254ac02197c25d682b823dfd82b48fc8846725d97ff8e30"
+    },
+    "docx-processing-openai": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "67597d5ab9a97971dbdf0080aec3401022088b464a4a2c020d23c27d16fffee5"
+    },
+    "docx-processing-superdoc": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "7f7a5d5aaf63f97c8edf14f2493748643af786d55a0d02cf4352362745799517"
+    },
+    "domain-analysis": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "5914beeaf1aa1fe57cd95cf0afb60ee1cccc58eedaddd123a43cad32d6a70077"
+    },
+    "domain-identification-grouping": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "ac3c94d9910a75aa6a61f7866507d16a3c646ff17e86b79667d1a19c6fa6c659"
+    },
+    "dpia-sentinel-oliver-schmidt-prietz": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "6ca3fd1eb48da933813683209ec5420bd8cd26abc25f8c054537989de3747c8c"
+    },
+    "dynamic-application-security-testing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "c3ee06e4fa4dddd6782ca068d70df0fe97f88bfe5a3045a582d103389d375b6c"
+    },
+    "email-drafting": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "38734b9831aaa0b552e9d0ab985f6303bf6c5a0cd8d67cce10223207812f8486"
+    },
+    "excalidraw-studio": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "6091914509ddee7222b9c090e86b1519a604e5e39045878e75da2bb6c01bb98f"
+    },
+    "expansion-retention": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "e5420a123058969e8e5014d74120daf7a1c598e1fb44e6d152c6b60a71a81e95"
+    },
+    "expense-categorization": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "eddbf68e3caea714115ba4780852afc14648dc996a924d61494b2df3bbd35f7c"
+    },
+    "exploratory-data-analysis": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "031af2136a1d49a8393a89c6b3478526d11964e50f05542a02b35730d277ccca"
+    },
+    "fact-checking": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "9b50d4e90af5f8100eabfa24503e93e614fd6011a16fa980c6b78944c7f91024"
+    },
+    "figma": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "e84e929b8e2b1f5bbc0bc0d09f37af779c08586bd6cfb37634d75b59627e4ecc"
+    },
+    "figma-implement-design": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "6177778eac45026cf58d1f86447fa730e39389e54a99df2c5f35cd6905371b1d"
+    },
+    "financial-modeling": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "b6511d0d8c712ac587d4f08ee2d235b84063410326ebbdd6ba79fd20e55bdcd3"
+    },
+    "financial-report-generation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "b24395b3adf8da5ebe7872cfc53181c783acec19d6eb0388d6f368327eab4d71"
+    },
+    "frontend-blueprint": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "27dc464c36c76af765bc71687cd5673bc6165be3965e3c836fa3e6bccad3a9df"
+    },
+    "frontend-design": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "ce18ad1084061045769a2849f9fe9d4496fb75a615659773953f5ed36c81af76"
+    },
+    "gdpr-breach-sentinel-oliver-schmidt-prietz": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "a9424e4c378df9e4c83a0b2a95d28454a4c0efcbdc8f511064b918d0a44131de"
+    },
+    "gdpr-privacy-notice-eu-oliver-schmidt-prietz": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "7c0f118f6e5c2a54753bd77cbe9659d525f7dd0fcec8928bd7dca092a44b20cd"
+    },
+    "gh-address-comments": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "18748f3befd44276adbf66173e10088d50a4d5b11b3a791f7bd3bcb29bc3b55e"
+    },
+    "gh-fix-ci": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "7ae6c73cf7d62b6d51783d838d1f00f011330a3e446ed79caaf8407d0d88e5ee"
+    },
+    "graphql-api-design": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "6ffb351d8c90c6fd121f0c2d8316214050eb7400f3e60defc1507d8c68180730"
+    },
+    "gtm-engineering": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "7cf3fec362e892e19cd239d96646301541a7dba29e13aa551d0a0cfbf6755a42"
+    },
+    "gtm-metrics": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "9f2afa96826b0456cf79f05b43ab4470fd6802990e301bb898c2cbaa6f01cf5c"
+    },
+    "hyperparameter-tuning": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "2d12a5ac86484e714959c7550da214a34c96eb29f93538e6fa57b13da42d14d3"
+    },
+    "infrastructure-as-code": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "a819d3333874c25024788e760b96af6082d8ce5dfad42f35182f2403a8c358b5"
+    },
+    "invoice-processing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "bcd92a6d76b2f0a79c794885f381678a82af0a2489d7acce97fcc67e7fcc0747"
+    },
+    "jira-assistant": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "fa63880889d2206548e33489a0ac1aa849c4e6ab879ea769c2715521a8231c8a"
+    },
+    "keyword-research": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "d67cfd0fc8b4ee37c76af7642146e4800aef877dbbdd70b980d8b3dadbfddb9c"
+    },
+    "knowledge-base-article-writing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "5140be1d7b4e2b17b546e098d94d032055a798dc39bb09112da388d17b86d459"
+    },
+    "knowledge-graph-creation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "3a5410cb27f910736c2007024c0ca63a7fc1d5e4024ae53b57289fb6d205572a"
+    },
+    "kubernetes-deployment": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "97b14bd1b4d587de176d36698fca41e1e08cf7132b91bd551e9d0b7f4fcc5c3b"
+    },
+    "lead-enrichment": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "7f139e39f2039d8ae81ebae49a401dd7d58ea42c6d488978e3da8825cc38f2f4"
+    },
+    "lead-scoring": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "cb57f19819a87f51a922c53d7d16acb1de3a7dd0c5c595700fb66687194e8764"
+    },
+    "learning-opportunities": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "8acca3b3c22d3678ef28025504668e3a7d945c7b8a8d7117669fb7edcfc7c816"
+    },
+    "legacy-migration-planner": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "6490ba8b6821cf2d34e66038e841ccc88ab20866e2317dde9463c74bb34328b8"
+    },
+    "legal-risk-assessment-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "3940b04b694fc3c8097a1811f3033912337a7763c8da99dd333037299d365dbb"
+    },
+    "legal-risk-assessment-zacharie-laik": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "d5ee54752cda60df104b9a5439c1ec0770e3f009bb9f6d04fccaf964a1ceec43"
+    },
+    "legal-simulation-patrick-munro": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "2c789e0b09764fe25297fe0fdb5e5916db9ca00726a1b43d0c5d053a19c626f9"
+    },
+    "license-analysis": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "5a5a0fdc5ced21d65859bcf9e3111500a781c55dab3683463d768714c3eda9b2"
+    },
+    "literature-review": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "f0490fe6f4d58f3baf4fbeecee32ce2c87a29978b522efa02c0ec0b5814b347a"
+    },
+    "mediation-dispute-analysis": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "21a07bc43dc3c84dfc8ac40c216a07b9d6d7fd7a8bd692bbe05592b2981b2015"
+    },
+    "meeting-briefing-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "744132b7f4b9afda60eac7e5a2dae073aebab41fb005aedbb4abd362dc4a8faa"
+    },
+    "meeting-transcription": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "cf7261224057892ba76869612cc7810ba9a11dfd9733924fdb1960d395a7b919"
+    },
+    "mermaid-studio": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "ac6c344e21319a5c7426a1b8c21229afe9a687aa743bd366bf11cad66bef328d"
+    },
+    "ml-pipeline-creation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "c29df7d77c54c4d3426786bd117e925b4560ef130e9418ecdacab6e7a4b7f3e9"
+    },
+    "model-deployment": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "6371e439a69216b1f9d885f99ff2a60c83f3c672d80ce20adb590d21da9eb1f6"
+    },
+    "model-training": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "580e7f56f5ab39263b95b339e6b71cc1bc93b845d709137ec0eca7aecc1cbd8f"
+    },
+    "multi-platform-launch": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "61b5642bf2e2b4c031bfc3a5b8c9b52d97e6c955bd0de3047835881895bd7de0"
+    },
+    "nda-review-jamie-tso": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "69ed0e03a458df37b8ed1af9dbb390563531cab1afbe2d178b330069f084c3b5"
+    },
+    "nda-triage-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "05ca3ec9ab6eacb25fbc584eae1f10de17979222ffd373bc95660861a1e573ae"
+    },
+    "nestjs-modular-monolith": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "2fa6c972a68c5c458a730416a73d8c0385ae62c9cb42883e09a39003b1658d72"
+    },
+    "netlify-deploy": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "876d5bf1acba756c08c52af2dac67433de4ccd8920375fd1c827468fdca15df1"
+    },
+    "nil-contract-analysis-samir-patel": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "e4e8f3689018a2b80ccc1846eec31433728c7f3d80f5e65a8261363fa517ce8e"
+    },
+    "note-taking": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "7e953e54ca82f5e0c71263a08e954d7b0c352fb840d701cab8f3e54e53a04490"
+    },
+    "notification-licenciement-selim-brihi": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "6fc96f70939b5f4a1436210ce11da3a5271e0f8209bf27e624b8e248a8d9f56c"
+    },
+    "nx-ci-monitor": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "ddb5bf9bd2a5ca0eac8fa01632a19569baed922201b2cc501975edd77697f75c"
+    },
+    "nx-generate": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "b975e1a0caa6cc9922ba941e0746a2f141c708e41c8bbddb395d40e3efecf2a0"
+    },
+    "nx-run-tasks": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3c4d49d795b02e6a4a82606891a7da4773c3bc1ef883c1b980ac17596883397f"
+    },
+    "nx-workspace": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "98f13eaa7ad4c27c30bacf6270faab05c4be110f70c1cc1a256757dae717539d"
+    },
+    "oauth-2-0-setup": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "2a62910f8a170bb27ffbc32d53238aa587ccac8e4a322c1832e459e3c2ed7cee"
+    },
+    "onboarding-playbook-creation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "bbaedff8e4e17e7db54be170f465e94d7f9ac0bebb2e65e7f8147644c8d75ce7"
+    },
+    "outlook-emails-lawvable": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "e2f7cbb4b73b1a8fb564a20d4a8a1004b596853546884350d4fcae5b9f0eb1fb"
+    },
+    "paid-creative-ai": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "e77eb1b1c41125076faa0c4b902e35dcd501ad7d327e744df3236a35577dcaa6"
+    },
+    "paperclip": {
+      "source": "paperclipai/paperclip",
+      "sourceType": "github",
+      "computedHash": "c34e03fb08cad872be804034a0be97a93dda9a51871aaae04140d76767499442"
+    },
+    "paperclip-ai-orchestration": {
+      "source": "aradotso/trending-skills",
+      "sourceType": "github",
+      "computedHash": "f84c79e795d1b5f5eb5f9171390a7aa5d8dc360ff98e5c1ee8d141844798be02"
+    },
+    "paperclip-create-agent": {
+      "source": "paperclipai/paperclip",
+      "sourceType": "github",
+      "computedHash": "76c81419d8d5f00447c862ecd228e7ba05c3f69a5ab8e7b3a24b8e6eeccb4bc6"
+    },
+    "partner-affiliate": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "f3993ec82170a6699cf53e40e8bac27c504616ac20acc88762d584af909443a7"
+    },
+    "pdf-processing-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "4d112a0d50e8408a2d61e0d52a2d0c0ebf7195a07a386f0510d20912449eaa9a"
+    },
+    "pdf-processing-openai": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "06b013efe4b339e5a2febec5efcc293e775e4d3157e412fd6431878b5c28a354"
+    },
+    "perf-astro": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "11b50b27564085d9bff6d558bd4e9f31e5bce3c9a82af4c7203d9a4cd1ff43e4"
+    },
+    "perf-lighthouse": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "2ef96cebc94fda975a7bba9e37511bff65739c91e61b950be0bd3048b8c9760d"
+    },
+    "perf-web-optimization": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3f87654d3ec4f3f0a3e35ab5ec8fe7edbdf74644ffb5b4d4ad17d6978ddc3df6"
+    },
+    "playwright-skill": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "6dccfba9c78530f329f42ee575f9bedb6c33f07bea1ec2702e0da230af5580b7"
+    },
+    "positioning-icp": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "83ac0ce932d235ad5e7ddbda524b076c5d150cc34ccb554be9f18ebe33fb7a29"
+    },
+    "pptx-processing-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "23127ae5692d7662d8af64bf0ec2783c9bb6c3b3d2b3d76f374ba9675845f966"
+    },
+    "presentation-creation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "b4946d98bc29c1c4ef5e41a0cf1bcf84f63758da182ae7aa133b3f08da822ddf"
+    },
+    "privacy-policy-drafting": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "4e3aca3e2cd3ad640fc16bb166b2ab95eee8d11f6159a9e530a53b503df0546e"
+    },
+    "privacy-policy-malik-taiar": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "e8c168b8334b6f176438bd5ce65ae5fd8b327589ad69a758bf824ba3d08faac2"
+    },
+    "proofreading": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "791641d3be52c5a88e0cf16ba24108e2c45ac2ab69358629cae9c63bdc7e00e1"
+    },
+    "proposal-generation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "d45279057e79ac8dd6237c9b7056ca631015b6082051812863a79e74276a5042"
+    },
+    "query-optimization": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "e105449f16394f730b8fe4f9004fff9ca79d350dc1f9d181e39348d44b411669"
+    },
+    "react-best-practices": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "c93d6095b97a9473458f3b5c0df597f3cc6c67eda379ba843b94a3a4414f4fec"
+    },
+    "react-composition-patterns": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "d4e8a8297a85c183a41535cdddbbeaaa2a136111fa97cd14c990e42583fe50ed"
+    },
+    "react-native-expert": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "53c5c226b96d811f54a49b25808988b64c9732a28ef3647a8c8f9cbbbe842a40"
+    },
+    "red-team-verifier-patrick-munro": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "b54a33d94855009696a91aa243e666770d6d423f84f346cbbfee52adfde3299d"
+    },
+    "refactoring": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "c60555a8b2e1dd8661f0bdce36ad4f166cd6422edad607c5e701e8fad4fe8d33"
+    },
+    "render-deploy": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3d4f0b2be63da1cc220aabdbf31bb903b26e78cee51dfabb109b9ade703e09dd"
+    },
+    "report-generation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "68185e0824874eba1913df916352077138a90e71a1165608d8030997439cb1a0"
+    },
+    "requete-cph-licenciement-faute-grave-selim-brihi": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "fac10f0faca5a6d4befdd678d4fd7df74f3d0d028c97334216fe9a0eb5699489"
+    },
+    "sales-email-sequences": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "a000a0ae8066167ad61e703b2665878c1851b410d86c382be10a1b557252c04e"
+    },
+    "sales-motion-design": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "73e692e4cb79045176c9ac8e1f25e012fbb1f37c393f8307ae13c3e4b2b01641"
+    },
+    "security-audit": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "cdc4ec3c6380714c05a552c7e6a688415396f3cabed842783e79bc59ec1921c4"
+    },
+    "security-best-practices": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "c67ef448ff3e8eb0ca2cccb727b0216e356ca24fb62006c818988e9a102aaea0"
+    },
+    "security-ownership-map": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "e820b35ac654027e0fefc3c378afd00a4c8984c3b7d5c83bd0630871f8c93470"
+    },
+    "security-review-openai": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "fc2fea6f67888a18750fbce081cc8300517564ee48711176cfc19316e6254e8a"
+    },
+    "security-threat-model": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "f6a487a963da5fe6d9465b63589e89d4bb6a4c3809d62b3ef26a820b722e2985"
+    },
+    "sentry": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a2c90ddb685a4156237346e49794bc353456acb55a5c1a9941d8abdfcdee942a"
+    },
+    "seo": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "fc9897a3923b5e23e00545ac67f4c8c2b6903113bd5f046cda259c98a0f3cd40"
+    },
+    "seo-optimization": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "f3287268902a500b2c8316dc3c52f6eb9982390c8307af0e15e71bf330689e5a"
+    },
+    "shopify-developer": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "9e22552e85582f598c6e7bb75ac168e1b8836c9011d2cea5a2ed04bd61021d34"
+    },
+    "skill-architect": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "2a386780ff57627f2825efa2e81cecb94a13c2ccb03b8489391524a9ef48a56e"
+    },
+    "skill-creator-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "93fa7aec779edb289c90f1c1a9c8eeb12dfbb1d13e8d87c3fe9081876e77e453"
+    },
+    "skill-creator-openai": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "977e1fb96cffd332e859070f61b809ce2c75c76789b17ad91c5f9226fc6b37a5"
+    },
+    "skill-optimizer-lawvable": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "199765125719f47fd4b82774012d1365b160604aca01f12f7bd33ee1d9bc8d27"
+    },
+    "social-media-posting": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "1f2d1d78ecb99d7a88733cd58106e32c3cb09ebd387bedb3a975440a723ef3e7"
+    },
+    "social-selling": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "7cc6fba77aff372c64d8e2b97b2b645ef641ef78a266b602e5e6fdd74231460e"
+    },
+    "solo-founder-gtm": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "95d71f10ea8a48767cb871ad72c09745cb6ecd822ed71be659cbd960b6503445"
+    },
+    "sql-query-generation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "71ecbe762cc778c1043bf548c59b1daade61a84af95e7bbef46c17fd0c6d0e1f"
+    },
+    "static-application-security-testing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "c350c1a232c16db35275f28acd411cb46bafaeda87c720c143447f3dcd817cee"
+    },
+    "statute-analysis-rafal-fryc": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "7e98736091314ad22c07524f74f41b99660fa892b6cbc6d6f68525dd03806620"
+    },
+    "subagent-creator": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "bef6b5a9f23b3186af259c1041c2561e9af15fa94810009d72d775bb217aa3ca"
+    },
+    "summarization": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "9d3af6e601bfd274b1d20a8957c70121b11a7c5f1863138e158052de09499000"
+    },
+    "tabular-review-lawvable": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "e304c1e8f44d8da5e6ae129f783bd8dfa125a5cab92045023fb6a87507ba067c"
+    },
+    "task-automation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "5dc0209580044413239971b607c47dc77dfbbf1756ed11438923619f7c1417b4"
+    },
+    "tech-contract-negotiation-patrick-munro": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "aceb307a805d8e0b7683ed3ab05196636c97056120fc8f218c92a2586e72178e"
+    },
+    "technical-design-doc-creator": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "d05974df076f695f96b4e4c263ad19f2aaffe8ee6248c1b07a634dd9ed0ea51e"
+    },
+    "technical-writing": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "ac2ee99f3123315f3757c78c702afcf238f288d8285d56b7d1baa439ef1f741d"
+    },
+    "terms-of-service-generation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "9f0bcd091eea5183e9bedd98d39e7e4c34effda5b2022e4655e02a4fbd8eb671"
+    },
+    "the-fool": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "6bdba13f4c274424f97601061201c0333a620c0c8fe03f4d68f0f407806e6177"
+    },
+    "threat-modeling": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "a97131e6f4a53517516a9d7f5b1c75843e1089ee30a1f74728197dcfaffddde0"
+    },
+    "ticket-triage": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "d0224b86eb6e3dff31a9d6c50f420bed8fed60fd31e41f9400a2db6767012cf4"
+    },
+    "tlc-spec-driven": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "eb1790043c93e47a15112d21910bcc2301dbc5e05f48e46162a4d677efab8ff4"
+    },
+    "translation": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "cb1b803174a35665c18540d2d297087a507336b197649cd8d79373c4c7859743"
+    },
+    "vendor-due-diligence-patrick-munro": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "15031acf8daf0b926e68d52c4d0c04fe2db10c16690b7af19cdaeb1038bf6f82"
+    },
+    "vercel-deploy": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "c266fcfd367db0d2a4eada8416a10baf2a96306fa35bada18efea1c0c27d70a5"
+    },
+    "version-control": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "cc6ff2c2bab2eef5246d8b08c5b88d71ab70c3978c39d73f6baa2aabaeb20223"
+    },
+    "video-outreach": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "b918e2c62adf317b82ac43e4731e300ff4f163383aebe7ae8532f7ea69c24c29"
+    },
+    "vscode-extension-builder-lawvable": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "f42ade8c2904cfbc3e0c9ebc57a2692ddc2fc0d92cfdb95221ad430eaef77c48"
+    },
+    "web-design-guidelines": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "fc69ea7cbdb8ad8eb568ec9acbbb2eadee7711430c5f1cf137f98447f6d42be7"
+    },
+    "web-quality-audit": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "computedHash": "780c04d987fdc7aa617d2ee955cfdeca367051bc0f8e04d9648d4b902b940ca8"
+    },
+    "webhook-setup": {
+      "source": "seb1n/awesome-ai-agent-skills",
+      "sourceType": "github",
+      "computedHash": "0d77955c73314712efef955cfdeec557fb36199db793a6c256d8737842874122"
+    },
+    "whistleblower-policy-malik-taiar": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "f8046afd1fc7e21a3de155906cc097dce693d33542e1e7317416a8020296c7e5"
+    },
+    "xlsx-processing-anthropic": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "e0cb5de454966a839a0307b8655be2085360d4a79e08fb604ce341a0d2d81c73"
+    },
+    "xlsx-processing-manus": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "2df639f13defdf6552007d8351008e171ba1662f785f9aa9162c34357eb0eff3"
+    },
+    "xlsx-processing-openai": {
+      "source": "lawvable/awesome-legal-skills",
+      "sourceType": "github",
+      "computedHash": "f8b71c17d884f431d96a230be18200098c824dcad6ace4e425742fae0f6a73b7"
+    }
+  }
+}

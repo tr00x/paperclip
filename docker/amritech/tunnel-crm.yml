@@ -1,0 +1,5 @@
+tunnel: YOUR_CRM_TUNNEL_ID
+ingress:
+  - hostname: crm.amritech.us
+    service: http://twenty-server:3000
+  - service: http_status:404

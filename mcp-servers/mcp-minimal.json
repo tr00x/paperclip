@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "twenty-crm": {
+      "command": "npx",
+      "args": ["twenty-mcp-server", "start"],
+      "env": {
+        "TWENTY_API_KEY": "YOUR_TWENTY_API_KEY",
+        "TWENTY_BASE_URL": "http://localhost:5555"
+      }
+    }
+  }
+}

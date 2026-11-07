@@ -1,0 +1,100 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+drizzle/meta/
+.vite/
+coverage/
+.DS_Store
+data/
+.paperclip/
+.pnpm-store/
+tmp-*
+cli/tmp/
+
+# Serena IDE plugin state
+.serena/
+
+# Word temp files
+~$*
+
+# Claude Code memory/worktree files
+.claude/
+
+# Scratch/seed scripts (but not scripts/ dir)
+check-*.mjs
+!scripts/check-*.mjs
+new-agent*.json
+newcompany.json
+seed-*.mjs
+server/check-*.mjs
+server/seed-*.mjs
+packages/db/seed-*.mjs
+
+# npm publish build artifacts
+cli/package.dev.json
+
+# Build artifacts in src directories
+server/src/**/*.js
+server/src/**/*.js.map
+server/src/**/*.d.ts
+server/src/**/*.d.ts.map
+tmp/
+
+# Editor / tool temp files
+*.tmp
+.vscode/
+.paperclip-local/
+/.idea/
+/.agents/
+
+# Agent-specific skill directories (created by skills installer)
+/.adal/
+/.agent/
+/.augment/
+/.codebuddy/
+/.commandcode/
+/.continue/
+/.cortex/
+/.crush/
+/.factory/
+/.goose/
+/.iflow/
+/.junie/
+/.kilocode/
+/.kiro/
+/.kode/
+/.mcpjam/
+/.mux/
+/.neovate/
+/.openhands/
+/.pi/
+/.pochi/
+/.qoder/
+/.qwen/
+/.roo/
+/.trae/
+/.vibe/
+/.windsurf/
+/.zencoder/
+/.zed/
+/.cline/
+/.codex/
+/.cursor/
+/.gemini/
+
+# Doc maintenance cursor
+.doc-review-cursor
+
+# Playwright
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/release-smoke/test-results/
+tests/release-smoke/playwright-report/
+.superset/
+# Planning directory (internal dev notes)
+.planning/
+*.docx
+~$*

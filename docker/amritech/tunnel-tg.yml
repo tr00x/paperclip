@@ -1,0 +1,5 @@
+tunnel: YOUR_TG_TUNNEL_ID
+ingress:
+  - hostname: tg.amritech.us
+    service: http://telegram-webhook:3088
+  - service: http_status:404
